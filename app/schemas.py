@@ -36,6 +36,12 @@ class PasswordLoginIn(BaseModel):
     password: str
 
 
+class RegisterIn(BaseModel):
+    email: str
+    password: str
+    full_name: str
+
+
 class SubjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

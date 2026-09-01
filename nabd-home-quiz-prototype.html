@@ -791,7 +791,16 @@
         </button>
 
         <div class="auth-divider">أو</div>
-        <div class="link-muted">ليس لديك حساب؟ <span class="link-accent">فعّل حسابك بكود التفعيل</span></div>
+
+        <div class="form-field"><input id="authEmail" type="email" placeholder="البريد الإلكتروني" /></div>
+        <div class="form-field" id="authNameField" style="display:none;"><input id="authName" type="text" placeholder="الاسم الكامل" /></div>
+        <div class="form-field" style="margin-bottom:8px;"><input id="authPassword" type="password" placeholder="كلمة المرور" /></div>
+        <div id="authFormMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:12px;" id="authSubmitBtn" onclick="submitEmailAuth()">تسجيل الدخول</button>
+
+        <div class="link-muted" style="margin-top:14px;">
+          <span id="authToggleText">ليس لديك حساب؟</span> <span class="link-accent" onclick="toggleAuthMode()" id="authToggleLink">أنشئي حساب</span>
+        </div>
         <div class="link-muted" style="margin-top:14px;">بالمتابعة أنت توافق على الشروط وسياسة الخصوصية</div>
       </div>
     </div>
@@ -2035,6 +2044,13 @@
     hideAllViews();
     document.getElementById('view-login').classList.add('active');
     document.body.classList.add('auth-mode');
+    // Always land on the login form fresh, not stuck in "register" mode
+    // (with its extra name field) from a previous visit to this screen.
+    authMode = 'register';
+    toggleAuthMode();
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authName').value = '';
   }
   function togglePasswordVisibility(){ /* no longer used — kept as no-op for backward compatibility */ }
 
@@ -2060,6 +2076,57 @@
       goToOtpFromLogin();
     }, 1100);
   }
+
+  // ---------- Email + password sign-in / sign-up ----------
+  let authMode = 'login';
+  function toggleAuthMode(){
+    authMode = authMode === 'login' ? 'register' : 'login';
+    document.getElementById('authNameField').style.display = authMode === 'register' ? 'block' : 'none';
+    document.getElementById('authSubmitBtn').textContent = authMode === 'register' ? 'إنشاء الحساب' : 'تسجيل الدخول';
+    document.getElementById('authToggleText').textContent = authMode === 'register' ? 'عندك حساب؟' : 'ليس لديك حساب؟';
+    document.getElementById('authToggleLink').textContent = authMode === 'register' ? 'سجّلي دخولك' : 'أنشئي حساب';
+    const msg = document.getElementById('authFormMsg');
+    msg.style.display = 'none';
+  }
+
+  async function submitEmailAuth(){
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const msg = document.getElementById('authFormMsg');
+    msg.style.display = 'block';
+    if (!email || !password){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'أدخلي البريد الإلكتروني وكلمة المرور';
+      return;
+    }
+    try {
+      let data;
+      if (authMode === 'register'){
+        const fullName = document.getElementById('authName').value.trim();
+        if (!fullName){
+          msg.style.color = 'var(--danger)';
+          msg.textContent = 'أدخلي اسمك الكامل';
+          return;
+        }
+        data = await apiFetch('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({email, password, full_name: fullName}),
+        });
+      } else {
+        data = await apiFetch('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({email, password}),
+        });
+      }
+      authToken = data.access_token;
+      currentUser = data.user;
+      goHome();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر تسجيل الدخول';
+    }
+  }
+
   function goToOtpFromLogin(){
     hideAllViews();
     document.getElementById('view-otp').classList.add('active');

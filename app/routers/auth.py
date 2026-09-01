@@ -110,6 +110,35 @@ def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
     return schemas.LoginResponse(access_token=token, user=user)
 
 
+@router.post("/register", response_model=schemas.LoginResponse)
+def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
+    """Real email + password sign-up for students — the "أنشئي حساب" form,
+    an alternative to Google for anyone who'd rather not use it."""
+    email = body.email.strip()
+    full_name = body.full_name.strip()
+    if not full_name:
+        raise HTTPException(400, "الاسم الكامل مطلوب")
+    if len(body.password) < 8:
+        raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+    if not _domain_allowed(email):
+        raise HTTPException(403, "الرجاء التسجيل ببريدك الجامعي الرسمي")
+    if db.query(models.User).filter(models.User.email == email).first():
+        raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
+
+    # Same bootstrap rule as Google/dev-login: the very first account on an
+    # empty database becomes admin, regardless of which sign-up path it took.
+    is_first_user = db.query(models.User).first() is None
+    role = models.Role.admin if is_first_user else models.Role.student
+    user = models.User(email=email, full_name=full_name, role=role, password_hash=hash_password(body.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    session = start_new_session(db, user, "متصفح")
+    token = create_access_token(user.id, session.id)
+    return schemas.LoginResponse(access_token=token, user=user)
+
+
 @router.get("/me", response_model=schemas.UserOut)
 def me(user: models.User = Depends(get_current_user)):
     return user
