@@ -144,6 +144,45 @@ def me(user: models.User = Depends(get_current_user)):
     return user
 
 
+@router.put("/me/profile", response_model=schemas.UserOut)
+def update_my_profile(
+    body: schemas.ProfileUpdateIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Powers the mandatory "أكملي بياناتك" gate shown to any student whose
+    account (Google, password, or admin-created) hasn't supplied a phone
+    number, college/university, and study status yet — now that sign-up is
+    open to any email, this is the platform's only source of that data."""
+    if not body.full_name.strip():
+        raise HTTPException(400, "الاسم الكامل مطلوب")
+    if not body.phone.strip():
+        raise HTTPException(400, "رقم الهاتف مطلوب")
+
+    university = db.get(models.University, body.university_id)
+    if not university or university.section_id != body.section_id:
+        raise HTTPException(400, "الجامعة المختارة لا تتبع القسم المختار")
+
+    stage_id = None
+    if not body.is_graduate:
+        if not body.stage_id:
+            raise HTTPException(400, "المرحلة الدراسية مطلوبة للطلاب غير المتخرجين")
+        stage = db.get(models.Stage, body.stage_id)
+        if not stage or stage.university_id != body.university_id:
+            raise HTTPException(400, "المرحلة المختارة لا تتبع الجامعة المختارة")
+        stage_id = body.stage_id
+
+    user.full_name = body.full_name.strip()
+    user.phone = body.phone.strip()
+    user.section_id = body.section_id
+    user.university_id = body.university_id
+    user.is_graduate = body.is_graduate
+    user.stage_id = stage_id
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.get("/me/stats", response_model=schemas.StudentStatsOut)
 def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Powers the home screen's streak / answered-today / uni-rank chips —

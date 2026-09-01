@@ -541,3 +541,100 @@ async def upload_media(
     db.refresh(m)
     return {"id": m.id, "url": m.url}
 
+
+# ============================================================ ADMIN: store
+VALID_PRODUCT_TYPES = {t.value for t in models.ProductType}
+
+
+@router.get("/store/products", response_model=list[schemas.ProductAdminOut])
+def list_products_admin(db: Session = Depends(get_db)):
+    return db.query(models.Product).all()
+
+
+@router.post("/store/products", response_model=schemas.ProductAdminOut)
+def create_product(body: schemas.ProductIn, db: Session = Depends(get_db)):
+    if body.type not in VALID_PRODUCT_TYPES:
+        raise HTTPException(400, "نوع المنتج غير صالح")
+    if body.grants_subject_id and not db.get(models.Subject, body.grants_subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+    product = models.Product(
+        name=body.name.strip(), price=body.price, type=body.type,
+        is_activation_code=body.is_activation_code, grants_subject_id=body.grants_subject_id,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.put("/store/products/{product_id}", response_model=schemas.ProductAdminOut)
+def update_product(product_id: str, body: schemas.ProductIn, db: Session = Depends(get_db)):
+    product = db.get(models.Product, product_id)
+    if not product:
+        raise HTTPException(404, "المنتج غير موجود")
+    if body.type not in VALID_PRODUCT_TYPES:
+        raise HTTPException(400, "نوع المنتج غير صالح")
+    if body.grants_subject_id and not db.get(models.Subject, body.grants_subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+    product.name = body.name.strip()
+    product.price = body.price
+    product.type = body.type
+    product.is_activation_code = body.is_activation_code
+    product.grants_subject_id = body.grants_subject_id
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+@router.delete("/store/products/{product_id}")
+def delete_product(product_id: str, db: Session = Depends(get_db)):
+    product = db.get(models.Product, product_id)
+    if not product:
+        raise HTTPException(404, "المنتج غير موجود")
+    if db.query(models.OrderItem).filter(models.OrderItem.product_id == product_id).count():
+        raise HTTPException(400, "لا يمكن حذف منتج له طلبات مسجّلة")
+    db.delete(product)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/store/orders", response_model=list[schemas.OrderAdminOut])
+def list_orders_admin(db: Session = Depends(get_db)):
+    orders = db.query(models.Order).order_by(models.Order.created_at.desc()).all()
+    out = []
+    for o in orders:
+        buyer = db.get(models.User, o.user_id)
+        out.append(schemas.OrderAdminOut(
+            id=o.id,
+            buyer_name=buyer.full_name if buyer else "—",
+            buyer_email=buyer.email if buyer else "—",
+            total=o.total,
+            status=o.status,
+            payment_method=o.payment_method,
+            created_at=o.created_at,
+            delivery_name=o.delivery_name,
+            delivery_phone=o.delivery_phone,
+            delivery_address=o.delivery_address,
+            items=[
+                schemas.OrderAdminItemOut(
+                    product_name=item.product.name if item.product else "منتج محذوف",
+                    qty=item.qty, price=item.price,
+                )
+                for item in o.items
+            ],
+        ))
+    return out
+
+
+@router.put("/store/orders/{order_id}/status")
+def update_order_status(order_id: str, status: str, db: Session = Depends(get_db)):
+    valid_statuses = {s.value for s in models.OrderStatus}
+    if status not in valid_statuses:
+        raise HTTPException(400, "حالة غير صالحة")
+    order = db.get(models.Order, order_id)
+    if not order:
+        raise HTTPException(404, "الطلب غير موجود")
+    order.status = status
+    db.commit()
+    return {"ok": True}
+

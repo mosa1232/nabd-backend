@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import models
@@ -44,9 +45,30 @@ app.include_router(import_export.router)
 app.mount("/media-files", StaticFiles(directory=UPLOAD_DIR), name="media-files")
 
 
+def _patch_missing_columns():
+    """create_all() only creates tables that don't exist yet — it never adds
+    columns to a table that's already there. Since this project has no
+    migration tool, new columns on existing models (e.g. User.phone) would
+    silently never appear on a database that predates them. This walks each
+    model's columns against what's actually in the DB and ALTERs in whatever
+    is missing, so an upgrade is just "restart the server"."""
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not inspector.has_table(table.name):
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in existing:
+                    continue
+                col_type = column.type.compile(engine.dialect)
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}'))
+
+
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    _patch_missing_columns()
     # No demo data auto-seeded — this instance starts genuinely empty.
     # The very first person to sign in becomes admin (see auth.py) so
     # there's still a way in without fake accounts. Run `python seed.py`

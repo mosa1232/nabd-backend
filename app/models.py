@@ -24,6 +24,7 @@ class Role(str, enum.Enum):
 class ProductType(str, enum.Enum):
     digital = "digital"
     physical = "physical"
+    course = "course"
 
 
 class OrderStatus(str, enum.Enum):
@@ -56,11 +57,15 @@ class User(Base):
     role = Column(Enum(Role), default=Role.student, nullable=False)
     university_id = Column(String, ForeignKey("universities.id"), nullable=True)
     stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
+    section_id = Column(String, ForeignKey("sections.id"), nullable=True)
+    phone = Column(String, nullable=True)
+    is_graduate = Column(Boolean, nullable=True)  # null = not asked yet
     is_banned = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     university = relationship("University")
     stage = relationship("Stage")
+    section = relationship("Section")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
 

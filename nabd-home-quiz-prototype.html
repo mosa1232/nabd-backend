@@ -783,7 +783,7 @@
           <span class="display" style="font-size:1.1rem; font-weight:700;">نبض</span>
         </div>
         <div class="auth-title">مرحباً بعودتك</div>
-        <div class="auth-sub">سجّل الدخول ببريدك الجامعي عبر Google للمتابعة</div>
+        <div class="auth-sub">سجّل الدخول عبر Google للمتابعة</div>
 
         <button class="google-btn" id="googleBtn" onclick="startGoogleSignIn()">
           <span class="google-mark">G</span>
@@ -817,7 +817,7 @@
           <span class="mono" id="confirmEmail"></span>
           <span style="display:inline-flex; align-items:center; gap:4px; color:var(--success); font-weight:700; margin-inline-start:6px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M20 6 9 17l-5-5"/></svg>
-            بريد جامعي موثّق
+            بريد موثّق
           </span>
         </div>
 
@@ -828,6 +828,29 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
           <span>تسجيل الدخول من هذا الجهاز سيسجّل خروجك تلقائياً من أي جهاز آخر نشط حالياً، حفاظاً على أمان حسابك.</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COMPLETE PROFILE VIEW ============ -->
+  <div class="view" id="view-complete-profile">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="auth-title">أكملي بياناتك</div>
+        <div class="auth-sub">نحتاج بعض المعلومات لتخصيص تجربتك على نبض</div>
+
+        <div class="form-field"><input id="cpFullName" type="text" placeholder="الاسم الثلاثي" /></div>
+        <div class="form-field"><input id="cpPhone" type="tel" placeholder="رقم الهاتف" /></div>
+        <div class="form-field"><select id="cpSection" onchange="onCpSectionChange()"><option value="">اختاري التخصص/الكلية</option></select></div>
+        <div class="form-field"><select id="cpUniversity" onchange="onCpUniversityChange()" disabled><option value="">اختاري الجامعة</option></select></div>
+        <div class="form-field"><select id="cpGraduate" onchange="onCpGraduateChange()">
+          <option value="">هل أنتِ طالبة أم متخرجة؟</option>
+          <option value="0">ما زلت طالبة</option>
+          <option value="1">متخرجة</option>
+        </select></div>
+        <div class="form-field" id="cpStageField" style="display:none;"><select id="cpStage"><option value="">اختاري المرحلة</option></select></div>
+        <div id="cpMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:12px;" onclick="submitCompleteProfile()">حفظ ومتابعة</button>
       </div>
     </div>
   </div>
@@ -2120,10 +2143,106 @@
       }
       authToken = data.access_token;
       currentUser = data.user;
-      goHome();
+      proceedAfterAuth();
     } catch (e) {
       msg.style.color = 'var(--danger)';
       msg.textContent = e.detail || 'تعذّر تسجيل الدخول';
+    }
+  }
+
+  // ---------- Complete-profile gate ----------
+  // Sign-up is open to any email now (not just university ones), so this is
+  // the platform's only source of phone/college/university/study-status —
+  // shown once, right after the first successful login, before goHome().
+  function proceedAfterAuth(){
+    if (currentUser && currentUser.profile_complete === false){
+      showCompleteProfileView();
+    } else {
+      goHome();
+    }
+  }
+
+  let catalogTreeCache = null;
+  async function loadCatalogTreeForProfile(){
+    if (catalogTreeCache) return catalogTreeCache;
+    try { catalogTreeCache = await apiFetch('/api/catalog/tree'); } catch (e) { catalogTreeCache = []; }
+    return catalogTreeCache;
+  }
+
+  async function showCompleteProfileView(){
+    hideAllViews();
+    document.getElementById('view-complete-profile').classList.add('active');
+    document.body.classList.add('auth-mode');
+    document.getElementById('cpFullName').value = currentUser?.full_name || '';
+    document.getElementById('cpPhone').value = '';
+    document.getElementById('cpGraduate').value = '';
+    document.getElementById('cpStageField').style.display = 'none';
+    const tree = await loadCatalogTreeForProfile();
+    document.getElementById('cpSection').innerHTML = '<option value="">اختاري التخصص/الكلية</option>' +
+      tree.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    document.getElementById('cpUniversity').innerHTML = '<option value="">اختاري الجامعة</option>';
+    document.getElementById('cpUniversity').disabled = true;
+    document.getElementById('cpStage').innerHTML = '<option value="">اختاري المرحلة</option>';
+  }
+
+  function onCpSectionChange(){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('cpSection').value);
+    const uniSel = document.getElementById('cpUniversity');
+    uniSel.disabled = !section;
+    uniSel.innerHTML = '<option value="">اختاري الجامعة</option>' +
+      (section ? section.universities.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
+    onCpUniversityChange();
+  }
+
+  function onCpUniversityChange(){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('cpSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
+    document.getElementById('cpStage').innerHTML = '<option value="">اختاري المرحلة</option>' +
+      (uni ? uni.stages.map(st => `<option value="${st.id}">${st.name}</option>`).join('') : '');
+  }
+
+  function onCpGraduateChange(){
+    const isGraduate = document.getElementById('cpGraduate').value === '1';
+    document.getElementById('cpStageField').style.display = isGraduate ? 'none' : 'block';
+  }
+
+  async function submitCompleteProfile(){
+    const msg = document.getElementById('cpMsg');
+    msg.style.display = 'block';
+    const fullName = document.getElementById('cpFullName').value.trim();
+    const phone = document.getElementById('cpPhone').value.trim();
+    const sectionId = document.getElementById('cpSection').value;
+    const universityId = document.getElementById('cpUniversity').value;
+    const graduateVal = document.getElementById('cpGraduate').value;
+    const stageId = document.getElementById('cpStage').value;
+    if (!fullName || !phone || !sectionId || !universityId || graduateVal === ''){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'الرجاء تعبئة جميع الحقول';
+      return;
+    }
+    const isGraduate = graduateVal === '1';
+    if (!isGraduate && !stageId){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'الرجاء اختيار المرحلة الدراسية';
+      return;
+    }
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = 'جارٍ الحفظ...';
+    try {
+      const updated = await apiFetch('/auth/me/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          full_name: fullName, phone, section_id: sectionId, university_id: universityId,
+          is_graduate: isGraduate, stage_id: isGraduate ? null : stageId,
+        }),
+      });
+      currentUser = updated;
+      goHome();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر حفظ البيانات';
     }
   }
 
@@ -2139,7 +2258,7 @@
     document.body.classList.add('auth-mode');
   }
   function confirmOtp(){
-    goHome();
+    proceedAfterAuth();
   }
   async function loadRealProfile(){
     try {

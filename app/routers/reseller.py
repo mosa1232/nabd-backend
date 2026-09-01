@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -35,14 +37,44 @@ def my_codes(db: Session = Depends(get_db), user: models.User = Depends(get_curr
         .order_by(models.ActivationCode.sold_at.desc().nullslast())
         .all()
     )
-    # Codes are masked — a reseller can see they were sold/activated, never
-    # the student who redeemed them (per the SRS: no student-data access).
+    # The code itself is a reseller's own inventory — they need to read it out
+    # to actually hand it to a buyer. What stays hidden is *who* redeemed it
+    # (per the SRS: no student-data access) — this response never names them.
     return [
         {
             "id": c.id,
-            "code_masked": c.code[:4] + "••••",
+            "code": c.code,
             "status": c.status,
+            "subject_name": c.subject.name if c.subject_id else "VIP — جميع المواد",
             "sold_at": c.sold_at,
         }
         for c in codes
     ]
+
+
+@router.post("/codes")
+def take_codes(
+    count: int = 1,
+    subject_id: str | None = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Self-service version of the admin's "توليد أكواد" action — the
+    reseller dashboard's "أخذ كود" button. Mints idle codes straight into
+    the caller's own inventory, no admin step in between."""
+    _require_reseller(user)
+    if not (1 <= count <= 100):
+        raise HTTPException(400, "العدد يجب أن يكون بين 1 و100")
+    if subject_id and not db.get(models.Subject, subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+
+    codes = []
+    for _ in range(count):
+        code_str = f"NBD-{secrets.token_hex(3).upper()}"
+        db.add(models.ActivationCode(
+            code=code_str, subject_id=subject_id,
+            status=models.CodeStatus.idle, reseller_id=user.id,
+        ))
+        codes.append(code_str)
+    db.commit()
+    return {"codes": codes}

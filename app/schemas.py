@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 class UserOut(BaseModel):
@@ -10,6 +10,36 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: str
+    is_banned: bool = False
+    phone: Optional[str] = None
+    university_id: Optional[str] = None
+    section_id: Optional[str] = None
+    stage_id: Optional[str] = None
+    is_graduate: Optional[bool] = None
+
+    @computed_field
+    @property
+    def profile_complete(self) -> bool:
+        """Drives the student app's "complete your profile" gate. Professors/
+        admins/resellers are created directly by an admin and never need it."""
+        if self.role != "student":
+            return True
+        if not self.phone or not self.university_id or not self.section_id:
+            return False
+        if self.is_graduate is None:
+            return False
+        if self.is_graduate is False and not self.stage_id:
+            return False
+        return True
+
+
+class ProfileUpdateIn(BaseModel):
+    full_name: str
+    phone: str
+    section_id: str
+    university_id: str
+    is_graduate: bool
+    stage_id: Optional[str] = None
 
 
 class LoginResponse(BaseModel):
@@ -192,6 +222,11 @@ class ProductOut(BaseModel):
     type: str
 
 
+class ProductAdminOut(ProductOut):
+    is_activation_code: bool = False
+    grants_subject_id: Optional[str] = None
+
+
 class OrderItemIn(BaseModel):
     product_id: str
     qty: int = 1
@@ -254,3 +289,31 @@ class BanStatusOut(BaseModel):
     status: Optional[str] = None
     appeal_message: Optional[str] = None
     appealed_at: Optional[datetime] = None
+
+
+class ProductIn(BaseModel):
+    name: str
+    price: int
+    type: str  # "digital" | "physical" | "course"
+    is_activation_code: bool = False
+    grants_subject_id: Optional[str] = None
+
+
+class OrderAdminItemOut(BaseModel):
+    product_name: str
+    qty: int
+    price: int
+
+
+class OrderAdminOut(BaseModel):
+    id: str
+    buyer_name: str
+    buyer_email: str
+    total: int
+    status: str
+    payment_method: str
+    created_at: datetime
+    delivery_name: Optional[str] = None
+    delivery_phone: Optional[str] = None
+    delivery_address: Optional[str] = None
+    items: list[OrderAdminItemOut] = []
