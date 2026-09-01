@@ -31,18 +31,25 @@ def _domain_allowed(email: str) -> bool:
     return any(email.lower().endswith("@" + d.lower()) for d in allowed)
 
 
+def _no_admin_exists(db: Session) -> bool:
+    return db.query(models.User).filter(models.User.role == models.Role.admin).first() is None
+
+
 def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models.User:
     user = db.query(models.User).filter(models.User.email == email).first()
     if user:
         if not user.google_sub:
             user.google_sub = sub
             db.commit()
+        # Bootstrap: if the platform somehow has zero admins (e.g. someone
+        # signed up as a student before any admin existed), the next person
+        # to sign in — even on an existing account — becomes admin, so
+        # there's never a dead end with no way into the admin dashboard.
+        if user.role != models.Role.admin and _no_admin_exists(db):
+            user.role = models.Role.admin
+            db.commit()
         return user
-    # Bootstrap: on a database with no accounts at all yet (no seed data,
-    # no prior signups), the very first person to sign in becomes admin —
-    # otherwise there'd be no way into the admin dashboard at all.
-    is_first_user = db.query(models.User).first() is None
-    role = models.Role.admin if is_first_user else models.Role.student
+    role = models.Role.admin if _no_admin_exists(db) else models.Role.student
     user = models.User(email=email, full_name=name, google_sub=sub, role=role)
     db.add(user)
     db.commit()
@@ -125,10 +132,9 @@ def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.email == email).first():
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
 
-    # Same bootstrap rule as Google/dev-login: the very first account on an
-    # empty database becomes admin, regardless of which sign-up path it took.
-    is_first_user = db.query(models.User).first() is None
-    role = models.Role.admin if is_first_user else models.Role.student
+    # Same bootstrap rule as Google/dev-login: if there's no admin on the
+    # platform yet, this new account becomes one, regardless of sign-up path.
+    role = models.Role.admin if _no_admin_exists(db) else models.Role.student
     user = models.User(email=email, full_name=full_name, role=role, password_hash=hash_password(body.password))
     db.add(user)
     db.commit()
