@@ -499,7 +499,7 @@
     <div class="hero glass">
       <div class="hero-top">
         <div>
-          <div class="hero-greeting" data-i18n="greeting">مرحباً، عمر 👋</div>
+          <div class="hero-greeting" id="heroGreeting" data-i18n="greeting">مرحباً، عمر 👋</div>
           <div class="hero-sub" data-i18n="greetingSub">استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل</div>
         </div>
         <div class="stat-ring" style="--p:64"><span>64%</span></div>
@@ -801,11 +801,11 @@
   <div class="view" id="view-otp">
     <div class="auth-view">
       <div class="auth-card glass">
-        <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); margin:0 auto 14px;">ع.س</div>
+        <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); margin:0 auto 14px;">؟</div>
         <div class="auth-title">تم التحقق من حسابك</div>
         <div class="auth-sub">
-          <span id="confirmName">عمر الساعدي</span><br />
-          <span class="mono" id="confirmEmail">omar.alsaadi@uob.edu.iq</span>
+          <span id="confirmName">جارٍ التحميل...</span><br />
+          <span class="mono" id="confirmEmail"></span>
           <span style="display:inline-flex; align-items:center; gap:4px; color:var(--success); font-weight:700; margin-inline-start:6px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M20 6 9 17l-5-5"/></svg>
             بريد جامعي موثّق
@@ -1054,6 +1054,9 @@
   // (left untouched in the HTML) when logged out or unreachable.
   async function loadHomeStats(){
     if (!authToken) return;
+    if (currentUser?.full_name){
+      document.getElementById('heroGreeting').textContent = `مرحباً، ${currentUser.full_name.split(' ')[0]} 👋`;
+    }
     try {
       const s = await apiFetch('/auth/me/stats');
       document.getElementById('statStreak').textContent = s.streak_days;
@@ -2085,7 +2088,7 @@
         document.getElementById('view-banned').classList.add('active');
         loadBanStatus();
       }
-      // Otherwise: backend unreachable or token expired — the static demo profile stays shown.
+      // Otherwise: backend unreachable or token expired — stays on "جارٍ التحميل..." rather than showing fake data.
     }
   }
 
@@ -2139,11 +2142,15 @@
     }
   }
 
-  // If we just landed back here from Google's real redirect, skip the
-  // login screen and show the confirm step with the actual account.
+  // No visitor sees the dashboard (with its placeholder name/stats) before
+  // signing in for real — either they just landed back from Google's
+  // redirect with a token, or they haven't signed in yet and go to the
+  // login screen instead of the "view-home" that's active by default in the HTML.
   if (authToken){
     goToOtpFromLogin();
     loadRealProfile();
+  } else {
+    goToLogin();
   }
 </script>
 </body>
