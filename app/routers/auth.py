@@ -38,7 +38,12 @@ def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models
             user.google_sub = sub
             db.commit()
         return user
-    user = models.User(email=email, full_name=name, google_sub=sub, role=models.Role.student)
+    # Bootstrap: on a database with no accounts at all yet (no seed data,
+    # no prior signups), the very first person to sign in becomes admin —
+    # otherwise there'd be no way into the admin dashboard at all.
+    is_first_user = db.query(models.User).first() is None
+    role = models.Role.admin if is_first_user else models.Role.student
+    user = models.User(email=email, full_name=name, google_sub=sub, role=role)
     db.add(user)
     db.commit()
     db.refresh(user)

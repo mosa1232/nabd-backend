@@ -8,7 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import models
 from .config import get_settings
-from .database import Base, SessionLocal, engine
+from .database import Base, engine
 from .routers import activation, admin, auth, bans, catalog, courses, import_export, professors, questions, reseller, store
 from .routers.admin import UPLOAD_DIR
 
@@ -47,14 +47,10 @@ app.mount("/media-files", StaticFiles(directory=UPLOAD_DIR), name="media-files")
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    # Self-seeds an empty database — matters on hosts with ephemeral disk,
-    # where every redeploy/restart otherwise boots with nothing in it.
-    from seed import run_seed
-    db = SessionLocal()
-    try:
-        run_seed(db)
-    finally:
-        db.close()
+    # No demo data auto-seeded — this instance starts genuinely empty.
+    # The very first person to sign in becomes admin (see auth.py) so
+    # there's still a way in without fake accounts. Run `python seed.py`
+    # yourself if you ever want the demo dataset back for local testing.
 
 
 @app.get("/health")
