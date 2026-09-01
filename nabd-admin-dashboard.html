@@ -814,6 +814,20 @@
     }
   }
 
+  // In offline-preview mode the demo dataset is what the user explicitly
+  // asked for. In live mode it must never appear: the header badge says
+  // "بيانات حقيقية", so silently falling back to invented rows when a request
+  // fails would present fabricated data as real. Fail loudly and empty instead.
+  async function liveOrDemo(path, demoValue, emptyValue){
+    if (!liveMode) return demoValue;
+    try {
+      return await apiFetch(path);
+    } catch (e) {
+      showToast(e.detail || 'تعذّر تحميل البيانات من الخادم', 'error');
+      return emptyValue !== undefined ? emptyValue : [];
+    }
+  }
+
   // ---------- Confirm modal (replaces window.confirm, which browsers
   // silently suppress after repeated use on one page) ----------
   function confirmModal(message){
@@ -1070,9 +1084,14 @@
     if (liveMode){
       try {
         kpi = await apiFetch('/api/admin/overview');
-        const logs = await apiFetch('/api/admin/logs?limit=6');
-        activity = logs;
-      } catch(e){}
+        activity = await apiFetch('/api/admin/logs?limit=6');
+      } catch(e){
+        // Never leave the demo KPIs (12k students, 42m revenue) on screen
+        // while the badge claims these are real numbers.
+        showToast(e.detail || 'تعذّر تحميل بيانات النظرة العامة', 'error');
+        kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0};
+        activity = [];
+      }
     }
     document.getElementById('kpiStudents').textContent = kpi.total_students.toLocaleString('en-US');
     document.getElementById('kpiActivations').textContent = kpi.active_activations.toLocaleString('en-US');
@@ -1092,12 +1111,7 @@
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
 
-    if (liveMode){
-      try { allAccounts = await apiFetch('/api/admin/users'); }
-      catch(e){ allAccounts = demoAccounts(); }
-    } else {
-      allAccounts = demoAccounts();
-    }
+    allAccounts = await liveOrDemo('/api/admin/users', demoAccounts());
     renderAccountsTable();
   }
   function demoAccounts(){
@@ -1271,7 +1285,7 @@
       {level:3, type:'subject', name:'التشريح', meta:'1 سؤال'},
       {level:3, type:'subject', name:'الفسلجة', meta:'0 سؤال'},
     ];
-    if (liveMode){ try { rows = await apiFetch('/api/admin/catalog'); } catch(e){} }
+    rows = await liveOrDemo('/api/admin/catalog', rows);
     allCatalogRows = rows;
     const typeIcon = {section:'book', university:'grid', stage:'log', subject:'pdf'};
     const childOf = {section:'university', university:'stage', stage:'subject'};
@@ -1491,7 +1505,7 @@
       {id:2, name:'حسين كاظم', university:'جامعة بغداد', stage:'المرحلة الثانية', avg_score:54, is_banned:false},
       {id:3, name:'مريم صالح', university:'جامعة بغداد', stage:'المرحلة الثانية', avg_score:82, is_banned:false},
     ];
-    if (liveMode){ try { students = await apiFetch('/api/admin/students'); } catch(e){} }
+    students = await liveOrDemo('/api/admin/students', students);
     document.getElementById('studentsBody').innerHTML = students.map(s => `
       <tr>
         <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent-2)">${initialsOf(s.name)}</div><div class="cell-name">${s.name}</div></div></td>
@@ -1517,7 +1531,7 @@
   let allBans = [];
   async function loadBans(){
     let bans = [{id:'1', user_id:'demo', user_name:'زهراء علي', reason:'مشاركة الحساب مع طالب آخر', status:'active', appeal_message:null, created_at: new Date()}];
-    if (liveMode){ try { bans = await apiFetch('/api/admin/bans'); } catch(e){} }
+    bans = await liveOrDemo('/api/admin/bans', bans);
     allBans = bans;
     renderBanTabs();
   }
@@ -1578,7 +1592,7 @@
       {filename:'anatomy-slide-01.jpg', content_type:'image/jpeg', size_bytes:482000},
       {filename:'booklet-week1.pdf', content_type:'application/pdf', size_bytes:1240000},
     ];
-    if (liveMode){ try { files = await apiFetch('/api/admin/media'); } catch(e){} }
+    files = await liveOrDemo('/api/admin/media', files);
     document.getElementById('mediaGrid').innerHTML = files.map(f => `
       <div class="file-card glass">
         <div class="file-thumb">${(f.content_type||'').includes('pdf') ? ICONS.pdf : ICONS.media}</div>
@@ -1694,7 +1708,7 @@
 
   async function loadLogs(){
     let logs = [];
-    if (liveMode){ try { logs = await apiFetch('/api/admin/logs?limit=30'); } catch(e){} }
+    logs = await liveOrDemo('/api/admin/logs?limit=30', logs);
     if (!logs.length){
       logs = [
         {action:'تسجيل دخول', user_id:'—', ip_address:'37.236.14.2', created_at: new Date()},
@@ -1712,7 +1726,17 @@
     if (profDashboard) return profDashboard;
     if (liveMode){
       try { profDashboard = await apiFetch('/api/professors/me/dashboard'); return profDashboard; }
-      catch(e){}
+      catch(e){
+        // A real professor must never be shown another (invented) professor's
+        // name and content just because their own request failed.
+        showToast(e.detail || 'تعذّر تحميل بيانات لوحة الدكتور', 'error');
+        profDashboard = {
+          professor: {name: currentUser?.full_name || '—', title: '', subject: ''},
+          booklet_count: 0, exam_count: 0, student_count: 0, avg_student_score: null,
+          booklets: [], exams: [],
+        };
+        return profDashboard;
+      }
     }
     profDashboard = {
       professor:{name:'د. أحمد الجبوري', title:'أستاذ مساعد', subject:'التشريح'},
@@ -1728,7 +1752,7 @@
     document.getElementById('pKpiExams').textContent = d.exam_count;
     document.getElementById('pKpiStudents').textContent = d.student_count;
     document.getElementById('pKpiAvg').textContent = d.avg_student_score != null ? d.avg_student_score + '%' : '—';
-    document.getElementById('pWelcomeText').textContent = `مرحباً ${d.professor.name} — ${d.professor.title} في ${d.professor.subject}. من هنا تقدرين ترفعين ملازم جديدة، تبنين امتحانات، وتتابعين مستوى طلابك.`;
+    document.getElementById('pWelcomeText').textContent = `مرحباً ${d.professor.name} — ${d.professor.title} في ${d.professor.subject}. من هنا تقدر ترفع ملازم جديدة، تبني امتحانات، وتتابع مستوى طلابك.`;
   }
   async function loadProfessorBooklets(){
     const d = await fetchProfDashboard();
@@ -1970,7 +1994,7 @@
       {name:'حسين كاظم', last_answered_at: new Date(Date.now()-86400e3), answered_count:7, avg_score:54},
       {name:'مريم صالح', last_answered_at: new Date(Date.now()-3*86400e3), answered_count:3, avg_score:82},
     ];
-    if (liveMode){ try { students = await apiFetch('/api/professors/me/students'); } catch(e){} }
+    students = await liveOrDemo('/api/professors/me/students', students);
     document.getElementById('pStudentsBody').innerHTML = students.map(s => `
       <tr>
         <td><div class="cell-name">${s.name}</div></td>
@@ -1985,7 +2009,7 @@
   async function loadResellerOverview(){
     drawBars('resellerBars', [2,4,1,5,3,6,2], ['سبت','أحد','اثن','ثلا','أرب','خمس','جمع']);
     let s = {available:4, sold:8, activated:5};
-    if (liveMode){ try { s = await apiFetch('/api/reseller/summary'); } catch(e){} }
+    s = await liveOrDemo('/api/reseller/summary', s, {available:0, sold:0, activated:0});
     document.getElementById('rKpiAvailable').textContent = s.available;
     document.getElementById('rKpiSold').textContent = s.sold;
     document.getElementById('rKpiActivated').textContent = s.activated;
@@ -1995,7 +2019,7 @@
       {code:'NBD-A1B2C3', status:'active', sold_at:new Date()},
       {code:'NBD-D4E5F6', status:'idle', sold_at:new Date(Date.now()-86400e3)},
     ];
-    if (liveMode){ try { codes = await apiFetch('/api/reseller/codes'); } catch(e){} }
+    codes = await liveOrDemo('/api/reseller/codes', codes);
     const sold = codes.filter(c => c.sold_at);
     document.getElementById('resellerCodesBody').innerHTML = sold.map(c => `
       <tr><td class="mono">${c.code}</td><td><span class="badge ${c.status==='active'?'badge-active':'badge-idle'}">${c.status==='active'?'مفعّل':'غير مفعّل'}</span></td><td>${fmtDate(c.sold_at)}</td></tr>

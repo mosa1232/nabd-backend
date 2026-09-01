@@ -585,7 +585,7 @@
       <button class="icon-btn" onclick="goHome()" aria-label="رجوع">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
-      <div class="quiz-count">السؤال <span class="mono" id="qIndex">1</span> / <span class="mono">3</span> · التشريح</div>
+      <div class="quiz-count">السؤال <span class="mono" id="qIndex">0</span> / <span class="mono" id="qTotal">0</span></div>
       <div class="quiz-timer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
         <span class="mono" id="timer">24:10</span>
@@ -602,8 +602,8 @@
         </div>
       </div>
       <div class="q-body">
-        <div class="q-eyebrow" id="qEyebrow">علم الأنسجة</div>
-        <div class="q-text" id="qText">أي من الخلايا التالية مسؤولة عن تكوين غمد الميالين حول محاور الخلايا العصبية في الجهاز العصبي المركزي؟</div>
+        <div class="q-eyebrow" id="qEyebrow"></div>
+        <div class="q-text" id="qText">جارٍ التحميل...</div>
       </div>
       <div class="options" id="qOptions"></div>
     </div>
@@ -861,15 +861,11 @@
     </div>
 
     <div class="prof-header glass">
-      <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2))">ع.س</div>
+      <div class="prof-header-avatar" id="accAvatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2))"></div>
       <div>
-        <div class="prof-header-name">عمر الساعدي</div>
-        <div class="prof-header-title mono">0770•••4567</div>
-        <div class="prof-tags">
-          <span class="prof-tag">طب بشري</span>
-          <span class="prof-tag">جامعة بغداد</span>
-          <span class="prof-tag">المرحلة الثانية</span>
-        </div>
+        <div class="prof-header-name" id="accName">—</div>
+        <div class="prof-header-title mono" id="accPhone"></div>
+        <div class="prof-tags" id="accTags"></div>
       </div>
     </div>
 
@@ -1064,10 +1060,15 @@
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.body.classList.remove('auth-mode');
   }
-  function goToQuiz(){
+  async function goToQuiz(){
     if (typeof stopPlayerTimer === 'function') stopPlayerTimer();
     hideAllViews();
     document.getElementById('view-quiz').classList.add('active');
+    document.getElementById('qText').textContent = 'جارٍ التحميل...';
+    document.getElementById('qOptions').innerHTML = '';
+    qi = 0;
+    await loadApiQuestions();
+    renderQuestion();
     startTimer();
   }
   function goHome(){
@@ -1120,99 +1121,67 @@
   function stopTimer(){ clearInterval(timerInt); timerInt = null; }
 
   // ---------- Questions ----------
-  const questions = [
-    {
-      eyebrow:'علم الأنسجة',
-      text:'أي من الخلايا التالية مسؤولة عن تكوين غمد الميالين حول محاور الخلايا العصبية في الجهاز العصبي المركزي؟',
-      options:['الخلايا النجمية (Astrocytes)','قليلة التغصن (Oligodendrocytes)','الخلايا البطانية العصبية (Ependymal)','الخلايا الدبقية الصغيرة (Microglia)'],
-      correct:1,
-      rationale:'<b>قليلة التغصن العصبية</b> هي المسؤولة عن تصنيع غمد الميالين داخل الجهاز العصبي المركزي، بينما تقوم الخلايا الشوانية بهذا الدور في الجهاز العصبي الطرفي. الخلايا النجمية تدعم الحاجز الدموي الدماغي، والدبقية الصغيرة مسؤولة عن الاستجابة المناعية.'
-    },
-    {
-      eyebrow:'التشريح العصبي',
-      text:'يمر العصب المتوسط (Median nerve) عبر أي بنية تشريحية عند مستوى الرسغ؟',
-      options:['نفق رسغي (Carpal tunnel)','ثلم كوعي (Cubital tunnel)','نفق طرسوسي (Tarsal tunnel)','الثقبة الوداجية'],
-      correct:0,
-      rationale:'يمر <b>العصب المتوسط</b> عبر <b>النفق الرسغي</b> مع أوتار العضلات المثنية، وضغطه في هذه المنطقة هو سبب متلازمة النفق الرسغي الشائعة سريرياً.'
-    },
-    {
-      eyebrow:'الفسلجة',
-      text:'ما هو التأثير المباشر لتنشيط الجهاز العصبي السمبثاوي على معدل ضربات القلب؟',
-      options:['يبطئ معدل ضربات القلب','يزيد معدل ضربات القلب','لا يؤثر على القلب','يوقف القلب مؤقتاً'],
-      correct:1,
-      rationale:'تنشيط الجهاز <b>السمبثاوي</b> يؤدي إلى إطلاق النورأدرينالين الذي يرفع معدل ضربات القلب وقوة الانقباض، تحضيراً لاستجابة "الكر أو الفر"، على عكس الجهاز نظير السمبثاوي الذي يبطئ القلب عبر العصب المبهم.'
-    }
-  ];
+  // Questions come only from the server's question bank — the app never
+  // shows invented medical content as if it were real study material.
+  const questions = [];
   let qi = 0;
 
-  let usingApi = false;
   let apiQuestions = [];
   let apiSubjectId = null;
 
+  // Picks the subjects that belong to the student's own stage (set in the
+  // complete-profile gate), falling back to the first stage in the catalogue
+  // only when the student has no stage recorded yet.
   async function resolveApiSubjectId(){
     if (apiSubjectId) return apiSubjectId;
     try {
       const tree = await apiFetch('/api/catalog/tree');
-      const subjects = tree?.[0]?.universities?.[0]?.stages?.[0]?.subjects || [];
-      apiSubjectId = subjects.find(s => s.name === 'التشريح')?.id || subjects[0]?.id || null;
+      let subjects = null;
+      for (const section of tree || []){
+        for (const uni of section.universities || []){
+          for (const stage of uni.stages || []){
+            if (stage.id === currentUser?.stage_id){ subjects = stage.subjects || []; break; }
+          }
+        }
+      }
+      if (!subjects) subjects = tree?.[0]?.universities?.[0]?.stages?.[0]?.subjects || [];
+      apiSubjectId = subjects[0]?.id || null;
     } catch (e) { apiSubjectId = null; }
     return apiSubjectId;
   }
 
-  async function tryLoadApiQuestions(){
-    usingApi = false;
+  async function loadApiQuestions(){
+    apiQuestions = [];
     if (!authToken) return;
     try {
       const subjId = await resolveApiSubjectId();
       if (!subjId) return;
       const data = await apiFetch('/api/subjects/' + subjId + '/questions?limit=10');
-      if (Array.isArray(data) && data.length){
-        apiQuestions = data;
-        usingApi = true;
-      }
-    } catch (e) { /* backend unreachable or no questions yet — keep local demo set */ }
+      if (Array.isArray(data)) apiQuestions = data;
+    } catch (e) { apiQuestions = []; }
   }
 
+  // The correct answer is never sent to the client up front — we post the
+  // student's pick and the server grades it.
   function renderQuestion(){
-    if (usingApi){ renderApiQuestion(); return; }
-    const q = questions[qi];
-    document.getElementById('qEyebrow').textContent = q.eyebrow;
+    const optWrap = document.getElementById('qOptions');
+    const total = apiQuestions.length;
+    document.getElementById('qTotal').textContent = total;
+    if (!total){
+      document.getElementById('qEyebrow').textContent = '';
+      document.getElementById('qText').textContent = 'لا توجد أسئلة متاحة لمرحلتك بعد';
+      document.getElementById('qIndex').textContent = 0;
+      document.getElementById('qProgress').style.width = '0%';
+      optWrap.innerHTML = '';
+      document.getElementById('rationale').classList.remove('show');
+      document.getElementById('prevBtn').style.visibility = 'hidden';
+      return;
+    }
+    const q = apiQuestions[qi % total];
+    document.getElementById('qEyebrow').textContent = q.eyebrow || '';
     document.getElementById('qText').textContent = q.text;
     document.getElementById('qIndex').textContent = qi + 1;
-    document.getElementById('qProgress').style.width = ((qi+1)/questions.length*100) + '%';
-    const optWrap = document.getElementById('qOptions');
-    optWrap.innerHTML = '';
-    q.options.forEach((opt, idx) => {
-      const b = document.createElement('button');
-      b.className = 'option';
-      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx]}</span><span>${opt}</span>`;
-      b.addEventListener('click', () => selectOption(idx));
-      optWrap.appendChild(b);
-    });
-    document.getElementById('rationale').classList.remove('show');
-    document.getElementById('rationaleText').innerHTML = q.rationale;
-    document.getElementById('prevBtn').style.visibility = qi === 0 ? 'hidden' : 'visible';
-  }
-
-  function selectOption(idx){
-    const q = questions[qi];
-    const opts = document.querySelectorAll('#qOptions .option');
-    opts.forEach(o => o.classList.add('locked'));
-    opts[idx].classList.add(idx === q.correct ? 'correct' : 'wrong');
-    if (idx !== q.correct) opts[q.correct].classList.add('correct');
-    document.getElementById('rationale').classList.add('show');
-  }
-
-  // Real-backend path: the correct answer is never sent to the client up
-  // front — we post the student's pick and the server grades it, exactly
-  // like the local demo but with server-authoritative grading.
-  function renderApiQuestion(){
-    const q = apiQuestions[qi % apiQuestions.length];
-    document.getElementById('qEyebrow').textContent = q.eyebrow || 'من الخادم';
-    document.getElementById('qText').textContent = q.text;
-    document.getElementById('qIndex').textContent = qi + 1;
-    document.getElementById('qProgress').style.width = ((qi+1)/apiQuestions.length*100) + '%';
-    const optWrap = document.getElementById('qOptions');
+    document.getElementById('qProgress').style.width = ((qi+1)/total*100) + '%';
     optWrap.innerHTML = '';
     q.choices.forEach((choice, idx) => {
       const b = document.createElement('button');
@@ -1246,39 +1215,23 @@
   }
 
   function changeQuestion(dir){
-    const len = usingApi ? apiQuestions.length : questions.length;
+    const len = apiQuestions.length;
+    if (!len) return;
     qi = (qi + dir + len) % len;
     renderQuestion();
   }
-  renderQuestion();
 
   // ---------- Lightbox ----------
   function openZoom(){ document.getElementById('lightbox').classList.add('show'); }
   function closeZoom(){ document.getElementById('lightbox').classList.remove('show'); }
 
   // ---------- Professors Hub ----------
-  const professors = [
-    {id:1, name:'د. أحمد الجبوري', title:'أستاذ مساعد', subject:'التشريح', uni:'جامعة بغداد', color:'#4C5FE0', booklets:14, exams:6, followers:1240},
-    {id:2, name:'د. رنا الخفاجي', title:'أستاذ', subject:'التشريح', uni:'جامعة بغداد', color:'#7B6EF6', booklets:9, exams:4, followers:860},
-    {id:3, name:'د. سامر العبيدي', title:'مدرّس', subject:'الفسلجة', uni:'جامعة بغداد', color:'#FF8A5B', booklets:11, exams:5, followers:970},
-    {id:4, name:'د. نور الدين حسن', title:'أستاذ مساعد', subject:'الأنسجة', uni:'جامعة بغداد', color:'#1FAE72', booklets:8, exams:3, followers:640},
-    {id:5, name:'د. زينب كريم', title:'أستاذ', subject:'الكيمياء الحيوية', uni:'جامعة بغداد', color:'#E5484D', booklets:12, exams:7, followers:1100},
-  ];
+  // Professors come only from GET /api/professors — no invented staff.
+  const professors = [];
 
-  const bookletsBySubject = {
-    'التشريح':[{t:'المحاضرة 1: مقدمة في التشريح العام', p:22},{t:'المحاضرة 2: الجهاز الهيكلي', p:30},{t:'المحاضرة 3: الجهاز العضلي', p:26},{t:'ملزمة المختبر العملي', p:18}],
-    'الفسلجة':[{t:'المحاضرة 1: فسلجة الخلية العصبية', p:20},{t:'المحاضرة 2: فسلجة القلب والدوران', p:28},{t:'المحاضرة 3: فسلجة الجهاز التنفسي', p:24},{t:'ملخص فسلجة الكلى', p:16}],
-    'الأنسجة':[{t:'المحاضرة 1: الأنسجة الطلائية', p:19},{t:'المحاضرة 2: الأنسجة الضامة', p:23},{t:'المحاضرة 3: الجهاز العصبي — الأنسجة', p:27},{t:'أطلس الشرائح النسيجية', p:34}],
-    'الكيمياء الحيوية':[{t:'المحاضرة 1: الأحماض الأمينية والبروتينات', p:25},{t:'المحاضرة 2: الإنزيمات والتحفيز الحيوي', p:21},{t:'المحاضرة 3: استقلاب الكربوهيدرات', p:29},{t:'ملزمة المختبر الكيميائي', p:15}],
-    'عام':[{t:'دليل استراتيجيات حل الأسئلة', p:14},{t:'إدارة الوقت أثناء الامتحان', p:10}],
-  };
-  const examsBySubject = {
-    'التشريح':[{t:'كويز الفصل الأول — تشريح', q:25, m:30, a:412},{t:'امتحان منتصف الفصل', q:50, m:60, a:298},{t:'بنك أسئلة أعوام سابقة', q:100, m:90, a:156}],
-    'الفسلجة':[{t:'كويز الفصل الأول — فسلجة', q:25, m:30, a:355},{t:'امتحان منتصف الفصل', q:45, m:55, a:240},{t:'بنك أسئلة أعوام سابقة', q:90, m:80, a:130}],
-    'الأنسجة':[{t:'كويز الفصل الأول — أنسجة', q:20, m:25, a:280},{t:'امتحان منتصف الفصل', q:40, m:50, a:190},{t:'بنك أسئلة أعوام سابقة', q:80, m:75, a:110}],
-    'الكيمياء الحيوية':[{t:'كويز الفصل الأول — كيمياء حيوية', q:25, m:30, a:300},{t:'امتحان منتصف الفصل', q:50, m:60, a:210},{t:'بنك أسئلة أعوام سابقة', q:95, m:85, a:140}],
-    'عام':[{t:'اختبار قياس السرعة', q:20, m:20, a:520},{t:'محاكاة امتحان شامل', q:60, m:70, a:340}],
-  };
+  // Booklets/exams come only from the professor API.
+  const bookletsBySubject = {};
+  const examsBySubject = {};
 
   const pdfIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>';
   const examIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="m9.5 13 2 2 4-4"/></svg>';
@@ -1289,11 +1242,14 @@
     return clean.split(' ').map(w => w[0]).slice(0, 2).join('');
   }
 
-  const subjectList = ['all', 'التشريح', 'الفسلجة', 'الأنسجة', 'الكيمياء الحيوية'];
+  // Subject chips are derived from whichever professors actually exist,
+  // rather than a fixed list that may not match this platform's catalogue.
+  function subjectListFor(list){
+    return ['all', ...[...new Set(list.map(p => p.subject).filter(Boolean))]];
+  }
 
-  // Real-backend path: fetch /api/professors once per session and normalize
-  // it into the same shape the local demo array uses, so every render
-  // function below works unmodified whichever source is active.
+  // Professors are fetched from GET /api/professors and normalized into the
+  // shape every render function below expects.
   const profColors = ['#4C5FE0', '#7B6EF6', '#FF8A5B', '#1FAE72', '#E5484D'];
   let usingApiProfessors = false;
   let apiProfessorsNormalized = null;
@@ -1321,7 +1277,7 @@
   function renderProfFilters(active){
     const wrap = document.getElementById('profFilters');
     wrap.innerHTML = '';
-    subjectList.forEach(s => {
+    subjectListFor(activeProfessorsList()).forEach(s => {
       const b = document.createElement('button');
       b.className = 'filter-chip' + (s === active ? ' active' : '');
       b.textContent = s === 'all' ? 'الكل' : s;
@@ -1413,16 +1369,10 @@
   }
 
   // ---------- Store ----------
-  const products = [
-    {id:1, name:'كود تفعيل VIP — جميع المواد (سنة كاملة)', price:45000, type:'digital', icon:'key'},
-    {id:2, name:'كورس التشريح الشامل (فيديو)', price:25000, type:'digital', icon:'play'},
-    {id:3, name:'كود تفعيل مادة واحدة', price:15000, type:'digital', icon:'key'},
-    {id:4, name:'كورس مهارات الامتحان الشامل', price:20000, type:'digital', icon:'play'},
-    {id:5, name:'سماعة طبية (ستيثوسكوب)', price:35000, type:'physical', icon:'stetho'},
-    {id:6, name:'حقيبة أدوات طبية متكاملة', price:60000, type:'physical', icon:'bag'},
-    {id:7, name:'ملزمة ورقية مطبوعة — التشريح', price:12000, type:'physical', icon:'book'},
-    {id:8, name:'مطرقة فحص عصبي (Reflex Hammer)', price:8000, type:'physical', icon:'hammer'},
-  ];
+  // Filled from GET /api/store/products — the store never invents inventory,
+  // so an empty catalogue shows an empty state instead of items nobody can
+  // actually be sold.
+  let products = [];
   const productIcons = {
     key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>',
     play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="currentColor" stroke="none"/></svg>',
@@ -1451,17 +1401,34 @@
     });
   }
 
+  // The backend's three product types map onto the icon set the cards use.
+  const PRODUCT_TYPE_ICON = {digital: 'key', course: 'play', physical: 'bag'};
+  const PRODUCT_TYPE_BADGE = {digital: 'رقمي', course: 'كورس', physical: 'منتج'};
+
+  async function loadStoreProducts(){
+    if (!authToken){ products = []; return; }
+    try {
+      const real = await apiFetch('/api/store/products');
+      products = Array.isArray(real) ? real : [];
+    } catch (e) { products = []; }
+  }
+
   function renderProducts(filter){
     const list = filter === 'all' ? products : products.filter(p => p.type === filter);
-    document.getElementById('productGrid').innerHTML = list.map(p => `
+    const grid = document.getElementById('productGrid');
+    if (!list.length){
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:28px 16px; color:var(--ink-faint); font-size:.86rem;">${products.length ? 'لا توجد منتجات ضمن هذا التصنيف' : 'لا توجد منتجات معروضة حالياً'}</div>`;
+      return;
+    }
+    grid.innerHTML = list.map(p => `
       <div class="product-card glass">
         <div class="product-icon-wrap">
-          <span class="product-badge ${p.type}">${p.type === 'digital' ? 'رقمي' : 'منتج'}</span>
-          ${productIcons[p.icon]}
+          <span class="product-badge ${p.type === 'physical' ? 'physical' : 'digital'}">${PRODUCT_TYPE_BADGE[p.type] || p.type}</span>
+          ${productIcons[PRODUCT_TYPE_ICON[p.type] || 'key']}
         </div>
         <div class="product-name">${p.name}</div>
         <div class="product-price mono">${fmtPrice(p.price)}</div>
-        <button class="btn product-add" onclick="addToCart(${p.id})">أضف للسلة</button>
+        <button class="btn product-add" onclick="addToCart('${p.id}')">أضف للسلة</button>
       </div>
     `).join('');
   }
@@ -1480,7 +1447,7 @@
   }
 
   function cartHasPhysical(){
-    return Object.keys(cart).some(id => cart[id] > 0 && products.find(p => p.id == id).type === 'physical');
+    return Object.keys(cart).some(id => cart[id] > 0 && products.find(p => p.id == id)?.type === 'physical');
   }
   function cartTotal(){
     return Object.keys(cart).reduce((sum, id) => {
@@ -1504,17 +1471,18 @@
     }
     itemsWrap.innerHTML = ids.map(id => {
       const p = products.find(x => x.id == id);
+      if (!p) return '';
       return `
         <div class="cart-item glass">
-          <div class="cart-item-icon">${productIcons[p.icon]}</div>
+          <div class="cart-item-icon">${productIcons[PRODUCT_TYPE_ICON[p.type] || 'key']}</div>
           <div class="cart-item-body">
             <div class="cart-item-name">${p.name}</div>
             <div class="cart-item-price mono">${fmtPrice(p.price)}</div>
           </div>
           <div class="qty-stepper">
-            <button class="qty-btn" onclick="changeCartQty(${p.id},-1)">−</button>
+            <button class="qty-btn" onclick="changeCartQty('${p.id}',-1)">−</button>
             <span class="qty-value">${cart[id]}</span>
-            <button class="qty-btn" onclick="changeCartQty(${p.id},1)">+</button>
+            <button class="qty-btn" onclick="changeCartQty('${p.id}',1)">+</button>
           </div>
         </div>`;
     }).join('');
@@ -1535,11 +1503,13 @@
     renderCart();
   }
 
-  function goToStore(){
+  async function goToStore(){
     hideAllViews();
     document.getElementById('view-store').classList.add('active');
     renderStoreFilters('all');
-    renderProducts('all');
+    document.getElementById('productGrid').innerHTML = '<div class="empty-state" style="grid-column:1/-1; text-align:center; padding:28px 16px; color:var(--ink-faint); font-size:.86rem;">جارٍ التحميل...</div>';
+    await loadStoreProducts();
+    renderProducts(storeFilter);
     updateCartBadge();
   }
   function backHomeFromStore(){
@@ -1561,6 +1531,16 @@
 
   // ---------- Checkout ----------
   let selectedPayment = 'zaincash';
+
+  // The cart's "متابعة الشراء" button pointed at this for the whole life of
+  // the prototype, but it was never defined — the button did nothing.
+  function goToCheckout(){
+    if (!Object.keys(cart).some(id => cart[id] > 0)) return;
+    hideAllViews();
+    document.getElementById('view-checkout').classList.add('active');
+    renderCheckout();
+  }
+
   function renderCheckout(){
     const hasPhysical = cartHasPhysical();
     selectedPayment = 'zaincash';
@@ -1613,17 +1593,6 @@
     document.querySelectorAll('.pay-option').forEach(el => el.classList.toggle('active', el.dataset.pay === method));
   }
 
-  let apiProductMap = null; // local product name -> real backend product id
-  async function resolveApiProductMap(){
-    if (apiProductMap) return apiProductMap;
-    try {
-      const real = await apiFetch('/api/store/products');
-      apiProductMap = {};
-      real.forEach(p => { apiProductMap[p.name] = p.id; });
-    } catch (e) { apiProductMap = null; }
-    return apiProductMap;
-  }
-
   async function confirmOrder(){
     const hasPhysical = cartHasPhysical();
     if (hasPhysical){
@@ -1639,44 +1608,41 @@
       errEl.style.display = 'none';
     }
 
-    const orderNo = 'NBD-' + Math.floor(10000 + Math.random()*89999);
-    let apiNote = '';
-    let codesNote = '';
+    // An order is only ever "confirmed" if the server actually recorded it —
+    // never show a success screen (or invent an order number) for a request
+    // that failed or was never sent.
+    const errEl = document.getElementById('deliveryError');
+    const showOrderError = (msg) => {
+      if (errEl){ errEl.textContent = msg; errEl.style.display = 'block'; }
+      else alert(msg);
+    };
 
-    if (authToken){
-      try {
-        const map = await resolveApiProductMap();
-        const ids = Object.keys(cart).filter(id => cart[id] > 0);
-        const items = [];
-        let allMatched = map && ids.length > 0;
-        ids.forEach(id => {
-          const p = products.find(x => x.id == id);
-          const realId = p && map ? map[p.name] : null;
-          if (realId) items.push({product_id: realId, qty: cart[id]});
-          else allMatched = false;
-        });
-        if (allMatched){
-          const body = {items, payment_method: selectedPayment};
-          if (hasPhysical){
-            body.delivery_name = document.getElementById('deliveryName').value.trim();
-            body.delivery_phone = document.getElementById('deliveryPhone').value.trim();
-            body.delivery_address = document.getElementById('deliveryAddress').value.trim();
-          }
-          const order = await apiFetch('/api/store/orders', {
-            method: 'POST',
-            body: JSON.stringify(body),
-          });
-          apiNote = ` · طلب مسجّل فعلياً على الخادم رقم ${order.id}`;
-          if (order.granted_activation_codes && order.granted_activation_codes.length){
-            codesNote = `
-              <div class="glass" style="padding:14px 16px; margin-top:14px; text-align:start;">
-                <div style="font-weight:700; font-size:.82rem; margin-bottom:6px;">تم تفعيل كود التفعيل تلقائياً على حسابك</div>
-                ${order.granted_activation_codes.map(c => `<div class="mono" style="font-size:.85rem;">${c}</div>`).join('')}
-              </div>`;
-          }
-        }
-      } catch (e) { /* backend rejected or unreachable — local confirmation still shown below */ }
+    if (!authToken){ showOrderError('الرجاء تسجيل الدخول لإتمام الطلب'); return; }
+    const items = Object.keys(cart)
+      .filter(id => cart[id] > 0)
+      .map(id => ({product_id: id, qty: cart[id]}));
+    if (!items.length){ showOrderError('السلة فارغة'); return; }
+
+    let order;
+    try {
+      const body = {items, payment_method: selectedPayment};
+      if (hasPhysical){
+        body.delivery_name = document.getElementById('deliveryName').value.trim();
+        body.delivery_phone = document.getElementById('deliveryPhone').value.trim();
+        body.delivery_address = document.getElementById('deliveryAddress').value.trim();
+      }
+      order = await apiFetch('/api/store/orders', {method: 'POST', body: JSON.stringify(body)});
+    } catch (e) {
+      showOrderError(e.detail || 'تعذّر إرسال الطلب — حاول مرة أخرى');
+      return;
     }
+
+    const codesNote = (order.granted_activation_codes && order.granted_activation_codes.length)
+      ? `<div class="glass" style="padding:14px 16px; margin-top:14px; text-align:start;">
+           <div style="font-weight:700; font-size:.82rem; margin-bottom:6px;">تم تفعيل كود التفعيل تلقائياً على حسابك</div>
+           ${order.granted_activation_codes.map(c => `<div class="mono" style="font-size:.85rem;">${c}</div>`).join('')}
+         </div>`
+      : '';
 
     document.getElementById('checkoutBody').innerHTML = `
       <div class="confirm-panel glass">
@@ -1684,7 +1650,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
         </div>
         <div class="confirm-title">تم إرسال طلبك بنجاح</div>
-        <div class="confirm-sub">رقم الطلب <span class="mono">${orderNo}</span> — ${selectedPayment === 'zaincash' ? 'سيتم تفعيل طلبك فور تأكيد الدفع عبر زين كاش' : 'سيتواصل معك المندوب لتأكيد التوصيل'}${apiNote}</div>
+        <div class="confirm-sub">رقم الطلب <span class="mono">${order.id}</span> — ${selectedPayment === 'zaincash' ? 'سيتم تفعيل طلبك فور تأكيد الدفع عبر زين كاش' : 'سيتواصل معك المندوب لتأكيد التوصيل'}</div>
         ${codesNote}
         <button class="btn" onclick="cart={}; updateCartBadge(); goHome();">العودة للرئيسية</button>
       </div>
@@ -1697,31 +1663,8 @@
   }
 
   // ---------- Video Academy ----------
-  const courses = [
-    {id:1, title:'كورس التشريح الشامل', instructor:'د. أحمد الجبوري', subject:'التشريح', color:'#4C5FE0', lectures:[
-      {title:'مقدمة في التشريح العام', dur:'18:24', done:true},
-      {title:'الجهاز الهيكلي — الجزء الأول', dur:'26:10', done:true},
-      {title:'الجهاز الهيكلي — الجزء الثاني', dur:'22:45', done:false},
-      {title:'الجهاز العضلي', dur:'31:02', done:false},
-      {title:'مراجعة عملية على المختبر', dur:'15:38', done:false},
-    ]},
-    {id:2, title:'أساسيات الفسلجة', instructor:'د. سامر العبيدي', subject:'الفسلجة', color:'#FF8A5B', lectures:[
-      {title:'فسلجة الخلية العصبية', dur:'20:12', done:true},
-      {title:'فسلجة القلب والدوران', dur:'27:40', done:false},
-      {title:'فسلجة الجهاز التنفسي', dur:'19:55', done:false},
-      {title:'فسلجة الكلى — ملخص', dur:'16:20', done:false},
-    ]},
-    {id:3, title:'مهارات الامتحان الشامل', instructor:'فريق Kiur الأكاديمي', subject:'عام', color:'#7B6EF6', lectures:[
-      {title:'كيف تدير وقتك أثناء الامتحان', dur:'12:05', done:false},
-      {title:'استراتيجيات حل الأسئلة متعددة الخيارات', dur:'17:48', done:false},
-      {title:'التعامل مع القلق قبل الامتحان', dur:'14:30', done:false},
-    ]},
-    {id:4, title:'أطلس الأنسجة التطبيقي', instructor:'د. نور الدين حسن', subject:'الأنسجة', color:'#1FAE72', lectures:[
-      {title:'الأنسجة الطلائية — تصنيف وأمثلة', dur:'23:15', done:true},
-      {title:'الأنسجة الضامة', dur:'21:50', done:false},
-      {title:'الجهاز العصبي تحت المجهر', dur:'28:33', done:false},
-    ]},
-  ];
+  // Courses come only from GET /api/courses — no invented curriculum.
+  const courses = [];
 
   const playGlyph = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7Z"/></svg>';
   const pauseGlyph = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
@@ -1945,8 +1888,33 @@
   function goToAccount(){
     hideAllViews();
     document.getElementById('view-account').classList.add('active');
+    renderAccountHeader();
     loadActivations();
     loadActiveSession();
+  }
+
+  // The account header used to be a hardcoded person ("عمر الساعدي", a fake
+  // phone and fixed college tags) shown to whoever was signed in.
+  async function renderAccountHeader(){
+    const u = currentUser;
+    if (!u) return;
+    document.getElementById('accName').textContent = u.full_name || '—';
+    document.getElementById('accAvatar').textContent =
+      (u.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+    document.getElementById('accPhone').textContent = u.phone || u.email || '';
+    const tags = [];
+    try {
+      const tree = await loadCatalogTreeForProfile();
+      const section = tree.find(s => s.id === u.section_id);
+      const uni = section?.universities.find(x => x.id === u.university_id);
+      const stage = uni?.stages.find(x => x.id === u.stage_id);
+      if (section) tags.push(section.name);
+      if (uni) tags.push(uni.name);
+      if (u.is_graduate) tags.push('متخرج');
+      else if (stage) tags.push(stage.name);
+    } catch (e) { /* catalogue unreachable — show whatever we already have */ }
+    document.getElementById('accTags').innerHTML =
+      tags.map(t => `<span class="prof-tag">${t}</span>`).join('');
   }
   function backHomeFromAccount(){
     hideAllViews();
