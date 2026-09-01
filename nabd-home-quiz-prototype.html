@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>نبض — معاينة الواجهة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg-1:#EAF0FF; --bg-2:#F7ECFF; --bg-3:#FFF8F0;
+    --ink:#16213A; --ink-soft:#4A5578; --ink-faint:#7E88AC;
+    --glass-bg:rgba(255,255,255,.55); --glass-bg-strong:rgba(255,255,255,.72);
+    --glass-border:rgba(255,255,255,.85); --glass-shadow:rgba(76,95,224,.14);
+    --accent:#4C5FE0; --accent-2:#7B6EF6; --warm:#FF8A5B;
+    --success:#1FAE72; --success-soft:rgba(31,174,114,.14);
+    --danger:#E5484D; --danger-soft:rgba(229,72,77,.12);
+    --track:rgba(76,95,224,.14); --track-strong:rgba(76,95,224,.28);
+    --radius-lg:26px; --radius-md:18px; --radius-sm:12px;
+    --shadow-soft:0 18px 40px -18px var(--glass-shadow);
+    color-scheme: light;
+  }
+  html.dark{
+    --bg-1:#0A0F1E; --bg-2:#121A33; --bg-3:#1A1030;
+    --ink:#EDF1FF; --ink-soft:#AEB6DC; --ink-faint:#77809E;
+    --glass-bg:rgba(20,25,48,.55); --glass-bg-strong:rgba(24,30,56,.72);
+    --glass-border:rgba(255,255,255,.09); --glass-shadow:rgba(0,0,0,.45);
+    --accent:#8B9AFF; --accent-2:#C0AEFF; --warm:#FFA477;
+    --success:#3CCB8F; --success-soft:rgba(60,203,143,.14);
+    --danger:#FF6B70; --danger-soft:rgba(255,107,112,.14);
+    --track:rgba(255,255,255,.08); --track-strong:rgba(139,154,255,.35);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Noto Sans Arabic','IBM Plex Mono',sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    background:
+      radial-gradient(1100px 600px at 15% -10%, var(--bg-1), transparent 60%),
+      radial-gradient(900px 700px at 100% 0%, var(--bg-2), transparent 55%),
+      radial-gradient(1000px 800px at 40% 120%, var(--bg-3), transparent 60%),
+      var(--bg-1);
+    background-attachment:fixed;
+    transition:background .4s ease, color .3s ease;
+    overflow-x:hidden;
+  }
+  .display{font-family:'Reem Kufi','Noto Sans Arabic',sans-serif; letter-spacing:.2px;}
+  .mono{font-family:'IBM Plex Mono',monospace; direction:ltr; display:inline-block;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:8px;}
+  @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important;} }
+
+  .glass{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    border-radius:var(--radius-lg);
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    box-shadow:var(--shadow-soft);
+  }
+
+  .app{max-width:960px; margin:0 auto; padding:20px 20px 80px;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px; margin-bottom:22px;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{width:34px; height:34px; color:var(--accent);}
+  .brand-name{font-size:1.25rem; font-weight:700;}
+  .top-actions{display:flex; align-items:center; gap:8px;}
+  .lang-pills{display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--glass-bg); border:1px solid var(--glass-border);}
+  .lang-pill{padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:600; color:var(--ink-faint); transition:.25s;}
+  .lang-pill.active{background:var(--accent); color:#fff;}
+  .icon-btn{
+    width:38px; height:38px; display:grid; place-items:center;
+    border-radius:999px; background:var(--glass-bg); border:1px solid var(--glass-border);
+    color:var(--ink-soft); transition:.25s;
+  }
+  .icon-btn:hover{color:var(--accent); transform:translateY(-1px);}
+  .icon-btn svg{width:18px; height:18px;}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:26px; margin-bottom:20px; position:relative; overflow:hidden;}
+  .hero::after{
+    content:''; position:absolute; inset-inline-end:-60px; top:-60px;
+    width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle, var(--accent-2), transparent 70%);
+    opacity:.35; filter:blur(10px);
+  }
+  .hero-top{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; position:relative;}
+  .hero-greeting{font-size:1.5rem; font-weight:700;}
+  .hero-sub{color:var(--ink-soft); margin-top:4px; font-size:.92rem;}
+  .stat-ring{
+    --p: 64;
+    width:64px; height:64px; border-radius:50%; position:relative; flex:none;
+    background:conic-gradient(var(--accent) calc(var(--p)*1%), var(--track) 0);
+    display:grid; place-items:center;
+  }
+  .stat-ring::before{content:''; position:absolute; inset:6px; border-radius:50%; background:var(--glass-bg-strong);}
+  .stat-ring span{position:relative; font-size:.72rem; font-weight:700;}
+  .hero-stats{display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; position:relative;}
+  .stat-chip{
+    display:flex; align-items:center; gap:8px; padding:8px 14px;
+    border-radius:999px; background:var(--glass-bg-strong); border:1px solid var(--glass-border);
+    font-size:.82rem; font-weight:600; color:var(--ink-soft);
+  }
+  .stat-chip svg{width:16px; height:16px; color:var(--warm); flex:none;}
+  .stat-chip b{color:var(--ink); font-family:'IBM Plex Mono',monospace; direction:ltr;}
+
+  /* ---------- Living path (signature element) ---------- */
+  .path-card{padding:20px 22px 22px; margin-bottom:20px;}
+  .path-label{font-size:.78rem; color:var(--ink-faint); font-weight:600; margin-bottom:14px; display:block;}
+  .path-track{display:flex; align-items:center; position:relative;}
+  .path-line{
+    position:absolute; inset-inline:26px; top:20px; height:3px;
+    background:var(--track); border-radius:3px; z-index:0;
+  }
+  .path-line-fill{
+    position:absolute; inset-inline-start:26px; top:20px; height:3px;
+    background:linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius:3px; width:0%; transition:width .55s cubic-bezier(.2,.8,.2,1);
+    box-shadow:0 0 14px 1px var(--track-strong); z-index:1;
+  }
+  .path-node{
+    position:relative; z-index:2; flex:1; display:flex; flex-direction:column; align-items:center;
+    gap:8px; background:none; text-align:center;
+  }
+  .path-dot{
+    width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+    background:var(--glass-bg-strong); border:1.5px solid var(--glass-border);
+    color:var(--ink-faint); font-weight:700; font-size:.85rem; transition:.3s;
+  }
+  .path-node.done .path-dot{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .path-node.current .path-dot{
+    border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 0 5px var(--track);
+  }
+  .path-node-label{font-size:.68rem; color:var(--ink-faint); font-weight:600;}
+  .path-node-value{font-size:.78rem; font-weight:700; max-width:90px; line-height:1.3;}
+  .path-node.current .path-node-value, .path-node.done .path-node-value{color:var(--ink);}
+  .path-node:not(.done):not(.current) .path-node-value{color:var(--ink-faint); font-weight:600;}
+
+  /* ---------- Quick tiles ---------- */
+  .tiles{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;}
+  .tile{
+    padding:18px 12px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
+    transition:.25s;
+  }
+  .tile:hover{transform:translateY(-3px); box-shadow:0 22px 44px -18px var(--glass-shadow);}
+  .tile-icon{
+    width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
+    background:linear-gradient(145deg, var(--accent), var(--accent-2)); color:#fff;
+  }
+  .tile-icon svg{width:22px; height:22px;}
+  .tile-label{font-size:.8rem; font-weight:700;}
+
+  /* ---------- Continue card ---------- */
+  .continue-card{padding:20px 22px; display:flex; align-items:center; gap:18px; margin-bottom:10px;}
+  .continue-ring{
+    --p:64; width:56px; height:56px; border-radius:50%; flex:none;
+    background:conic-gradient(var(--warm) calc(var(--p)*1%), var(--track) 0);
+    display:grid; place-items:center;
+  }
+  .continue-ring::before{content:''; position:absolute;}
+  .continue-body{flex:1;}
+  .continue-eyebrow{font-size:.72rem; color:var(--ink-faint); font-weight:600; margin-bottom:2px;}
+  .continue-title{font-weight:700; font-size:1rem; margin-bottom:2px;}
+  .continue-meta{font-size:.78rem; color:var(--ink-soft);}
+  .btn{
+    padding:11px 22px; border-radius:999px; font-weight:700; font-size:.85rem;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;
+    display:inline-flex; align-items:center; gap:6px; transition:.25s; flex:none;
+  }
+  .btn:hover{filter:brightness(1.08); transform:translateY(-1px);}
+  .btn svg{width:15px; height:15px;}
+  .btn-ghost{background:var(--glass-bg-strong); color:var(--ink); border:1px solid var(--glass-border);}
+
+  /* ---------- Views ---------- */
+  .view{display:none;}
+  .view.active{display:block; animation:fadeIn .4s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+  /* ---------- Quiz view ---------- */
+  .quiz-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .quiz-count{font-size:.8rem; font-weight:600; color:var(--ink-soft);}
+  .quiz-timer{
+    display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:999px;
+    background:var(--glass-bg-strong); border:1px solid var(--glass-border); font-weight:700; font-size:.85rem;
+  }
+  .quiz-timer svg{width:15px; height:15px; color:var(--warm);}
+  .progress-track{height:8px; border-radius:999px; background:var(--track); overflow:hidden; margin-bottom:20px;}
+  .progress-fill{height:100%; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .5s ease;}
+
+  .q-card{padding:0; overflow:hidden; margin-bottom:16px;}
+  .q-image{
+    position:relative; height:220px; cursor:zoom-in;
+    background:radial-gradient(circle at 30% 30%, #ffe9d6, transparent 55%),
+               radial-gradient(circle at 70% 60%, #d9e6ff, transparent 55%),
+               linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    display:grid; place-items:center;
+  }
+  html.dark .q-image{background:radial-gradient(circle at 30% 30%, #2a2350, transparent 55%), radial-gradient(circle at 70% 60%, #16233f, transparent 55%), linear-gradient(135deg, var(--bg-2), var(--bg-1));}
+  .zoom-hint{
+    position:absolute; bottom:10px; inset-inline-end:10px; display:flex; align-items:center; gap:6px;
+    padding:6px 12px; border-radius:999px; background:rgba(20,25,48,.55); color:#fff; font-size:.7rem; font-weight:600;
+    backdrop-filter:blur(6px);
+  }
+  .zoom-hint svg{width:13px; height:13px;}
+  .q-body{padding:20px 22px 4px;}
+  .q-eyebrow{font-size:.72rem; font-weight:700; color:var(--accent); margin-bottom:8px;}
+  .q-text{font-size:1.05rem; font-weight:700; line-height:1.6; margin-bottom:18px;}
+  .options{display:flex; flex-direction:column; gap:10px; padding:0 22px 22px;}
+  .option{
+    display:flex; align-items:center; gap:12px; padding:13px 16px; border-radius:var(--radius-md);
+    border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); text-align:start;
+    font-size:.9rem; font-weight:600; transition:.2s; width:100%;
+  }
+  .option:hover:not(.locked){border-color:var(--accent); transform:translateX(-2px);}
+  html[dir="ltr"] .option:hover:not(.locked){transform:translateX(2px);}
+  .option-mark{
+    width:24px; height:24px; border-radius:50%; border:1.5px solid var(--ink-faint); flex:none;
+    display:grid; place-items:center; font-size:.7rem; color:var(--ink-faint); font-weight:700;
+  }
+  .option.correct{border-color:var(--success); background:var(--success-soft);}
+  .option.correct .option-mark{background:var(--success); border-color:var(--success); color:#fff;}
+  .option.wrong{border-color:var(--danger); background:var(--danger-soft);}
+  .option.wrong .option-mark{background:var(--danger); border-color:var(--danger); color:#fff;}
+
+  .rationale{
+    max-height:0; opacity:0; overflow:hidden; transition:max-height .45s ease, opacity .35s ease, margin .45s ease;
+    margin:0 22px;
+  }
+  .rationale.show{max-height:220px; opacity:1; margin:0 22px 16px;}
+  .rationale-inner{padding:16px 18px; display:flex; gap:12px; align-items:flex-start;}
+  .rationale-icon{width:30px; height:30px; border-radius:10px; background:var(--success-soft); color:var(--success); display:grid; place-items:center; flex:none;}
+  .rationale-icon svg{width:16px; height:16px;}
+  .rationale-text{font-size:.85rem; color:var(--ink-soft); line-height:1.7;}
+  .rationale-text b{color:var(--ink);}
+  .video-pill{
+    margin-top:10px; display:inline-flex; align-items:center; gap:6px; font-size:.75rem; font-weight:700;
+    color:var(--accent); padding:6px 12px; border-radius:999px; background:var(--track); border:1px solid var(--glass-border);
+  }
+  .video-pill svg{width:13px; height:13px;}
+
+  .quiz-nav{display:flex; justify-content:space-between; gap:10px;}
+
+  /* Lightbox */
+  .lightbox{
+    position:fixed; inset:0; background:rgba(10,14,28,.72); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:30px;
+  }
+  .lightbox.show{display:flex;}
+  .lightbox-img{
+    width:min(520px,90vw); height:min(520px,70vh); border-radius:24px;
+    background:radial-gradient(circle at 30% 30%, #ffe9d6, transparent 55%),
+               radial-gradient(circle at 70% 60%, #d9e6ff, transparent 55%),
+               linear-gradient(135deg, var(--bg-2), var(--bg-1));
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.5);
+  }
+  .lightbox-close{
+    position:absolute; top:24px; inset-inline-end:24px; width:40px; height:40px; border-radius:50%;
+    background:rgba(255,255,255,.15); color:#fff; display:grid; place-items:center;
+  }
+  .lightbox-close svg{width:18px; height:18px;}
+
+  footer{text-align:center; color:var(--ink-faint); font-size:.72rem; margin-top:30px;}
+
+  /* ---------- Professors Hub ---------- */
+  .filter-chips{display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 18px;}
+  .filter-chip{padding:8px 16px; border-radius:999px; font-size:.8rem; font-weight:700; background:var(--glass-bg-strong); border:1px solid var(--glass-border); color:var(--ink-soft); transition:.2s;}
+  .filter-chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .prof-list{display:flex; flex-direction:column; gap:10px; margin-bottom:20px;}
+  .prof-card{display:flex; align-items:center; gap:14px; padding:15px 18px; text-align:start; width:100%; transition:.2s;}
+  .prof-card:hover{transform:translateY(-2px); box-shadow:0 22px 44px -18px var(--glass-shadow);}
+  .prof-avatar{width:50px; height:50px; border-radius:15px; display:grid; place-items:center; color:#fff; font-weight:700; font-size:.92rem; flex:none;}
+  .prof-info{flex:1; min-width:0;}
+  .prof-name{font-weight:700; font-size:.92rem;}
+  .prof-meta{font-size:.76rem; color:var(--ink-soft); margin-top:2px;}
+  .prof-stats{display:flex; gap:14px; font-size:.72rem; color:var(--ink-faint); margin-top:7px; font-weight:600;}
+  .prof-stats span{display:flex; align-items:center; gap:4px;}
+  .prof-stats svg{width:13px; height:13px;}
+  .prof-chevron{color:var(--ink-faint); flex:none; display:grid;}
+  .prof-chevron svg{width:16px; height:16px;}
+
+  .prof-header{padding:24px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:18px;}
+  .prof-header-avatar{width:74px; height:74px; border-radius:22px; display:grid; place-items:center; color:#fff; font-weight:700; font-size:1.35rem; flex:none;}
+  .prof-header-name{font-size:1.15rem; font-weight:700;}
+  .prof-header-title{font-size:.84rem; color:var(--ink-soft); margin-top:3px;}
+  .prof-tags{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .prof-tag{font-size:.72rem; font-weight:700; padding:5px 12px; border-radius:999px; background:var(--track); color:var(--accent);}
+
+  .tabs{display:flex; gap:6px; padding:5px; border-radius:999px; background:var(--glass-bg); border:1px solid var(--glass-border); width:fit-content; margin-bottom:16px;}
+  .tab-btn{padding:9px 20px; border-radius:999px; font-size:.82rem; font-weight:700; color:var(--ink-faint); transition:.2s;}
+  .tab-btn.active{background:var(--accent); color:#fff;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+  .item-list{display:flex; flex-direction:column; gap:10px;}
+  .item-card{display:flex; align-items:center; gap:14px; padding:15px 18px;}
+  .item-icon{width:42px; height:42px; border-radius:12px; display:grid; place-items:center; flex:none;}
+  .item-icon.pdf{background:var(--danger-soft); color:var(--danger);}
+  .item-icon.exam{background:var(--track); color:var(--accent);}
+  .item-icon svg{width:20px; height:20px;}
+  .item-body{flex:1; min-width:0;}
+  .item-title{font-weight:700; font-size:.88rem;}
+  .item-meta{font-size:.75rem; color:var(--ink-faint); margin-top:3px;}
+  .item-action{flex:none;}
+  .empty-row{padding:18px; text-align:center; font-size:.82rem; color:var(--ink-faint);}
+
+  /* ---------- Store ---------- */
+  .cart-badge{position:absolute; top:-3px; inset-inline-end:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:999px; background:var(--danger); color:#fff; font-size:.62rem; font-weight:700; display:grid; place-items:center; line-height:1;}
+  .product-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
+  .product-card{padding:14px; display:flex; flex-direction:column; gap:10px;}
+  .product-icon-wrap{
+    width:100%; height:84px; border-radius:16px; position:relative; display:grid; place-items:center;
+    background:linear-gradient(135deg, var(--bg-2), var(--bg-1)); color:var(--accent);
+  }
+  .product-icon-wrap svg{width:32px; height:32px;}
+  .product-badge{position:absolute; top:8px; inset-inline-start:8px; font-size:.62rem; font-weight:700; padding:4px 9px; border-radius:999px;}
+  .product-badge.digital{background:var(--track); color:var(--accent);}
+  .product-badge.physical{background:rgba(255,138,91,.18); color:var(--warm);}
+  .product-name{font-weight:700; font-size:.82rem; line-height:1.45; min-height:2.3em;}
+  .product-price{font-weight:700; font-size:.92rem;}
+  .product-add{width:100%; justify-content:center; padding:9px; font-size:.78rem;}
+
+  .cart-item{display:flex; align-items:center; gap:12px; padding:14px 16px;}
+  .cart-item-icon{width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:var(--track); color:var(--accent); flex:none;}
+  .cart-item-icon svg{width:20px; height:20px;}
+  .cart-item-body{flex:1; min-width:0;}
+  .cart-item-name{font-weight:700; font-size:.83rem; line-height:1.4;}
+  .cart-item-price{font-size:.74rem; color:var(--ink-faint); margin-top:3px;}
+  .qty-stepper{display:flex; align-items:center; gap:2px; background:var(--glass-bg-strong); border:1px solid var(--glass-border); border-radius:999px; padding:4px; flex:none;}
+  .qty-btn{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-weight:700; color:var(--ink-soft); font-size:.95rem;}
+  .qty-btn:hover{color:var(--accent);}
+  .qty-value{min-width:20px; text-align:center; font-weight:700; font-size:.82rem; font-family:'IBM Plex Mono',monospace;}
+  .cart-empty{text-align:center; padding:60px 20px; color:var(--ink-faint);}
+  .cart-empty svg{width:44px; height:44px; margin-bottom:14px; opacity:.6;}
+
+  .cart-summary{padding:18px 20px; display:flex; flex-direction:column; gap:8px;}
+  .summary-row{display:flex; justify-content:space-between; font-size:.84rem; color:var(--ink-soft);}
+  .summary-row b{font-family:'IBM Plex Mono',monospace; color:var(--ink);}
+  .summary-row.total{font-weight:700; color:var(--ink); font-size:.98rem; padding-top:10px; border-top:1px dashed var(--glass-border); margin-top:2px;}
+  .summary-row.total b{font-size:1.05rem;}
+  .summary-note{font-size:.72rem; color:var(--ink-faint); margin-top:2px;}
+
+  .checkout-section{margin-bottom:18px;}
+  .section-title{font-size:.8rem; font-weight:700; color:var(--ink-soft); margin-bottom:10px;}
+  .form-field{margin-bottom:10px;}
+  .form-field input{
+    width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border);
+    background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);
+  }
+  .form-field input::placeholder{color:var(--ink-faint);}
+  .pay-options{display:flex; flex-direction:column; gap:10px;}
+  .pay-option{
+    display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-md);
+    border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); transition:.2s; width:100%; text-align:start;
+  }
+  .pay-option.active{border-color:var(--accent); background:var(--track);}
+  .pay-option.disabled{opacity:.42; cursor:not-allowed;}
+  .pay-radio{width:19px; height:19px; border-radius:50%; border:1.5px solid var(--ink-faint); flex:none; display:grid; place-items:center;}
+  .pay-option.active .pay-radio{border-color:var(--accent);}
+  .pay-option.active .pay-radio::after{content:''; width:9px; height:9px; border-radius:50%; background:var(--accent);}
+  .pay-icon{width:38px; height:38px; border-radius:10px; display:grid; place-items:center; background:var(--glass-bg); flex:none; color:var(--accent);}
+  .pay-icon svg{width:18px; height:18px;}
+  .pay-body{flex:1;}
+  .pay-title{font-weight:700; font-size:.85rem;}
+  .pay-sub{font-size:.72rem; color:var(--ink-faint); margin-top:2px;}
+
+  .confirm-panel{text-align:center; padding:50px 24px;}
+  .confirm-icon{width:66px; height:66px; border-radius:50%; background:var(--success-soft); color:var(--success); display:grid; place-items:center; margin:0 auto 16px;}
+  .confirm-icon svg{width:30px; height:30px;}
+  .confirm-title{font-size:1.05rem; font-weight:700; margin-bottom:6px;}
+  .confirm-sub{font-size:.83rem; color:var(--ink-soft); margin-bottom:22px;}
+
+  /* ---------- Video Academy ---------- */
+  .course-grid{display:flex; flex-direction:column; gap:12px; margin-bottom:20px;}
+  .course-card{display:flex; align-items:center; gap:14px; padding:14px; text-align:start; width:100%; transition:.2s;}
+  .course-card:hover{transform:translateY(-2px); box-shadow:0 22px 44px -18px var(--glass-shadow);}
+  .course-thumb{width:72px; height:72px; border-radius:16px; flex:none; display:grid; place-items:center;}
+  .course-thumb svg{width:24px; height:24px;}
+  .course-info{flex:1; min-width:0;}
+  .course-title{font-weight:700; font-size:.88rem;}
+  .course-instructor{font-size:.75rem; color:var(--ink-soft); margin-top:2px;}
+  .course-meta{font-size:.7rem; color:var(--ink-faint); margin-top:6px; display:flex; align-items:center; gap:6px;}
+  .course-progress-track{height:5px; border-radius:999px; background:var(--track); margin-top:8px; overflow:hidden;}
+  .course-progress-fill{height:100%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:999px;}
+  .course-chevron{flex:none; color:var(--ink-faint); display:grid;}
+  .course-chevron svg{width:16px; height:16px;}
+
+  .player-card{padding:0; overflow:hidden; margin-bottom:16px;}
+  .player-screen{position:relative; height:210px; display:flex; align-items:flex-end; transition:background .3s ease;}
+  .player-screen::before{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%);}
+  .player-top-controls{position:absolute; top:12px; inset-inline:12px; display:flex; justify-content:flex-end; gap:8px; z-index:2;}
+  .player-pill{padding:5px 12px; border-radius:999px; background:rgba(10,14,28,.55); color:#fff; font-size:.68rem; font-weight:700; backdrop-filter:blur(6px);}
+  .player-center-btn{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2;
+    width:56px; height:56px; border-radius:50%; background:rgba(255,255,255,.18); backdrop-filter:blur(6px);
+    display:grid; place-items:center; color:#fff; border:1.5px solid rgba(255,255,255,.4);
+  }
+  .player-center-btn svg{width:22px; height:22px;}
+  .player-lecture-title{position:relative; z-index:2; padding:14px 18px; color:#fff; font-weight:700; font-size:.9rem;}
+  .player-controls-bar{padding:12px 16px; display:flex; align-items:center; gap:10px;}
+  #playBtnSmall svg{width:16px; height:16px;}
+  .player-scrub{flex:1; height:5px; border-radius:999px; background:var(--track); position:relative;}
+  .player-scrub-fill{position:absolute; inset-inline-start:0; top:0; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent-2)); width:0%; transition:width .3s linear;}
+  .player-time{font-size:.7rem; color:var(--ink-faint); flex:none;}
+
+  .lecture-item{border-color:var(--glass-border);}
+  .lecture-item.current{border-color:var(--accent); background:var(--track);}
+  .lecture-num{width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:.72rem; font-weight:700; flex:none; background:var(--glass-bg-strong); border:1.5px solid var(--glass-border); color:var(--ink-faint);}
+  .lecture-item.done .lecture-num{background:var(--success); border-color:var(--success); color:#fff;}
+  .lecture-item.current .lecture-num{border-color:var(--accent); color:var(--accent);}
+  .lecture-play{flex:none; color:var(--ink-faint); display:grid;}
+  .lecture-item.current .lecture-play{color:var(--accent);}
+  .lecture-play svg{width:15px; height:15px;}
+
+  /* ---------- Auth (login / OTP) ---------- */
+  body.auth-mode .topbar{display:none;}
+  .auth-view{min-height:78vh; display:flex; align-items:center; justify-content:center; padding:20px 0;}
+  .auth-card{width:100%; max-width:380px; padding:32px 28px;}
+  .auth-logo{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:22px;}
+  .auth-logo svg{width:40px; height:40px; color:var(--accent);}
+  .auth-title{font-size:1.15rem; font-weight:700; text-align:center;}
+  .auth-sub{font-size:.8rem; color:var(--ink-soft); text-align:center; margin-top:4px; margin-bottom:22px; line-height:1.6;}
+  .google-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:13px; border-radius:999px; background:#fff; color:#1F1F1F; font-weight:700; font-size:.88rem;
+    border:1.5px solid var(--glass-border); transition:.2s; margin-top:6px;
+  }
+  html.dark .google-btn{background:#20263F; color:#fff;}
+  .google-btn:hover{box-shadow:0 10px 24px -10px rgba(0,0,0,.3); transform:translateY(-1px);}
+  .google-btn:disabled{opacity:.65; cursor:default; transform:none; box-shadow:none;}
+  .google-mark{
+    width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff;
+    display:grid; place-items:center; font-size:.7rem; font-weight:700; font-family:'IBM Plex Mono',monospace; flex:none;
+  }
+  .spin{animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .link-muted{display:block; text-align:center; font-size:.78rem; color:var(--ink-faint); margin-top:10px;}
+  .link-accent{color:var(--accent); font-weight:700;}
+  .auth-divider{display:flex; align-items:center; gap:10px; margin:18px 0 4px; color:var(--ink-faint); font-size:.72rem;}
+  .auth-divider::before, .auth-divider::after{content:''; flex:1; height:1px; background:var(--glass-border);}
+
+  .otp-timer{text-align:center; font-size:.78rem; color:var(--ink-faint);}
+  .otp-note{margin-top:18px; padding:12px 14px; border-radius:var(--radius-sm); background:var(--track); font-size:.72rem; color:var(--ink-soft); line-height:1.6; display:flex; gap:8px; align-items:flex-start;}
+  .otp-note svg{width:15px; height:15px; color:var(--accent); flex:none; margin-top:1px;}
+
+  /* ---------- Account ---------- */
+  .section-block{margin-bottom:18px;}
+  .switch-wrap{width:44px; height:24px; border-radius:999px; background:var(--track); position:relative; transition:.2s; flex:none;}
+  .switch-wrap.on{background:var(--accent);}
+  .switch-wrap::after{content:''; position:absolute; top:3px; inset-inline-start:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:.2s;}
+  .switch-wrap.on::after{inset-inline-start:calc(100% - 21px);}
+  .btn-danger{background:linear-gradient(135deg, var(--danger), #ff8b8f); color:#fff; width:100%;}
+
+  @media (max-width:720px){
+    .tiles{grid-template-columns:repeat(2,1fr);}
+    .path-node-value{max-width:64px;}
+    .brand-name{display:none;}
+    .hero-greeting{font-size:1.25rem;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name display">نبض</span>
+    </div>
+    <div class="top-actions">
+      <div class="lang-pills" role="group" aria-label="اللغة">
+        <button class="lang-pill active" data-lang="ar">AR</button>
+        <button class="lang-pill" data-lang="ku">KU</button>
+        <button class="lang-pill" data-lang="en">EN</button>
+      </div>
+      <button class="icon-btn" id="themeToggle" aria-label="تبديل المظهر">
+        <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <button class="icon-btn" onclick="goToAccount()" aria-label="حسابي">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4.5-6 7-6s5.5 2 7 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ HOME VIEW ============ -->
+  <div class="view active" id="view-home">
+
+    <div class="hero glass">
+      <div class="hero-top">
+        <div>
+          <div class="hero-greeting" data-i18n="greeting">مرحباً، عمر 👋</div>
+          <div class="hero-sub" data-i18n="greetingSub">استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل</div>
+        </div>
+        <div class="stat-ring" style="--p:64"><span>64%</span></div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2 4-1 5-1 8a4 4 0 0 0 8 0c0-1-1-2-1-2 1 3-1 4-2 4a2 2 0 0 1-2-2c0-2 3-3 1-8Z"/><path d="M8 14a4 4 0 0 0 4 8 5 5 0 0 0 5-5"/></svg>
+          <span data-i18n="streakLabel">سلسلة</span> <b id="statStreak">12</b>
+        </div>
+        <div class="stat-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          <span data-i18n="answeredLabel">أُجيب اليوم</span> <b id="statAnsweredToday">38</b>
+        </div>
+        <div class="stat-chip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3H8a2 2 0 0 0-2 2v16l6-3 6 3V5a2 2 0 0 0-2-2Z"/></svg>
+          <span data-i18n="rankLabel">ترتيبك بالجامعة</span> <b id="statRank">#7</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="path-card glass">
+      <span class="path-label" data-i18n="pathLabel">المسار الدراسي</span>
+      <div class="path-track">
+        <div class="path-line"></div>
+        <div class="path-line-fill" id="pathFill"></div>
+
+        <button class="path-node done" data-step="1">
+          <span class="path-dot">✓</span>
+          <span class="path-node-label" data-i18n="pathSection">القسم</span>
+          <span class="path-node-value">طب بشري</span>
+        </button>
+        <button class="path-node done" data-step="2">
+          <span class="path-dot">✓</span>
+          <span class="path-node-label" data-i18n="pathUni">الجامعة</span>
+          <span class="path-node-value">جامعة بغداد</span>
+        </button>
+        <button class="path-node done" data-step="3">
+          <span class="path-dot">✓</span>
+          <span class="path-node-label" data-i18n="pathStage">المرحلة</span>
+          <span class="path-node-value">الثانية</span>
+        </button>
+        <button class="path-node current" data-step="4">
+          <span class="path-dot">4</span>
+          <span class="path-node-label" data-i18n="pathSubject">المادة</span>
+          <span class="path-node-value">التشريح</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <button class="tile glass" onclick="goToQuiz()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
+        <span class="tile-label" data-i18n="tileBank">بنك الأسئلة</span>
+      </button>
+      <button class="tile glass" onclick="goToAcademy()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" stroke="none"/></svg></span>
+        <span class="tile-label" data-i18n="tileVideo">أكاديمية الفيديو</span>
+      </button>
+      <button class="tile glass" onclick="goToProfessors()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
+        <span class="tile-label" data-i18n="tileProf">قسم الدكاترة</span>
+      </button>
+      <button class="tile glass" onclick="goToStore()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg></span>
+        <span class="tile-label" data-i18n="tileStore">المتجر</span>
+      </button>
+    </div>
+
+    <button class="continue-card glass" onclick="goToQuiz()" style="width:100%; cursor:pointer;">
+      <div class="continue-ring" style="--p:64;"></div>
+      <div class="continue-body">
+        <div class="continue-eyebrow" data-i18n="continueEyebrow">آخر ملزمة</div>
+        <div class="continue-title">الجهاز العصبي المركزي — الأنسجة</div>
+        <div class="continue-meta">طب بشري · جامعة بغداد · المرحلة الثانية</div>
+      </div>
+      <span class="btn">
+        <span data-i18n="continueBtn">متابعة</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>
+      </span>
+    </button>
+
+    <footer>معاينة تصميم — نبض · منصة طلاب الطب</footer>
+  </div>
+
+  <!-- ============ QUIZ VIEW ============ -->
+  <div class="view" id="view-quiz">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="goHome()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">السؤال <span class="mono" id="qIndex">1</span> / <span class="mono">3</span> · التشريح</div>
+      <div class="quiz-timer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span class="mono" id="timer">24:10</span>
+      </div>
+    </div>
+
+    <div class="progress-track"><div class="progress-fill" id="qProgress" style="width:6%"></div></div>
+
+    <div class="q-card glass">
+      <div class="q-image" id="qImage" onclick="openZoom()">
+        <div class="zoom-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+          اضغط للتكبير
+        </div>
+      </div>
+      <div class="q-body">
+        <div class="q-eyebrow" id="qEyebrow">علم الأنسجة</div>
+        <div class="q-text" id="qText">أي من الخلايا التالية مسؤولة عن تكوين غمد الميالين حول محاور الخلايا العصبية في الجهاز العصبي المركزي؟</div>
+      </div>
+      <div class="options" id="qOptions"></div>
+    </div>
+
+    <div class="rationale glass" id="rationale">
+      <div class="rationale-inner">
+        <div class="rationale-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <div>
+          <div class="rationale-text" id="rationaleText"></div>
+          <div class="video-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
+            شاهد الشرح المصغّر
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quiz-nav">
+      <button class="btn btn-ghost" id="prevBtn" onclick="changeQuestion(-1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        السابق
+      </button>
+      <button class="btn" id="nextBtn" onclick="changeQuestion(1)">
+        التالي
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ PROFESSORS LIST VIEW ============ -->
+  <div class="view" id="view-professors">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backHomeFromProfessors()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">قسم الدكاترة</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="filter-chips" id="profFilters"></div>
+    <div class="prof-list" id="profList"></div>
+  </div>
+
+  <!-- ============ PROFESSOR DETAIL VIEW ============ -->
+  <div class="view" id="view-professor">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backToProfessors()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">صفحة الدكتور</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="prof-header glass" id="profHeader"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="booklets" onclick="switchTab('booklets')">الملازم</button>
+      <button class="tab-btn" data-tab="exams" onclick="switchTab('exams')">الامتحانات</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-booklets"><div class="item-list" id="bookletsList"></div></div>
+    <div class="tab-panel" id="tab-exams"><div class="item-list" id="examsList"></div></div>
+  </div>
+
+  <!-- ============ STORE VIEW ============ -->
+  <div class="view" id="view-store">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backHomeFromStore()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">المتجر</div>
+      <button class="icon-btn" style="position:relative" onclick="goToCart()" aria-label="السلة">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
+        <span class="cart-badge" id="cartBadge" style="display:none">0</span>
+      </button>
+    </div>
+
+    <div class="filter-chips" id="storeFilters"></div>
+    <div class="product-grid" id="productGrid"></div>
+  </div>
+
+  <!-- ============ CART VIEW ============ -->
+  <div class="view" id="view-cart">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backToStore()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">السلة</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="item-list" id="cartItems" style="margin-bottom:16px;"></div>
+    <div class="cart-summary glass" id="cartSummary"></div>
+  </div>
+
+  <!-- ============ CHECKOUT VIEW ============ -->
+  <div class="view" id="view-checkout">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backToCartFromCheckout()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">إتمام الطلب</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div id="checkoutBody"></div>
+  </div>
+
+  <!-- ============ VIDEO ACADEMY VIEW ============ -->
+  <div class="view" id="view-academy">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backHomeFromAcademy()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">أكاديمية الفيديو</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="course-grid" id="courseGrid"></div>
+  </div>
+
+  <!-- ============ COURSE DETAIL VIEW ============ -->
+  <div class="view" id="view-course">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backToAcademy()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count" id="courseTopTitle">الكورس</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="player-card glass">
+      <div class="player-screen" id="playerScreen">
+        <div class="player-top-controls">
+          <button class="player-pill" onclick="cycleQuality()" id="playerQualityPill">720p</button>
+          <button class="player-pill" onclick="cycleSpeed()" id="playerSpeedPill">x1</button>
+        </div>
+        <button class="player-center-btn" onclick="togglePlay()" id="playerCenterBtn" aria-label="تشغيل"></button>
+        <div class="player-lecture-title" id="playerLectureTitle"></div>
+      </div>
+      <div class="player-controls-bar">
+        <button class="icon-btn" onclick="togglePlay()" id="playBtnSmall" style="width:32px; height:32px;"></button>
+        <div class="player-scrub"><div class="player-scrub-fill" id="playerScrubFill"></div></div>
+        <span class="player-time mono" id="playerTime">00:00 / 00:00</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div class="continue-title" id="courseTitleText" style="font-size:1.05rem;"></div>
+      <div class="continue-meta" id="courseMetaText" style="margin-top:3px;"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-ctab="lectures" onclick="switchCourseTab('lectures')">المحاضرات</button>
+      <button class="tab-btn" data-ctab="booklets" onclick="switchCourseTab('booklets')">الملازم</button>
+      <button class="tab-btn" data-ctab="quizzes" onclick="switchCourseTab('quizzes')">الكويزات</button>
+    </div>
+
+    <div class="tab-panel active" id="ctab-lectures"><div class="item-list" id="lectureList"></div></div>
+    <div class="tab-panel" id="ctab-booklets"><div class="item-list" id="courseBooklets"></div></div>
+    <div class="tab-panel" id="ctab-quizzes"><div class="item-list" id="courseQuizzes"></div></div>
+  </div>
+
+  <!-- ============ LOGIN VIEW ============ -->
+  <div class="view" id="view-login">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="auth-logo">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="display" style="font-size:1.1rem; font-weight:700;">نبض</span>
+        </div>
+        <div class="auth-title">مرحباً بعودتك</div>
+        <div class="auth-sub">سجّل الدخول ببريدك الجامعي عبر Google للمتابعة</div>
+
+        <button class="google-btn" id="googleBtn" onclick="startGoogleSignIn()">
+          <span class="google-mark">G</span>
+          <span id="googleBtnLabel">المتابعة عبر Google</span>
+        </button>
+
+        <div class="auth-divider">أو</div>
+        <div class="link-muted">ليس لديك حساب؟ <span class="link-accent">فعّل حسابك بكود التفعيل</span></div>
+        <div class="link-muted" style="margin-top:14px;">بالمتابعة أنت توافق على الشروط وسياسة الخصوصية</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GOOGLE CONFIRM VIEW ============ -->
+  <div class="view" id="view-otp">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); margin:0 auto 14px;">ع.س</div>
+        <div class="auth-title">تم التحقق من حسابك</div>
+        <div class="auth-sub">
+          <span id="confirmName">عمر الساعدي</span><br />
+          <span class="mono" id="confirmEmail">omar.alsaadi@uob.edu.iq</span>
+          <span style="display:inline-flex; align-items:center; gap:4px; color:var(--success); font-weight:700; margin-inline-start:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M20 6 9 17l-5-5"/></svg>
+            بريد جامعي موثّق
+          </span>
+        </div>
+
+        <button class="btn" style="width:100%; justify-content:center; padding:13px; margin-top:6px;" onclick="confirmOtp()">متابعة إلى نبض</button>
+        <button class="btn btn-ghost" style="width:100%; justify-content:center; padding:13px; margin-top:10px;" onclick="backToLoginFromOtp()">استخدام حساب آخر</button>
+
+        <div class="otp-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+          <span>تسجيل الدخول من هذا الجهاز سيسجّل خروجك تلقائياً من أي جهاز آخر نشط حالياً، حفاظاً على أمان حسابك.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ACCOUNT VIEW ============ -->
+  <div class="view" id="view-account">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backHomeFromAccount()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">حسابي</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="prof-header glass">
+      <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2))">ع.س</div>
+      <div>
+        <div class="prof-header-name">عمر الساعدي</div>
+        <div class="prof-header-title mono">0770•••4567</div>
+        <div class="prof-tags">
+          <span class="prof-tag">طب بشري</span>
+          <span class="prof-tag">جامعة بغداد</span>
+          <span class="prof-tag">المرحلة الثانية</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">التفعيل</div>
+      <div id="activationCards"></div>
+      <div class="glass" style="padding:16px 18px;">
+        <div class="form-field" style="margin-bottom:8px;">
+          <input id="activationCodeInput" type="text" placeholder="أدخل كود التفعيل — مثال: NBD-VIP-7X29" />
+        </div>
+        <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="redeemActivationCode()">تفعيل الكود</button>
+        <div id="activationMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">الأمان</div>
+      <div class="item-list">
+        <div class="item-card glass">
+          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
+          <div class="item-body">
+            <div class="item-title">الجهاز النشط الحالي</div>
+            <div class="item-meta" id="activeSessionMeta">iPhone 14 — بغداد · هذا الجهاز فقط مسموح له بالدخول حالياً</div>
+          </div>
+        </div>
+        <div class="item-card glass">
+          <div class="item-icon pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <div class="item-body">
+            <div class="item-title">كلمة المرور</div>
+            <div class="item-meta" id="passwordMeta">آخر تغيير قبل 3 أشهر</div>
+          </div>
+          <button class="btn btn-ghost item-action" onclick="togglePasswordChangeForm()">تغيير</button>
+        </div>
+        <div class="glass" id="passwordChangeForm" style="display:none; padding:16px 18px;">
+          <div class="form-field"><input id="currentPasswordInput" type="password" placeholder="كلمة المرور الحالية (اتركيه فارغاً إن لم تحددي واحدة من قبل)" /></div>
+          <div class="form-field" style="margin-bottom:8px;"><input id="newPasswordInput" type="password" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" /></div>
+          <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitPasswordChange()">حفظ كلمة المرور</button>
+          <div id="passwordChangeMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
+        </div>
+        <div class="item-card glass">
+          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3Z"/><path d="m9.5 12 2 2 4-4"/></svg></div>
+          <div class="item-body">
+            <div class="item-title">التحقق بخطوتين (2FA)</div>
+            <div class="item-meta">رمز إضافي عبر الرسائل عند الدخول من جهاز جديد</div>
+          </div>
+          <button class="switch-wrap on" id="twoFaSwitch" onclick="this.classList.toggle('on')" aria-label="تبديل"></button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-danger" style="width:100%; justify-content:center; padding:13px;" onclick="goToLogin()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      تسجيل الخروج
+    </button>
+  </div>
+
+  <div class="view" id="view-banned">
+    <div class="quiz-top">
+      <div class="quiz-count">الحساب محظور</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="prof-header glass">
+      <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--danger), #ff8b8f);">⛔</div>
+      <div>
+        <div class="prof-header-name">تم إيقاف هذا الحساب</div>
+        <div class="prof-header-title" id="banReasonText">—</div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">تقديم طعن</div>
+      <div id="banAppealArea"></div>
+    </div>
+
+    <button class="btn btn-danger" style="width:100%; justify-content:center; padding:13px;" onclick="backToLoginFromOtp()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      تسجيل الخروج
+    </button>
+  </div>
+
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeZoom()">
+  <button class="lightbox-close" aria-label="إغلاق"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <div class="lightbox-img"></div>
+</div>
+
+<script>
+  // ---------- Backend integration ----------
+  // Point this at your running FastAPI server (see /nabd-backend).
+  // When it's unreachable — e.g. previewing this file on its own — every
+  // call below falls back to the local demo data, so the UI still works.
+  // Same-origin when served by the FastAPI backend itself (production);
+  // falls back to localhost:8000 for local dev (frontend on :5500, backend on :8000).
+  const API_BASE_URL = location.origin === 'http://localhost:5500' || location.origin === 'http://127.0.0.1:5500'
+    ? 'http://localhost:8000' : location.origin;
+  let authToken = null;   // kept in memory only, not localStorage — cleared on refresh
+  let currentUser = null;
+
+  async function apiFetch(path, options = {}){
+    const res = await fetch(API_BASE_URL + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
+        ...(options.headers || {}),
+      },
+    });
+    if (!res.ok){
+      let detail = '';
+      try { detail = (await res.json())?.detail || ''; } catch (e) { /* no JSON body */ }
+      const err = new Error(detail || ('API ' + res.status));
+      err.status = res.status;
+      err.detail = detail;
+      throw err;
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function apiReachable(){
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 900);
+      const res = await fetch(API_BASE_URL + '/health', {signal: ctrl.signal});
+      clearTimeout(t);
+      return res.ok;
+    } catch (e) { return false; }
+  }
+
+  // If the page just loaded after Google's redirect back from
+  // /auth/google/callback, the backend hands the token off via URL fragment.
+  (function captureRedirectToken(){
+    const m = location.hash.match(/access_token=([^&]+)/);
+    if (m){
+      authToken = decodeURIComponent(m[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  })();
+
+  // ---------- Theme ----------
+  const themeBtn = document.getElementById('themeToggle');
+  const iconSun = document.getElementById('iconSun');
+  const iconMoon = document.getElementById('iconMoon');
+  themeBtn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    iconSun.style.display = isDark ? 'none' : 'block';
+    iconMoon.style.display = isDark ? 'block' : 'none';
+  });
+
+  // ---------- Language (demo: AR / EN toggle dir + a few strings; KU shown as coming-soon-style highlight only) ----------
+  const dict = {
+    ar: {greeting:'مرحباً، عمر 👋', greetingSub:'استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل', streakLabel:'سلسلة', answeredLabel:'أُجيب اليوم', rankLabel:'ترتيبك بالجامعة', pathLabel:'المسار الدراسي', pathSection:'القسم', pathUni:'الجامعة', pathStage:'المرحلة', pathSubject:'المادة', tileBank:'بنك الأسئلة', tileVideo:'أكاديمية الفيديو', tileProf:'قسم الدكاترة', tileStore:'المتجر', continueEyebrow:'آخر ملزمة', continueBtn:'متابعة'},
+    en: {greeting:'Hi, Omar 👋', greetingSub:'Keep the pace — the mock exam is close', streakLabel:'Streak', answeredLabel:'Answered today', rankLabel:'Your uni rank', pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject', tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', continueEyebrow:'Last booklet', continueBtn:'Continue'}
+  };
+  document.querySelectorAll('.lang-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.lang-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const lang = pill.dataset.lang;
+      const table = dict[lang] || dict.ar;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (table[key]) el.textContent = table[key];
+      });
+      const rtl = lang !== 'en';
+      document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang === 'ku' ? 'ckb' : lang;
+    });
+  });
+
+  // ---------- Living path ----------
+  const pathFill = document.getElementById('pathFill');
+  const pathNodes = document.querySelectorAll('.path-node');
+  function setPathStep(step){
+    const pct = ((step - 1) / (pathNodes.length - 1)) * 100;
+    pathFill.style.width = pct + '%';
+    pathNodes.forEach(n => {
+      const s = parseInt(n.dataset.step);
+      n.classList.toggle('done', s < step);
+      n.classList.toggle('current', s === step);
+      n.querySelector('.path-dot').textContent = s < step ? '✓' : s;
+    });
+  }
+  pathNodes.forEach(n => n.addEventListener('click', () => setPathStep(parseInt(n.dataset.step))));
+  setPathStep(4);
+
+  // ---------- View switching ----------
+  function hideAllViews(){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.body.classList.remove('auth-mode');
+  }
+  function goToQuiz(){
+    if (typeof stopPlayerTimer === 'function') stopPlayerTimer();
+    hideAllViews();
+    document.getElementById('view-quiz').classList.add('active');
+    startTimer();
+  }
+  function goHome(){
+    hideAllViews();
+    document.getElementById('view-home').classList.add('active');
+    stopTimer();
+    loadHomeStats();
+  }
+
+  // Real-backend path: replaces the fixed streak/answered-today/rank numbers
+  // with the student's actual stats. Falls back to the static demo values
+  // (left untouched in the HTML) when logged out or unreachable.
+  async function loadHomeStats(){
+    if (!authToken) return;
+    try {
+      const s = await apiFetch('/auth/me/stats');
+      document.getElementById('statStreak').textContent = s.streak_days;
+      document.getElementById('statAnsweredToday').textContent = s.answered_today;
+      document.getElementById('statRank').textContent = s.rank ? ('#' + s.rank) : '—';
+    } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
+  }
+
+  // ---------- Timer ----------
+  let timeLeft = 24*60+10, timerInt = null;
+  function startTimer(){
+    if (timerInt) return;
+    timerInt = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) { stopTimer(); return; }
+      const m = String(Math.floor(timeLeft/60)).padStart(2,'0');
+      const s = String(timeLeft%60).padStart(2,'0');
+      document.getElementById('timer').textContent = `${m}:${s}`;
+    }, 1000);
+  }
+  function stopTimer(){ clearInterval(timerInt); timerInt = null; }
+
+  // ---------- Questions ----------
+  const questions = [
+    {
+      eyebrow:'علم الأنسجة',
+      text:'أي من الخلايا التالية مسؤولة عن تكوين غمد الميالين حول محاور الخلايا العصبية في الجهاز العصبي المركزي؟',
+      options:['الخلايا النجمية (Astrocytes)','قليلة التغصن (Oligodendrocytes)','الخلايا البطانية العصبية (Ependymal)','الخلايا الدبقية الصغيرة (Microglia)'],
+      correct:1,
+      rationale:'<b>قليلة التغصن العصبية</b> هي المسؤولة عن تصنيع غمد الميالين داخل الجهاز العصبي المركزي، بينما تقوم الخلايا الشوانية بهذا الدور في الجهاز العصبي الطرفي. الخلايا النجمية تدعم الحاجز الدموي الدماغي، والدبقية الصغيرة مسؤولة عن الاستجابة المناعية.'
+    },
+    {
+      eyebrow:'التشريح العصبي',
+      text:'يمر العصب المتوسط (Median nerve) عبر أي بنية تشريحية عند مستوى الرسغ؟',
+      options:['نفق رسغي (Carpal tunnel)','ثلم كوعي (Cubital tunnel)','نفق طرسوسي (Tarsal tunnel)','الثقبة الوداجية'],
+      correct:0,
+      rationale:'يمر <b>العصب المتوسط</b> عبر <b>النفق الرسغي</b> مع أوتار العضلات المثنية، وضغطه في هذه المنطقة هو سبب متلازمة النفق الرسغي الشائعة سريرياً.'
+    },
+    {
+      eyebrow:'الفسلجة',
+      text:'ما هو التأثير المباشر لتنشيط الجهاز العصبي السمبثاوي على معدل ضربات القلب؟',
+      options:['يبطئ معدل ضربات القلب','يزيد معدل ضربات القلب','لا يؤثر على القلب','يوقف القلب مؤقتاً'],
+      correct:1,
+      rationale:'تنشيط الجهاز <b>السمبثاوي</b> يؤدي إلى إطلاق النورأدرينالين الذي يرفع معدل ضربات القلب وقوة الانقباض، تحضيراً لاستجابة "الكر أو الفر"، على عكس الجهاز نظير السمبثاوي الذي يبطئ القلب عبر العصب المبهم.'
+    }
+  ];
+  let qi = 0;
+
+  let usingApi = false;
+  let apiQuestions = [];
+  let apiSubjectId = null;
+
+  async function resolveApiSubjectId(){
+    if (apiSubjectId) return apiSubjectId;
+    try {
+      const tree = await apiFetch('/api/catalog/tree');
+      const subjects = tree?.[0]?.universities?.[0]?.stages?.[0]?.subjects || [];
+      apiSubjectId = subjects.find(s => s.name === 'التشريح')?.id || subjects[0]?.id || null;
+    } catch (e) { apiSubjectId = null; }
+    return apiSubjectId;
+  }
+
+  async function tryLoadApiQuestions(){
+    usingApi = false;
+    if (!authToken) return;
+    try {
+      const subjId = await resolveApiSubjectId();
+      if (!subjId) return;
+      const data = await apiFetch('/api/subjects/' + subjId + '/questions?limit=10');
+      if (Array.isArray(data) && data.length){
+        apiQuestions = data;
+        usingApi = true;
+      }
+    } catch (e) { /* backend unreachable or no questions yet — keep local demo set */ }
+  }
+
+  function renderQuestion(){
+    if (usingApi){ renderApiQuestion(); return; }
+    const q = questions[qi];
+    document.getElementById('qEyebrow').textContent = q.eyebrow;
+    document.getElementById('qText').textContent = q.text;
+    document.getElementById('qIndex').textContent = qi + 1;
+    document.getElementById('qProgress').style.width = ((qi+1)/questions.length*100) + '%';
+    const optWrap = document.getElementById('qOptions');
+    optWrap.innerHTML = '';
+    q.options.forEach((opt, idx) => {
+      const b = document.createElement('button');
+      b.className = 'option';
+      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx]}</span><span>${opt}</span>`;
+      b.addEventListener('click', () => selectOption(idx));
+      optWrap.appendChild(b);
+    });
+    document.getElementById('rationale').classList.remove('show');
+    document.getElementById('rationaleText').innerHTML = q.rationale;
+    document.getElementById('prevBtn').style.visibility = qi === 0 ? 'hidden' : 'visible';
+  }
+
+  function selectOption(idx){
+    const q = questions[qi];
+    const opts = document.querySelectorAll('#qOptions .option');
+    opts.forEach(o => o.classList.add('locked'));
+    opts[idx].classList.add(idx === q.correct ? 'correct' : 'wrong');
+    if (idx !== q.correct) opts[q.correct].classList.add('correct');
+    document.getElementById('rationale').classList.add('show');
+  }
+
+  // Real-backend path: the correct answer is never sent to the client up
+  // front — we post the student's pick and the server grades it, exactly
+  // like the local demo but with server-authoritative grading.
+  function renderApiQuestion(){
+    const q = apiQuestions[qi % apiQuestions.length];
+    document.getElementById('qEyebrow').textContent = q.eyebrow || 'من الخادم';
+    document.getElementById('qText').textContent = q.text;
+    document.getElementById('qIndex').textContent = qi + 1;
+    document.getElementById('qProgress').style.width = ((qi+1)/apiQuestions.length*100) + '%';
+    const optWrap = document.getElementById('qOptions');
+    optWrap.innerHTML = '';
+    q.choices.forEach((choice, idx) => {
+      const b = document.createElement('button');
+      b.className = 'option';
+      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx] || (idx+1)}</span><span>${choice.text}</span>`;
+      b.addEventListener('click', () => selectApiOption(q.id, choice.id, idx));
+      optWrap.appendChild(b);
+    });
+    document.getElementById('rationale').classList.remove('show');
+    document.getElementById('prevBtn').style.visibility = qi === 0 ? 'hidden' : 'visible';
+  }
+
+  async function selectApiOption(questionId, choiceId, idx){
+    const opts = document.querySelectorAll('#qOptions .option');
+    opts.forEach(o => o.classList.add('locked'));
+    try {
+      const result = await apiFetch('/api/questions/' + questionId + '/answer', {
+        method: 'POST',
+        body: JSON.stringify({choice_id: choiceId}),
+      });
+      const choices = apiQuestions[qi % apiQuestions.length].choices;
+      opts.forEach((o, i) => {
+        if (choices[i].id === result.correct_choice_id) o.classList.add('correct');
+        else if (choices[i].id === choiceId) o.classList.add('wrong');
+      });
+      document.getElementById('rationaleText').innerHTML = result.rationale || '';
+      document.getElementById('rationale').classList.add('show');
+    } catch (e) {
+      opts[idx].classList.add('wrong');
+    }
+  }
+
+  function changeQuestion(dir){
+    const len = usingApi ? apiQuestions.length : questions.length;
+    qi = (qi + dir + len) % len;
+    renderQuestion();
+  }
+  renderQuestion();
+
+  // ---------- Lightbox ----------
+  function openZoom(){ document.getElementById('lightbox').classList.add('show'); }
+  function closeZoom(){ document.getElementById('lightbox').classList.remove('show'); }
+
+  // ---------- Professors Hub ----------
+  const professors = [
+    {id:1, name:'د. أحمد الجبوري', title:'أستاذ مساعد', subject:'التشريح', uni:'جامعة بغداد', color:'#4C5FE0', booklets:14, exams:6, followers:1240},
+    {id:2, name:'د. رنا الخفاجي', title:'أستاذ', subject:'التشريح', uni:'جامعة بغداد', color:'#7B6EF6', booklets:9, exams:4, followers:860},
+    {id:3, name:'د. سامر العبيدي', title:'مدرّس', subject:'الفسلجة', uni:'جامعة بغداد', color:'#FF8A5B', booklets:11, exams:5, followers:970},
+    {id:4, name:'د. نور الدين حسن', title:'أستاذ مساعد', subject:'الأنسجة', uni:'جامعة بغداد', color:'#1FAE72', booklets:8, exams:3, followers:640},
+    {id:5, name:'د. زينب كريم', title:'أستاذ', subject:'الكيمياء الحيوية', uni:'جامعة بغداد', color:'#E5484D', booklets:12, exams:7, followers:1100},
+  ];
+
+  const bookletsBySubject = {
+    'التشريح':[{t:'المحاضرة 1: مقدمة في التشريح العام', p:22},{t:'المحاضرة 2: الجهاز الهيكلي', p:30},{t:'المحاضرة 3: الجهاز العضلي', p:26},{t:'ملزمة المختبر العملي', p:18}],
+    'الفسلجة':[{t:'المحاضرة 1: فسلجة الخلية العصبية', p:20},{t:'المحاضرة 2: فسلجة القلب والدوران', p:28},{t:'المحاضرة 3: فسلجة الجهاز التنفسي', p:24},{t:'ملخص فسلجة الكلى', p:16}],
+    'الأنسجة':[{t:'المحاضرة 1: الأنسجة الطلائية', p:19},{t:'المحاضرة 2: الأنسجة الضامة', p:23},{t:'المحاضرة 3: الجهاز العصبي — الأنسجة', p:27},{t:'أطلس الشرائح النسيجية', p:34}],
+    'الكيمياء الحيوية':[{t:'المحاضرة 1: الأحماض الأمينية والبروتينات', p:25},{t:'المحاضرة 2: الإنزيمات والتحفيز الحيوي', p:21},{t:'المحاضرة 3: استقلاب الكربوهيدرات', p:29},{t:'ملزمة المختبر الكيميائي', p:15}],
+    'عام':[{t:'دليل استراتيجيات حل الأسئلة', p:14},{t:'إدارة الوقت أثناء الامتحان', p:10}],
+  };
+  const examsBySubject = {
+    'التشريح':[{t:'كويز الفصل الأول — تشريح', q:25, m:30, a:412},{t:'امتحان منتصف الفصل', q:50, m:60, a:298},{t:'بنك أسئلة أعوام سابقة', q:100, m:90, a:156}],
+    'الفسلجة':[{t:'كويز الفصل الأول — فسلجة', q:25, m:30, a:355},{t:'امتحان منتصف الفصل', q:45, m:55, a:240},{t:'بنك أسئلة أعوام سابقة', q:90, m:80, a:130}],
+    'الأنسجة':[{t:'كويز الفصل الأول — أنسجة', q:20, m:25, a:280},{t:'امتحان منتصف الفصل', q:40, m:50, a:190},{t:'بنك أسئلة أعوام سابقة', q:80, m:75, a:110}],
+    'الكيمياء الحيوية':[{t:'كويز الفصل الأول — كيمياء حيوية', q:25, m:30, a:300},{t:'امتحان منتصف الفصل', q:50, m:60, a:210},{t:'بنك أسئلة أعوام سابقة', q:95, m:85, a:140}],
+    'عام':[{t:'اختبار قياس السرعة', q:20, m:20, a:520},{t:'محاكاة امتحان شامل', q:60, m:70, a:340}],
+  };
+
+  const pdfIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>';
+  const examIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="m9.5 13 2 2 4-4"/></svg>';
+  const chevronIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>';
+
+  function initials(name){
+    const clean = name.replace('د. ', '');
+    return clean.split(' ').map(w => w[0]).slice(0, 2).join('');
+  }
+
+  const subjectList = ['all', 'التشريح', 'الفسلجة', 'الأنسجة', 'الكيمياء الحيوية'];
+
+  // Real-backend path: fetch /api/professors once per session and normalize
+  // it into the same shape the local demo array uses, so every render
+  // function below works unmodified whichever source is active.
+  const profColors = ['#4C5FE0', '#7B6EF6', '#FF8A5B', '#1FAE72', '#E5484D'];
+  let usingApiProfessors = false;
+  let apiProfessorsNormalized = null;
+  async function tryLoadApiProfessors(){
+    if (apiProfessorsNormalized){ usingApiProfessors = true; return; }
+    usingApiProfessors = false;
+    if (!authToken) return;
+    try {
+      const data = await apiFetch('/api/professors');
+      if (Array.isArray(data) && data.length){
+        apiProfessorsNormalized = data.map((p, idx) => ({
+          id: p.id, name: p.name, title: p.title, subject: p.subject_name,
+          uni: 'جامعة بغداد', color: profColors[idx % profColors.length],
+          booklets: p.booklets.length, exams: p.exams.length, followers: null,
+          apiBooklets: p.booklets, apiExams: p.exams,
+        }));
+        usingApiProfessors = true;
+      }
+    } catch (e) { /* backend unreachable or no professors yet — keep local demo set */ }
+  }
+  function activeProfessorsList(){
+    return usingApiProfessors ? apiProfessorsNormalized : professors;
+  }
+
+  function renderProfFilters(active){
+    const wrap = document.getElementById('profFilters');
+    wrap.innerHTML = '';
+    subjectList.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'filter-chip' + (s === active ? ' active' : '');
+      b.textContent = s === 'all' ? 'الكل' : s;
+      b.addEventListener('click', () => { renderProfFilters(s); renderProfessors(s); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function renderProfessors(filter){
+    const all = activeProfessorsList();
+    const list = filter === 'all' ? all : all.filter(p => p.subject === filter);
+    document.getElementById('profList').innerHTML = list.map(p => `
+      <button class="prof-card glass" onclick="openProfessor('${p.id}')">
+        <div class="prof-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2))">${initials(p.name)}</div>
+        <div class="prof-info">
+          <div class="prof-name">${p.name}</div>
+          <div class="prof-meta">${p.title} · ${p.subject} · ${p.uni}</div>
+          <div class="prof-stats">
+            <span>${pdfIcon}${p.booklets} ملزمة</span>
+            <span>${examIcon}${p.exams} امتحان</span>
+          </div>
+        </div>
+        <span class="prof-chevron">${chevronIcon}</span>
+      </button>
+    `).join('') || '<div class="empty-row">لا يوجد دكاترة بعد</div>';
+  }
+
+  function openProfessor(id){
+    const p = activeProfessorsList().find(x => String(x.id) === String(id));
+    if (!p) return;
+    document.getElementById('profHeader').innerHTML = `
+      <div class="prof-header-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2))">${initials(p.name)}</div>
+      <div>
+        <div class="prof-header-name">${p.name}</div>
+        <div class="prof-header-title">${p.title} · ${p.subject}</div>
+        <div class="prof-tags">
+          <span class="prof-tag">${p.uni}</span>
+          ${p.followers != null ? `<span class="prof-tag">${p.followers.toLocaleString('en-US')} طالب يتابعه</span>` : ''}
+        </div>
+      </div>
+    `;
+    const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({t: b.title, p: b.pages})) : (bookletsBySubject[p.subject] || []);
+    const exams = p.apiExams ? p.apiExams.map(e => ({t: e.title, q: e.question_count, m: e.duration_minutes, a: null})) : (examsBySubject[p.subject] || []);
+    document.getElementById('bookletsList').innerHTML = booklets.map(b => `
+      <div class="item-card glass">
+        <div class="item-icon pdf">${pdfIcon}</div>
+        <div class="item-body">
+          <div class="item-title">${b.t}</div>
+          <div class="item-meta">${b.p} صفحة · PDF</div>
+        </div>
+        <button class="btn btn-ghost item-action">فتح</button>
+      </div>
+    `).join('') || '<div class="empty-row">لا توجد ملازم بعد</div>';
+    document.getElementById('examsList').innerHTML = exams.map(e => `
+      <div class="item-card glass">
+        <div class="item-icon exam">${examIcon}</div>
+        <div class="item-body">
+          <div class="item-title">${e.t}</div>
+          <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة${e.a != null ? ' · ' + e.a + ' محاولة' : ''}</div>
+        </div>
+        <button class="btn item-action" onclick="goToQuiz()">ابدأ</button>
+      </div>
+    `).join('') || '<div class="empty-row">لا توجد امتحانات بعد</div>';
+    switchTab('booklets');
+    document.getElementById('view-professors').classList.remove('active');
+    document.getElementById('view-professor').classList.add('active');
+  }
+
+  function switchTab(tab){
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.getElementById('tab-booklets').classList.toggle('active', tab === 'booklets');
+    document.getElementById('tab-exams').classList.toggle('active', tab === 'exams');
+  }
+
+  async function goToProfessors(){
+    hideAllViews();
+    document.getElementById('view-professors').classList.add('active');
+    await tryLoadApiProfessors();
+    renderProfFilters('all');
+    renderProfessors('all');
+  }
+  function backHomeFromProfessors(){
+    hideAllViews();
+    document.getElementById('view-home').classList.add('active');
+  }
+  function backToProfessors(){
+    hideAllViews();
+    document.getElementById('view-professors').classList.add('active');
+  }
+
+  // ---------- Store ----------
+  const products = [
+    {id:1, name:'كود تفعيل VIP — جميع المواد (سنة كاملة)', price:45000, type:'digital', icon:'key'},
+    {id:2, name:'كورس التشريح الشامل (فيديو)', price:25000, type:'digital', icon:'play'},
+    {id:3, name:'كود تفعيل مادة واحدة', price:15000, type:'digital', icon:'key'},
+    {id:4, name:'كورس مهارات الامتحان الشامل', price:20000, type:'digital', icon:'play'},
+    {id:5, name:'سماعة طبية (ستيثوسكوب)', price:35000, type:'physical', icon:'stetho'},
+    {id:6, name:'حقيبة أدوات طبية متكاملة', price:60000, type:'physical', icon:'bag'},
+    {id:7, name:'ملزمة ورقية مطبوعة — التشريح', price:12000, type:'physical', icon:'book'},
+    {id:8, name:'مطرقة فحص عصبي (Reflex Hammer)', price:8000, type:'physical', icon:'hammer'},
+  ];
+  const productIcons = {
+    key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>',
+    play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="currentColor" stroke="none"/></svg>',
+    stetho:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M10 12v2a6 6 0 0 0 12 0v-1"/><circle cx="21.2" cy="12.6" r="1.9"/></svg>',
+    bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>',
+    book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-2-1.5-5-2-8-1v13c3-1 6-.5 8 1 2-1.5 5-2 8-1V5c-3-1-6-.5-8 1Z"/><path d="M12 6v13"/></svg>',
+    hammer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5 18 3l3 3-3.5 3.5"/><path d="m13 8-8.5 8.5a2 2 0 0 0 3 3L16 11"/><path d="m17 7 3 3"/></svg>',
+  };
+
+  let cart = {};      // id -> qty
+  let storeFilter = 'all';
+
+  function fmtPrice(n){ return n.toLocaleString('en-US') + ' د.ع'; }
+
+  function renderStoreFilters(active){
+    storeFilter = active;
+    const labels = {all:'الكل', digital:'رقمي', physical:'منتجات ملموسة'};
+    const wrap = document.getElementById('storeFilters');
+    wrap.innerHTML = '';
+    ['all','digital','physical'].forEach(k => {
+      const b = document.createElement('button');
+      b.className = 'filter-chip' + (k === active ? ' active' : '');
+      b.textContent = labels[k];
+      b.addEventListener('click', () => { renderStoreFilters(k); renderProducts(k); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function renderProducts(filter){
+    const list = filter === 'all' ? products : products.filter(p => p.type === filter);
+    document.getElementById('productGrid').innerHTML = list.map(p => `
+      <div class="product-card glass">
+        <div class="product-icon-wrap">
+          <span class="product-badge ${p.type}">${p.type === 'digital' ? 'رقمي' : 'منتج'}</span>
+          ${productIcons[p.icon]}
+        </div>
+        <div class="product-name">${p.name}</div>
+        <div class="product-price mono">${fmtPrice(p.price)}</div>
+        <button class="btn product-add" onclick="addToCart(${p.id})">أضف للسلة</button>
+      </div>
+    `).join('');
+  }
+
+  function updateCartBadge(){
+    const count = Object.values(cart).reduce((a,b) => a+b, 0);
+    const badge = document.getElementById('cartBadge');
+    if (!badge) return;
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'grid' : 'none';
+  }
+
+  function addToCart(id){
+    cart[id] = (cart[id] || 0) + 1;
+    updateCartBadge();
+  }
+
+  function cartHasPhysical(){
+    return Object.keys(cart).some(id => cart[id] > 0 && products.find(p => p.id == id).type === 'physical');
+  }
+  function cartTotal(){
+    return Object.keys(cart).reduce((sum, id) => {
+      const p = products.find(x => x.id == id);
+      return sum + (p ? p.price * cart[id] : 0);
+    }, 0);
+  }
+
+  function renderCart(){
+    const ids = Object.keys(cart).filter(id => cart[id] > 0);
+    const itemsWrap = document.getElementById('cartItems');
+    const summary = document.getElementById('cartSummary');
+    if (ids.length === 0){
+      itemsWrap.innerHTML = `
+        <div class="cart-empty glass">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
+          السلة فارغة
+        </div>`;
+      summary.style.display = 'none';
+      return;
+    }
+    itemsWrap.innerHTML = ids.map(id => {
+      const p = products.find(x => x.id == id);
+      return `
+        <div class="cart-item glass">
+          <div class="cart-item-icon">${productIcons[p.icon]}</div>
+          <div class="cart-item-body">
+            <div class="cart-item-name">${p.name}</div>
+            <div class="cart-item-price mono">${fmtPrice(p.price)}</div>
+          </div>
+          <div class="qty-stepper">
+            <button class="qty-btn" onclick="changeCartQty(${p.id},-1)">−</button>
+            <span class="qty-value">${cart[id]}</span>
+            <button class="qty-btn" onclick="changeCartQty(${p.id},1)">+</button>
+          </div>
+        </div>`;
+    }).join('');
+    summary.style.display = 'flex';
+    const hasPhysical = cartHasPhysical();
+    summary.innerHTML = `
+      <div class="summary-row"><span>المجموع الفرعي</span><b class="mono">${fmtPrice(cartTotal())}</b></div>
+      <div class="summary-row total"><span>الإجمالي</span><b class="mono">${fmtPrice(cartTotal())}</b></div>
+      ${hasPhysical ? '<div class="summary-note">يتضمن الطلب منتجات ملموسة — يتوفر خيار الدفع عند الاستلام</div>' : '<div class="summary-note">طلب رقمي بالكامل — يتم التفعيل فور تأكيد الدفع</div>'}
+      <button class="btn" style="justify-content:center; margin-top:8px;" onclick="goToCheckout()">متابعة الشراء</button>
+    `;
+  }
+
+  function changeCartQty(id, delta){
+    cart[id] = (cart[id] || 0) + delta;
+    if (cart[id] <= 0) delete cart[id];
+    updateCartBadge();
+    renderCart();
+  }
+
+  function goToStore(){
+    hideAllViews();
+    document.getElementById('view-store').classList.add('active');
+    renderStoreFilters('all');
+    renderProducts('all');
+    updateCartBadge();
+  }
+  function backHomeFromStore(){
+    hideAllViews();
+    document.getElementById('view-home').classList.add('active');
+  }
+  function goToCart(){
+    hideAllViews();
+    document.getElementById('view-cart').classList.add('active');
+    renderCart();
+  }
+  function backToStore(){
+    hideAllViews();
+    document.getElementById('view-store').classList.add('active');
+    renderStoreFilters(storeFilter);
+    renderProducts(storeFilter);
+    updateCartBadge();
+  }
+
+  // ---------- Checkout ----------
+  let selectedPayment = 'zaincash';
+  function renderCheckout(){
+    const hasPhysical = cartHasPhysical();
+    selectedPayment = 'zaincash';
+    document.getElementById('checkoutBody').innerHTML = `
+      <div class="checkout-section glass" style="padding:18px 20px;">
+        <div class="section-title">ملخص الطلب</div>
+        <div class="summary-row"><span>عدد المنتجات</span><b class="mono">${Object.values(cart).reduce((a,b)=>a+b,0)}</b></div>
+        <div class="summary-row total"><span>الإجمالي</span><b class="mono">${fmtPrice(cartTotal())}</b></div>
+      </div>
+
+      ${hasPhysical ? `
+      <div class="checkout-section">
+        <div class="section-title">معلومات التوصيل</div>
+        <div class="glass" style="padding:16px 18px;">
+          <div class="form-field"><input id="deliveryName" type="text" placeholder="الاسم الكامل" /></div>
+          <div class="form-field"><input id="deliveryPhone" type="tel" placeholder="رقم الهاتف" /></div>
+          <div class="form-field" style="margin-bottom:0;"><input id="deliveryAddress" type="text" placeholder="العنوان — المحافظة، المنطقة، أقرب نقطة دالة" /></div>
+        </div>
+        <div id="deliveryError" style="display:none; color:var(--danger); font-size:.78rem; margin-top:8px;"></div>
+      </div>` : ''}
+
+      <div class="checkout-section">
+        <div class="section-title">طريقة الدفع</div>
+        <div class="pay-options">
+          <button class="pay-option active" data-pay="zaincash" onclick="selectPayment('zaincash')">
+            <span class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 14h4"/></svg></span>
+            <span class="pay-body">
+              <span class="pay-title">زين كاش (ZainCash)</span>
+              <span class="pay-sub">دفع فوري إلكتروني</span>
+            </span>
+            <span class="pay-radio"></span>
+          </button>
+          <button class="pay-option ${hasPhysical ? '' : 'disabled'}" data-pay="cod" onclick="${hasPhysical ? "selectPayment('cod')" : ''}">
+            <span class="pay-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2Z"/></svg></span>
+            <span class="pay-body">
+              <span class="pay-title">الدفع عند الاستلام</span>
+              <span class="pay-sub">${hasPhysical ? 'يدفع نقداً عند وصول المندوب' : 'متاح فقط عند وجود منتج ملموس بالسلة'}</span>
+            </span>
+            <span class="pay-radio"></span>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn" style="width:100%; justify-content:center; padding:14px;" onclick="confirmOrder()">تأكيد الطلب</button>
+    `;
+  }
+
+  function selectPayment(method){
+    selectedPayment = method;
+    document.querySelectorAll('.pay-option').forEach(el => el.classList.toggle('active', el.dataset.pay === method));
+  }
+
+  let apiProductMap = null; // local product name -> real backend product id
+  async function resolveApiProductMap(){
+    if (apiProductMap) return apiProductMap;
+    try {
+      const real = await apiFetch('/api/store/products');
+      apiProductMap = {};
+      real.forEach(p => { apiProductMap[p.name] = p.id; });
+    } catch (e) { apiProductMap = null; }
+    return apiProductMap;
+  }
+
+  async function confirmOrder(){
+    const hasPhysical = cartHasPhysical();
+    if (hasPhysical){
+      const name = (document.getElementById('deliveryName')?.value || '').trim();
+      const phone = (document.getElementById('deliveryPhone')?.value || '').trim();
+      const address = (document.getElementById('deliveryAddress')?.value || '').trim();
+      const errEl = document.getElementById('deliveryError');
+      if (!name || !phone || !address){
+        errEl.textContent = 'الرجاء تعبئة الاسم ورقم الهاتف والعنوان لإتمام طلب فيه منتج ملموس';
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+    }
+
+    const orderNo = 'NBD-' + Math.floor(10000 + Math.random()*89999);
+    let apiNote = '';
+    let codesNote = '';
+
+    if (authToken){
+      try {
+        const map = await resolveApiProductMap();
+        const ids = Object.keys(cart).filter(id => cart[id] > 0);
+        const items = [];
+        let allMatched = map && ids.length > 0;
+        ids.forEach(id => {
+          const p = products.find(x => x.id == id);
+          const realId = p && map ? map[p.name] : null;
+          if (realId) items.push({product_id: realId, qty: cart[id]});
+          else allMatched = false;
+        });
+        if (allMatched){
+          const body = {items, payment_method: selectedPayment};
+          if (hasPhysical){
+            body.delivery_name = document.getElementById('deliveryName').value.trim();
+            body.delivery_phone = document.getElementById('deliveryPhone').value.trim();
+            body.delivery_address = document.getElementById('deliveryAddress').value.trim();
+          }
+          const order = await apiFetch('/api/store/orders', {
+            method: 'POST',
+            body: JSON.stringify(body),
+          });
+          apiNote = ` · طلب مسجّل فعلياً على الخادم رقم ${order.id}`;
+          if (order.granted_activation_codes && order.granted_activation_codes.length){
+            codesNote = `
+              <div class="glass" style="padding:14px 16px; margin-top:14px; text-align:start;">
+                <div style="font-weight:700; font-size:.82rem; margin-bottom:6px;">تم تفعيل كود التفعيل تلقائياً على حسابك</div>
+                ${order.granted_activation_codes.map(c => `<div class="mono" style="font-size:.85rem;">${c}</div>`).join('')}
+              </div>`;
+          }
+        }
+      } catch (e) { /* backend rejected or unreachable — local confirmation still shown below */ }
+    }
+
+    document.getElementById('checkoutBody').innerHTML = `
+      <div class="confirm-panel glass">
+        <div class="confirm-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <div class="confirm-title">تم إرسال طلبك بنجاح</div>
+        <div class="confirm-sub">رقم الطلب <span class="mono">${orderNo}</span> — ${selectedPayment === 'zaincash' ? 'سيتم تفعيل طلبك فور تأكيد الدفع عبر زين كاش' : 'سيتواصل معك المندوب لتأكيد التوصيل'}${apiNote}</div>
+        ${codesNote}
+        <button class="btn" onclick="cart={}; updateCartBadge(); goHome();">العودة للرئيسية</button>
+      </div>
+    `;
+  }
+  function backToCartFromCheckout(){
+    hideAllViews();
+    document.getElementById('view-cart').classList.add('active');
+    renderCart();
+  }
+
+  // ---------- Video Academy ----------
+  const courses = [
+    {id:1, title:'كورس التشريح الشامل', instructor:'د. أحمد الجبوري', subject:'التشريح', color:'#4C5FE0', lectures:[
+      {title:'مقدمة في التشريح العام', dur:'18:24', done:true},
+      {title:'الجهاز الهيكلي — الجزء الأول', dur:'26:10', done:true},
+      {title:'الجهاز الهيكلي — الجزء الثاني', dur:'22:45', done:false},
+      {title:'الجهاز العضلي', dur:'31:02', done:false},
+      {title:'مراجعة عملية على المختبر', dur:'15:38', done:false},
+    ]},
+    {id:2, title:'أساسيات الفسلجة', instructor:'د. سامر العبيدي', subject:'الفسلجة', color:'#FF8A5B', lectures:[
+      {title:'فسلجة الخلية العصبية', dur:'20:12', done:true},
+      {title:'فسلجة القلب والدوران', dur:'27:40', done:false},
+      {title:'فسلجة الجهاز التنفسي', dur:'19:55', done:false},
+      {title:'فسلجة الكلى — ملخص', dur:'16:20', done:false},
+    ]},
+    {id:3, title:'مهارات الامتحان الشامل', instructor:'فريق نبض الأكاديمي', subject:'عام', color:'#7B6EF6', lectures:[
+      {title:'كيف تدير وقتك أثناء الامتحان', dur:'12:05', done:false},
+      {title:'استراتيجيات حل الأسئلة متعددة الخيارات', dur:'17:48', done:false},
+      {title:'التعامل مع القلق قبل الامتحان', dur:'14:30', done:false},
+    ]},
+    {id:4, title:'أطلس الأنسجة التطبيقي', instructor:'د. نور الدين حسن', subject:'الأنسجة', color:'#1FAE72', lectures:[
+      {title:'الأنسجة الطلائية — تصنيف وأمثلة', dur:'23:15', done:true},
+      {title:'الأنسجة الضامة', dur:'21:50', done:false},
+      {title:'الجهاز العصبي تحت المجهر', dur:'28:33', done:false},
+    ]},
+  ];
+
+  const playGlyph = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7Z"/></svg>';
+  const pauseGlyph = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+  const replayGlyph = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M20 12A8 8 0 1 0 6 6.3L4 10"/></svg>';
+  const speedOptions = [0.5, 1, 1.25, 1.5, 2];
+  const qualityOptions = ['480p','720p','1080p'];
+
+  let currentCourse = null, currentLectureIndex = 0, playState = false, playbackSeconds = 0;
+  let playbackSpeedIdx = 1, playbackQualityIdx = 1, playerTimer = null;
+
+  function parseDur(str){ const [m,s] = str.split(':').map(Number); return m*60+s; }
+  function formatSec(sec){ sec = Math.max(0, Math.round(sec)); const m = Math.floor(sec/60); const s = sec%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+  function fmtDurationLong(totalSeconds){
+    const h = Math.floor(totalSeconds/3600);
+    const m = Math.round((totalSeconds%3600)/60);
+    return h>0 ? `${h}س ${m}د` : `${m}د`;
+  }
+  function courseStats(course){
+    const totalSeconds = course.lectures.reduce((a,l) => a + parseDur(l.dur), 0);
+    const doneCount = course.lectures.filter(l => l.done).length;
+    return {totalSeconds, doneCount, total: course.lectures.length, pct: Math.round(doneCount/course.lectures.length*100)};
+  }
+
+  // Real-backend path: fetch /api/courses once per session and normalize it
+  // into the same shape the local demo array uses. The backend has no
+  // per-user watch-progress endpoint yet, so lectures start as not-done —
+  // "done" then tracks locally for the rest of the session, same as the demo.
+  const courseColors = ['#4C5FE0', '#FF8A5B', '#7B6EF6', '#1FAE72'];
+  let usingApiCourses = false;
+  let apiCoursesNormalized = null;
+  async function tryLoadApiCourses(){
+    if (apiCoursesNormalized){ usingApiCourses = true; return; }
+    usingApiCourses = false;
+    if (!authToken) return;
+    try {
+      const data = await apiFetch('/api/courses');
+      if (Array.isArray(data) && data.length){
+        apiCoursesNormalized = data.map((c, idx) => ({
+          id: c.id, title: c.title, instructor: c.instructor,
+          subject: null, color: courseColors[idx % courseColors.length],
+          lectures: c.lectures.map(l => ({title: l.title, dur: formatSec(l.duration_seconds), done: false})),
+        }));
+        usingApiCourses = true;
+      }
+    } catch (e) { /* backend unreachable or no courses yet — keep local demo set */ }
+  }
+  function activeCoursesList(){
+    return usingApiCourses ? apiCoursesNormalized : courses;
+  }
+
+  function renderAcademy(){
+    const list = activeCoursesList();
+    document.getElementById('courseGrid').innerHTML = list.map(c => {
+      const stats = courseStats(c);
+      return `
+      <button class="course-card glass" onclick="openCourse('${c.id}')">
+        <div class="course-thumb" style="background:linear-gradient(145deg, ${c.color}, var(--accent-2))">
+          <svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M8 5v14l11-7Z"/></svg>
+        </div>
+        <div class="course-info">
+          <div class="course-title">${c.title}</div>
+          <div class="course-instructor">${c.instructor}</div>
+          <div class="course-meta"><span>${c.lectures.length} محاضرة</span><span>·</span><span>${fmtDurationLong(stats.totalSeconds)}</span></div>
+          <div class="course-progress-track"><div class="course-progress-fill" style="width:${stats.pct}%"></div></div>
+        </div>
+        <span class="course-chevron">${chevronIcon}</span>
+      </button>`;
+    }).join('') || '<div class="empty-row">لا توجد كورسات بعد</div>';
+  }
+
+  async function goToAcademy(){
+    hideAllViews();
+    document.getElementById('view-academy').classList.add('active');
+    await tryLoadApiCourses();
+    renderAcademy();
+  }
+  function backHomeFromAcademy(){
+    hideAllViews();
+    document.getElementById('view-home').classList.add('active');
+  }
+  function backToAcademy(){
+    stopPlayerTimer();
+    hideAllViews();
+    document.getElementById('view-academy').classList.add('active');
+    renderAcademy();
+  }
+
+  function openCourse(id){
+    currentCourse = activeCoursesList().find(c => String(c.id) === String(id));
+    if (!currentCourse) return;
+    currentLectureIndex = currentCourse.lectures.findIndex(l => !l.done);
+    if (currentLectureIndex === -1) currentLectureIndex = 0;
+    playbackSeconds = 0; playState = false; playbackSpeedIdx = 1; playbackQualityIdx = 1;
+    stopPlayerTimer();
+    hideAllViews();
+    document.getElementById('view-course').classList.add('active');
+    renderCourseHeader();
+    renderCoursePlayer();
+    renderLectureList();
+    renderCourseMaterials();
+    switchCourseTab('lectures');
+  }
+
+  function renderCourseHeader(){
+    document.getElementById('courseTopTitle').textContent = currentCourse.title;
+    document.getElementById('courseTitleText').textContent = currentCourse.title;
+    const stats = courseStats(currentCourse);
+    document.getElementById('courseMetaText').textContent = `${currentCourse.instructor} · ${currentCourse.lectures.length} محاضرة · ${fmtDurationLong(stats.totalSeconds)}`;
+  }
+
+  function renderCoursePlayer(){
+    const lec = currentCourse.lectures[currentLectureIndex];
+    const total = parseDur(lec.dur);
+    document.getElementById('playerScreen').style.background = `linear-gradient(160deg, ${currentCourse.color}, var(--accent-2))`;
+    document.getElementById('playerLectureTitle').textContent = lec.title;
+    document.getElementById('playerQualityPill').textContent = qualityOptions[playbackQualityIdx];
+    document.getElementById('playerSpeedPill').textContent = 'x' + speedOptions[playbackSpeedIdx];
+    document.getElementById('playerTime').textContent = formatSec(playbackSeconds) + ' / ' + lec.dur;
+    document.getElementById('playerScrubFill').style.width = (playbackSeconds/total*100) + '%';
+    updatePlayIcon();
+  }
+
+  function updatePlayIcon(){
+    const lec = currentCourse.lectures[currentLectureIndex];
+    const total = parseDur(lec.dur);
+    let glyph = playState ? pauseGlyph : (playbackSeconds >= total ? replayGlyph : playGlyph);
+    document.getElementById('playerCenterBtn').innerHTML = glyph;
+    document.getElementById('playBtnSmall').innerHTML = glyph;
+  }
+
+  function togglePlay(){
+    const lec = currentCourse.lectures[currentLectureIndex];
+    const total = parseDur(lec.dur);
+    if (!playState && playbackSeconds >= total) playbackSeconds = 0;
+    playState = !playState;
+    updatePlayIcon();
+    if (playState){
+      playerTimer = setInterval(() => {
+        playbackSeconds += speedOptions[playbackSpeedIdx];
+        if (playbackSeconds >= total){
+          playbackSeconds = total;
+          stopPlayerTimer();
+          playState = false;
+          lec.done = true;
+          updatePlayIcon();
+          renderLectureList();
+        }
+        document.getElementById('playerScrubFill').style.width = (playbackSeconds/total*100) + '%';
+        document.getElementById('playerTime').textContent = formatSec(playbackSeconds) + ' / ' + lec.dur;
+      }, 400);
+    } else {
+      stopPlayerTimer();
+    }
+  }
+  function stopPlayerTimer(){ clearInterval(playerTimer); playerTimer = null; }
+
+  function cycleQuality(){
+    playbackQualityIdx = (playbackQualityIdx + 1) % qualityOptions.length;
+    document.getElementById('playerQualityPill').textContent = qualityOptions[playbackQualityIdx];
+  }
+  function cycleSpeed(){
+    playbackSpeedIdx = (playbackSpeedIdx + 1) % speedOptions.length;
+    document.getElementById('playerSpeedPill').textContent = 'x' + speedOptions[playbackSpeedIdx];
+  }
+
+  function selectLecture(idx){
+    stopPlayerTimer();
+    currentLectureIndex = idx;
+    playbackSeconds = 0; playState = false;
+    renderCoursePlayer();
+    renderLectureList();
+  }
+
+  function renderLectureList(){
+    document.getElementById('lectureList').innerHTML = currentCourse.lectures.map((l, idx) => {
+      const isCurrent = idx === currentLectureIndex;
+      return `
+      <button class="item-card lecture-item glass ${isCurrent ? 'current' : ''} ${l.done ? 'done' : ''}" onclick="selectLecture(${idx})">
+        <span class="lecture-num">${l.done ? '✓' : idx+1}</span>
+        <span class="item-body">
+          <span class="item-title">${l.title}</span>
+          <span class="item-meta mono">${l.dur}</span>
+        </span>
+        <span class="lecture-play">${isCurrent && playState ? pauseGlyph : playGlyph}</span>
+      </button>`;
+    }).join('');
+  }
+
+  function renderCourseMaterials(){
+    const subj = currentCourse.subject;
+    document.getElementById('courseBooklets').innerHTML = (bookletsBySubject[subj] || []).map(b => `
+      <div class="item-card glass">
+        <div class="item-icon pdf">${pdfIcon}</div>
+        <div class="item-body">
+          <div class="item-title">${b.t}</div>
+          <div class="item-meta">${b.p} صفحة · PDF</div>
+        </div>
+        <button class="btn btn-ghost item-action">فتح</button>
+      </div>
+    `).join('') || '<div class="empty-row">لا توجد ملازم مرتبطة بهذا الكورس</div>';
+    document.getElementById('courseQuizzes').innerHTML = (examsBySubject[subj] || []).map(e => `
+      <div class="item-card glass">
+        <div class="item-icon exam">${examIcon}</div>
+        <div class="item-body">
+          <div class="item-title">${e.t}</div>
+          <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة · ${e.a} محاولة</div>
+        </div>
+        <button class="btn item-action" onclick="goToQuiz()">ابدأ</button>
+      </div>
+    `).join('') || '<div class="empty-row">لا توجد كويزات مرتبطة بهذا الكورس</div>';
+  }
+
+  function switchCourseTab(tab){
+    document.querySelectorAll('#view-course .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.ctab === tab));
+    document.getElementById('ctab-lectures').classList.toggle('active', tab === 'lectures');
+    document.getElementById('ctab-booklets').classList.toggle('active', tab === 'booklets');
+    document.getElementById('ctab-quizzes').classList.toggle('active', tab === 'quizzes');
+  }
+
+  // ---------- Account ----------
+  function goToAccount(){
+    hideAllViews();
+    document.getElementById('view-account').classList.add('active');
+    loadActivations();
+    loadActiveSession();
+  }
+  function backHomeFromAccount(){
+    hideAllViews();
+    document.getElementById('view-home').classList.add('active');
+  }
+
+  // ---------- Security: active session + password change ----------
+  async function loadActiveSession(){
+    if (!authToken) return;
+    try {
+      const sessions = await apiFetch('/auth/me/sessions');
+      const s = sessions[0];
+      if (!s) return;
+      // The backend sends naive UTC timestamps with no "Z" — without it, JS
+      // parses date-time strings as local time, which skews this by the
+      // viewer's UTC offset. Force UTC interpretation explicitly.
+      const mins = Math.max(0, Math.round((Date.now() - new Date(s.created_at + 'Z')) / 60000));
+      const since = mins < 60 ? `منذ ${mins} دقيقة` : mins < 1440 ? `منذ ${Math.round(mins/60)} ساعة` : `منذ ${Math.round(mins/1440)} يوم`;
+      document.getElementById('activeSessionMeta').textContent =
+        `${s.device_label} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
+    } catch (e) { /* backend unreachable — keep the static demo text */ }
+  }
+
+  function togglePasswordChangeForm(){
+    const form = document.getElementById('passwordChangeForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function submitPasswordChange(){
+    const current = document.getElementById('currentPasswordInput').value;
+    const next = document.getElementById('newPasswordInput').value;
+    const msg = document.getElementById('passwordChangeMsg');
+    if (!authToken){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'سجّلي الدخول أولاً';
+      return;
+    }
+    if (!next){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'أدخلي كلمة المرور الجديدة';
+      return;
+    }
+    try {
+      await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({current_password: current, new_password: next}),
+      });
+      msg.style.color = 'var(--success)';
+      msg.textContent = 'تم تحديث كلمة المرور بنجاح';
+      document.getElementById('currentPasswordInput').value = '';
+      document.getElementById('newPasswordInput').value = '';
+      document.getElementById('passwordMeta').textContent = 'آخر تغيير الآن';
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر تحديث كلمة المرور';
+    }
+  }
+
+  // ---------- Activation codes ----------
+  function demoActivationCardHtml(){
+    return `
+      <div class="continue-card glass" style="cursor:default;">
+        <div class="continue-ring" style="--p:79;"></div>
+        <div class="continue-body">
+          <div class="continue-eyebrow">كود التفعيل الحالي (توضيحي)</div>
+          <div class="continue-title mono">NBD-VIP-7X29</div>
+          <div class="continue-meta">ينتهي خلال 289 يوم — بدأ 12 يناير 2026</div>
+        </div>
+      </div>`;
+  }
+  function activationCardHtml(a){
+    const daysLeft = a.expires_at ? Math.max(0, Math.ceil((new Date(a.expires_at) - new Date()) / 86400000)) : null;
+    const pct = daysLeft != null ? Math.round(Math.min(100, daysLeft / CODE_VALIDITY_DAYS * 100)) : 0;
+    return `
+      <div class="continue-card glass" style="cursor:default;">
+        <div class="continue-ring" style="--p:${pct};"></div>
+        <div class="continue-body">
+          <div class="continue-eyebrow">${a.subject_name}</div>
+          <div class="continue-title mono">${a.code_masked}</div>
+          <div class="continue-meta">${daysLeft != null ? 'ينتهي خلال ' + daysLeft + ' يوم' : ''}</div>
+        </div>
+      </div>`;
+  }
+  const CODE_VALIDITY_DAYS = 365; // mirrors the backend's redemption validity window
+
+  async function loadActivations(){
+    const wrap = document.getElementById('activationCards');
+    if (!authToken){ wrap.innerHTML = demoActivationCardHtml(); return; }
+    try {
+      const mine = await apiFetch('/api/activation/mine');
+      wrap.innerHTML = mine.length
+        ? mine.map(activationCardHtml).join('')
+        : '<div class="empty-row">لا يوجد أكواد مفعّلة على حسابك بعد</div>';
+    } catch (e) { wrap.innerHTML = demoActivationCardHtml(); }
+  }
+
+  async function redeemActivationCode(){
+    const input = document.getElementById('activationCodeInput');
+    const msg = document.getElementById('activationMsg');
+    const code = (input.value || '').trim();
+    if (!code) return;
+    if (!authToken){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'سجّلي الدخول أولاً لتفعيل كود';
+      return;
+    }
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = 'جارٍ التفعيل...';
+    try {
+      const result = await apiFetch('/api/activation/redeem', {
+        method: 'POST',
+        body: JSON.stringify({code}),
+      });
+      input.value = '';
+      msg.style.color = 'var(--success)';
+      msg.textContent = 'تم التفعيل بنجاح — ' + result.subject_name;
+      loadActivations();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر تفعيل الكود — تأكد من صحته أو أن الخادم متصل';
+    }
+  }
+
+  // ---------- Login ----------
+  function goToLogin(){
+    hideAllViews();
+    document.getElementById('view-login').classList.add('active');
+    document.body.classList.add('auth-mode');
+  }
+  function togglePasswordVisibility(){ /* no longer used — kept as no-op for backward compatibility */ }
+
+  // ---------- Google Sign-In ----------
+  async function startGoogleSignIn(){
+    const btn = document.getElementById('googleBtn');
+    const label = document.getElementById('googleBtnLabel');
+    btn.disabled = true;
+    label.textContent = 'جارٍ التحقق من حساب Google...';
+
+    if (await apiReachable()){
+      // Real flow: hand off to the backend, which redirects to Google,
+      // then back to this page with #access_token=... on success.
+      window.location.href = API_BASE_URL + '/auth/google/login';
+      return;
+    }
+
+    // Demo fallback — no backend running, so simulate the round trip
+    // (used when previewing this file on its own).
+    setTimeout(() => {
+      btn.disabled = false;
+      label.textContent = 'المتابعة عبر Google';
+      goToOtpFromLogin();
+    }, 1100);
+  }
+  function goToOtpFromLogin(){
+    hideAllViews();
+    document.getElementById('view-otp').classList.add('active');
+    document.body.classList.add('auth-mode');
+  }
+  function backToLoginFromOtp(){
+    authToken = null;
+    hideAllViews();
+    document.getElementById('view-login').classList.add('active');
+    document.body.classList.add('auth-mode');
+  }
+  function confirmOtp(){
+    goHome();
+  }
+  async function loadRealProfile(){
+    try {
+      const me = await apiFetch('/auth/me');
+      currentUser = me;
+      const nameEl = document.getElementById('confirmName');
+      const emailEl = document.getElementById('confirmEmail');
+      if (nameEl) nameEl.textContent = me.full_name;
+      if (emailEl) emailEl.textContent = me.email;
+    } catch (e) {
+      if (e.status === 403){
+        hideAllViews();
+        document.getElementById('view-banned').classList.add('active');
+        loadBanStatus();
+      }
+      // Otherwise: backend unreachable or token expired — the static demo profile stays shown.
+    }
+  }
+
+  // ---------- Ban appeal ----------
+  function appealFormHtml(){
+    return `
+      <div class="glass" style="padding:16px 18px;">
+        <div class="form-field" style="margin-bottom:8px;"><input id="appealMessage" type="text" placeholder="اكتبي سبب الطعن..." /></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitAppeal()">إرسال الطعن</button>
+        <div id="appealMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
+      </div>`;
+  }
+
+  async function loadBanStatus(){
+    const area = document.getElementById('banAppealArea');
+    try {
+      const s = await apiFetch('/api/bans/mine');
+      document.getElementById('banReasonText').textContent = s.reason ? ('السبب: ' + s.reason) : '';
+      if (s.status === 'appealed'){
+        area.innerHTML = `
+          <div class="glass" style="padding:16px 18px;">
+            <div style="font-weight:700; margin-bottom:6px;">طعنك قيد المراجعة</div>
+            <div style="font-size:.82rem; color:var(--ink-soft);">"${s.appeal_message}"</div>
+          </div>`;
+      } else if (s.status === 'active' && s.appeal_message){
+        area.innerHTML = `
+          <div class="glass" style="padding:16px 18px; margin-bottom:12px;">
+            <div style="font-weight:700; color:var(--danger); margin-bottom:6px;">تم رفض الطعن السابق</div>
+            <div style="font-size:.82rem; color:var(--ink-soft);">"${s.appeal_message}"</div>
+          </div>
+          ${appealFormHtml()}`;
+      } else {
+        area.innerHTML = appealFormHtml();
+      }
+    } catch (e) {
+      area.innerHTML = '<div class="empty-row">تعذّر الاتصال بالخادم</div>';
+    }
+  }
+
+  async function submitAppeal(){
+    const input = document.getElementById('appealMessage');
+    const msg = document.getElementById('appealMsg');
+    const message = (input.value || '').trim();
+    if (!message) return;
+    try {
+      await apiFetch('/api/bans/appeal', {method: 'POST', body: JSON.stringify({message})});
+      loadBanStatus();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر إرسال الطعن';
+    }
+  }
+
+  // If we just landed back here from Google's real redirect, skip the
+  // login screen and show the confirm step with the actual account.
+  if (authToken){
+    goToOtpFromLogin();
+    loadRealProfile();
+  }
+</script>
+</body>
+</html>
