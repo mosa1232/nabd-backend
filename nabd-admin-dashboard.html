@@ -651,6 +651,42 @@
   </div>
 </div>
 
+<!-- ============ GENERIC MODAL ============ -->
+<div id="genericModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:999; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" id="genericModalCard" style="max-width:400px; width:100%; max-height:88vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="genericModalTitle"></span></div>
+    <div id="genericModalFields"></div>
+    <div id="genericModalMsg" style="display:none; font-size:.8rem; margin-top:4px;"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn" style="flex:1; justify-content:center;" onclick="genericModalSubmit()">حفظ</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" onclick="closeGenericModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RESELLER CODES MODAL ============ -->
+<div id="resellerCodesOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:999; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:440px; width:100%; max-height:88vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="resellerCodesTitle">أكواد المندوب</span></div>
+    <div id="resellerCodesList"></div>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="document.getElementById('resellerCodesOverlay').style.display='none'">إغلاق</button>
+  </div>
+</div>
+
+<!-- ============ CONFIRM MODAL (replaces window.confirm) ============ -->
+<div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:1000; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:360px; width:100%;">
+    <div id="confirmModalMsg" style="font-size:.9rem; line-height:1.6;"></div>
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button class="btn" style="flex:1; justify-content:center; background:var(--danger);" id="confirmModalYes">تأكيد</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" id="confirmModalNo">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST (replaces window.alert) ============ -->
+<div id="toastStack" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:1100; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; width:100%; max-width:420px; padding:0 16px;"></div>
+
 <script>
   // ---------- Backend integration ----------
   // Same-origin when served by the FastAPI backend itself (production);
@@ -671,7 +707,14 @@
         ...(options.headers || {}),
       },
     });
-    if (!res.ok) throw new Error('API ' + res.status);
+    if (!res.ok){
+      let detail = '';
+      try { detail = (await res.json())?.detail || ''; } catch (e) { /* no JSON body */ }
+      const err = new Error(detail || ('API ' + res.status));
+      err.status = res.status;
+      err.detail = detail;
+      throw err;
+    }
     return res.status === 204 ? null : res.json();
   }
   async function apiReachable(){
@@ -682,6 +725,83 @@
       clearTimeout(t);
       return res.ok;
     } catch (e) { return false; }
+  }
+
+  // ---------- Generic modal (replaces window.prompt()-chain forms, which
+  // browsers silently suppress after a couple of dialogs on the same page) ----------
+  let genericModalFieldsSpec = [];
+  let genericModalOnSubmit = null;
+
+  function openGenericModal(title, fields, onSubmit){
+    document.getElementById('genericModalTitle').textContent = title;
+    genericModalFieldsSpec = fields; // [{id, label, type:'text'|'password'|'number'|'select', value, placeholder, options:[{value,label}]}]
+    genericModalOnSubmit = onSubmit;
+    document.getElementById('genericModalFields').innerHTML = fields.map(f => {
+      const labelHtml = `<label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">${f.label}</label>`;
+      if (f.type === 'select'){
+        const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+        return `<div class="form-field">${labelHtml}<select id="gm_${f.id}">${opts}</select></div>`;
+      }
+      const val = f.value != null ? String(f.value).replace(/"/g, '&quot;') : '';
+      return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="${f.type || 'text'}" value="${val}" placeholder="${f.placeholder || ''}" /></div>`;
+    }).join('');
+    document.getElementById('genericModalMsg').style.display = 'none';
+    document.getElementById('genericModalOverlay').style.display = 'flex';
+    const first = fields[0];
+    if (first) setTimeout(() => document.getElementById('gm_' + first.id)?.focus(), 50);
+  }
+
+  function closeGenericModal(){
+    document.getElementById('genericModalOverlay').style.display = 'none';
+    genericModalOnSubmit = null;
+  }
+
+  async function genericModalSubmit(){
+    if (!genericModalOnSubmit) return;
+    const values = {};
+    genericModalFieldsSpec.forEach(f => { values[f.id] = document.getElementById('gm_' + f.id).value; });
+    const msg = document.getElementById('genericModalMsg');
+    msg.style.display = 'block';
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = 'جارٍ الحفظ...';
+    try {
+      await genericModalOnSubmit(values);
+      closeGenericModal();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || e.message || 'حدث خطأ غير متوقع';
+    }
+  }
+
+  // ---------- Confirm modal (replaces window.confirm, which browsers
+  // silently suppress after repeated use on one page) ----------
+  function confirmModal(message){
+    return new Promise((resolve) => {
+      document.getElementById('confirmModalMsg').textContent = message;
+      const overlay = document.getElementById('confirmModalOverlay');
+      overlay.style.display = 'flex';
+      const yesBtn = document.getElementById('confirmModalYes');
+      const noBtn = document.getElementById('confirmModalNo');
+      const cleanup = (result) => {
+        overlay.style.display = 'none';
+        yesBtn.onclick = null;
+        noBtn.onclick = null;
+        resolve(result);
+      };
+      yesBtn.onclick = () => cleanup(true);
+      noBtn.onclick = () => cleanup(false);
+    });
+  }
+
+  // ---------- Toast (replaces window.alert, same suppression issue) ----------
+  function showToast(message, type){
+    const stack = document.getElementById('toastStack');
+    const el = document.createElement('div');
+    const isError = type === 'error';
+    el.style.cssText = `pointer-events:auto; background:${isError ? 'var(--danger)' : 'var(--ink)'}; color:#fff; padding:12px 18px; border-radius:12px; font-size:.85rem; box-shadow:0 8px 24px rgba(0,0,0,.25); max-width:100%; text-align:center;`;
+    el.textContent = message;
+    stack.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
   }
 
   (async function checkBackendOnLoad(){
@@ -746,7 +866,7 @@
       // really logged in, never a role picked by which button was clicked.
       enterShell(roles[data.user.role] ? data.user.role : role);
     } catch (e) {
-      alert('تعذّر الاتصال بالخادم — جرّبي "معاينة بدون اتصال" بدلاً من ذلك، أو شغّلي الباك اند محلياً.');
+      showToast('تعذّر الاتصال بالخادم — جرّبي "معاينة بدون اتصال" بدلاً من ذلك، أو شغّلي الباك اند محلياً.', 'error');
     }
   }
 
@@ -962,59 +1082,116 @@
         <td>جامعة بغداد</td>
         <td><span class="badge badge-active">نشط</span></td>
         <td style="text-align:end;">${a.role === 'reseller'
-          ? `<button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="promptGenerateCodes('${a.id}', '${a.full_name}')">توليد أكواد</button>`
+          ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}', '${a.full_name}')">توليد أكواد</button>
+              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${a.id}', '${a.full_name}')">أخذ كود</button>
+              <button class="icon-btn" style="width:30px;height:30px;" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            </div>`
           : `<button class="icon-btn" style="width:30px;height:30px;" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`}</td>
       </tr>
     `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد نتائج</td></tr>`;
   }
 
-  async function promptGenerateCodes(resellerId, name){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const countStr = prompt(`كم كود تريدين تولّدين لـ ${name}؟`, '10');
-    if (!countStr) return;
-    const count = parseInt(countStr, 10);
-    if (!count || count < 1){ alert('عدد غير صالح'); return; }
-    try {
+  function promptGenerateCodes(resellerId, name){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    openGenericModal(`توليد أكواد لـ ${name}`, [
+      {id: 'count', label: 'كم كود تريدين تولّدين؟', type: 'number', value: 10},
+    ], async (v) => {
+      const count = parseInt(v.count, 10);
+      if (!count || count < 1) throw {detail: 'عدد غير صالح'};
       const res = await apiFetch('/api/admin/resellers/' + resellerId + '/codes?count=' + count, {method: 'POST'});
-      alert(`تم توليد ${res.codes.length} كود بنجاح لـ ${name}`);
+      showToast(`تم توليد ${res.codes.length} كود بنجاح لـ ${name}`);
+    });
+  }
+
+  async function openResellerCodesModal(resellerId, name){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    document.getElementById('resellerCodesTitle').textContent = `أكواد ${name}`;
+    const listEl = document.getElementById('resellerCodesList');
+    listEl.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
+    document.getElementById('resellerCodesOverlay').style.display = 'flex';
+    try {
+      const codes = await apiFetch('/api/admin/resellers/' + resellerId + '/codes');
+      const idle = codes.filter(c => c.status === 'idle');
+      const other = codes.filter(c => c.status !== 'idle');
+      const statusLabel = {active: 'مفعّل', expired: 'منتهي'};
+      listEl.innerHTML = `
+        ${idle.length ? `
+          <div class="section-title" style="margin-top:4px;">أكواد متاحة (غير مباعة)</div>
+          ${idle.map(c => `
+            <div class="item-card glass" style="align-items:center;">
+              <div class="item-body">
+                <div class="item-title mono">${c.code}</div>
+                <div class="item-meta">${c.subject_name}</div>
+              </div>
+              <button class="btn btn-ghost item-action" onclick="copyResellerCode('${c.code}', this)">نسخ</button>
+            </div>
+          `).join('')}
+        ` : '<div class="empty-row">لا توجد أكواد متاحة (غير مباعة) حالياً — ولّدي أكواد جديدة أولاً</div>'}
+        ${other.length ? `
+          <div class="section-title" style="margin-top:16px;">أكواد مباعة/مستخدمة</div>
+          ${other.map(c => `
+            <div class="item-card glass" style="align-items:center; opacity:.7;">
+              <div class="item-body">
+                <div class="item-title mono">${c.code}</div>
+                <div class="item-meta">${c.subject_name} · ${statusLabel[c.status] || c.status}</div>
+              </div>
+            </div>
+          `).join('')}
+        ` : ''}
+      `;
     } catch (e) {
-      alert(e.detail || 'تعذّر توليد الأكواد');
+      listEl.innerHTML = `<div class="empty-row">${e.detail || 'تعذّر تحميل الأكواد'}</div>`;
     }
   }
 
-  const ROLE_PROMPT_HINT = 'أدخلي الدور (student / professor / admin / reseller):';
-  async function promptAddUser(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const fullName = prompt('الاسم الكامل:');
-    if (!fullName) return;
-    const email = prompt('البريد الإلكتروني:');
-    if (!email) return;
-    const role = prompt(ROLE_PROMPT_HINT, 'student');
-    if (!role) return;
-    try {
+  function copyResellerCode(code, btn){
+    navigator.clipboard?.writeText(code).catch(() => {});
+    const original = btn.textContent;
+    btn.textContent = 'تم النسخ ✓';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  }
+
+  const ROLE_OPTIONS = [
+    {value: 'student', label: 'طالب'},
+    {value: 'professor', label: 'دكتور'},
+    {value: 'reseller', label: 'مندوب'},
+    {value: 'admin', label: 'أدمن'},
+  ];
+
+  function promptAddUser(){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    openGenericModal('إضافة مستخدم', [
+      {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
+      {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
+      {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
+      {id: 'role', label: 'الصلاحية', type: 'select', value: 'student', options: ROLE_OPTIONS},
+    ], async (v) => {
+      if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
       await apiFetch('/api/admin/users', {
         method: 'POST',
-        body: JSON.stringify({full_name: fullName, email, role}),
+        body: JSON.stringify({full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, password: v.password || null}),
       });
       loadAccounts();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة المستخدم'); }
+    });
   }
-  async function promptEditUser(id){
+
+  function promptEditUser(id){
     const current = allAccounts.find(a => a.id === id);
     if (!current) return;
-    const fullName = prompt('الاسم الكامل:', current.full_name);
-    if (!fullName) return;
-    const email = prompt('البريد الإلكتروني:', current.email);
-    if (!email) return;
-    const role = prompt(ROLE_PROMPT_HINT, current.role);
-    if (!role) return;
-    try {
+    openGenericModal('تعديل مستخدم', [
+      {id: 'fullName', label: 'الاسم الكامل', type: 'text', value: current.full_name},
+      {id: 'email', label: 'البريد الإلكتروني', type: 'text', value: current.email},
+      {id: 'password', label: 'كلمة مرور جديدة (اتركيه فارغاً للإبقاء عليها)', type: 'password'},
+      {id: 'role', label: 'الصلاحية', type: 'select', value: current.role, options: ROLE_OPTIONS},
+    ], async (v) => {
+      if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
       await apiFetch('/api/admin/users/' + id, {
         method: 'PUT',
-        body: JSON.stringify({full_name: fullName, email, role}),
+        body: JSON.stringify({full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, password: v.password || null}),
       });
       loadAccounts();
-    } catch (e) { alert(e.detail || 'تعذّر تعديل المستخدم'); }
+    });
   }
 
   async function loadCatalog(){
@@ -1044,54 +1221,57 @@
     `).join('');
   }
 
-  async function promptAddSection(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const name = prompt('اسم القسم الجديد (مثال: طب بشري):');
-    if (!name) return;
-    try {
-      await apiFetch('/api/admin/catalog/sections?' + new URLSearchParams({name}), {method: 'POST'});
+  function promptAddSection(){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    openGenericModal('إضافة قسم', [
+      {id: 'name', label: 'اسم القسم الجديد', type: 'text', placeholder: 'مثال: طب بشري'},
+    ], async (v) => {
+      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
+      await apiFetch('/api/admin/catalog/sections?' + new URLSearchParams({name: v.name.trim()}), {method: 'POST'});
       loadCatalog();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة القسم'); }
+    });
   }
 
-  async function promptAddCatalogChild(parentType, parentId){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const config = {
-      section: {label: 'اسم الجامعة الجديدة:', endpoint: 'universities', paramKey: 'section_id'},
-      university: {label: 'اسم المرحلة الجديدة:', endpoint: 'stages', paramKey: 'university_id'},
-      stage: {label: 'اسم المادة الجديدة:', endpoint: 'subjects', paramKey: 'stage_id'},
-    }[parentType];
+  const CATALOG_CHILD_CONFIG = {
+    section: {label: 'اسم الجامعة الجديدة', endpoint: 'universities', paramKey: 'section_id'},
+    university: {label: 'اسم المرحلة الجديدة', endpoint: 'stages', paramKey: 'university_id'},
+    stage: {label: 'اسم المادة الجديدة', endpoint: 'subjects', paramKey: 'stage_id'},
+  };
+
+  function promptAddCatalogChild(parentType, parentId){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    const config = CATALOG_CHILD_CONFIG[parentType];
     if (!config) return;
-    const name = prompt(config.label);
-    if (!name) return;
-    try {
-      const params = new URLSearchParams({name, [config.paramKey]: parentId});
+    openGenericModal(config.label, [{id: 'name', label: config.label, type: 'text'}], async (v) => {
+      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
+      const params = new URLSearchParams({name: v.name.trim(), [config.paramKey]: parentId});
       await apiFetch('/api/admin/catalog/' + config.endpoint + '?' + params.toString(), {method: 'POST'});
       loadCatalog();
-    } catch (e) { alert(e.detail || 'تعذّر الإضافة'); }
+    });
   }
 
   const CATALOG_ENDPOINTS = {section: 'sections', university: 'universities', stage: 'stages', subject: 'subjects'};
   const CATALOG_TYPE_LABEL = {section: 'القسم', university: 'الجامعة', stage: 'المرحلة', subject: 'المادة'};
 
-  async function promptRenameCatalog(type, id){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+  function promptRenameCatalog(type, id){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const row = allCatalogRows.find(r => r.id === id);
-    const name = prompt(`الاسم الجديد لـ ${CATALOG_TYPE_LABEL[type]}:`, row ? row.name : '');
-    if (!name) return;
-    try {
-      await apiFetch(`/api/admin/catalog/${CATALOG_ENDPOINTS[type]}/${id}?` + new URLSearchParams({name}), {method: 'PUT'});
+    openGenericModal(`تعديل ${CATALOG_TYPE_LABEL[type]}`, [
+      {id: 'name', label: `الاسم الجديد لـ ${CATALOG_TYPE_LABEL[type]}`, type: 'text', value: row ? row.name : ''},
+    ], async (v) => {
+      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
+      await apiFetch(`/api/admin/catalog/${CATALOG_ENDPOINTS[type]}/${id}?` + new URLSearchParams({name: v.name.trim()}), {method: 'PUT'});
       loadCatalog();
-    } catch (e) { alert(e.detail || 'تعذّر التعديل'); }
+    });
   }
 
   async function deleteCatalogNode(type, id){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!confirm(`حذف ${CATALOG_TYPE_LABEL[type]} نهائياً؟`)) return;
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!await confirmModal(`حذف ${CATALOG_TYPE_LABEL[type]} نهائياً؟`)) return;
     try {
       await apiFetch(`/api/admin/catalog/${CATALOG_ENDPOINTS[type]}/${id}`, {method: 'DELETE'});
       loadCatalog();
-    } catch (e) { alert(e.detail || 'تعذّر الحذف'); }
+    } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   // ===== ADMIN: question bank =====
@@ -1164,7 +1344,7 @@
   }
 
   function openQuestionForm(questionId){
-    if (!currentQuestionBankSubject){ alert('أضيفي مادة أولاً من صفحة المناهج'); return; }
+    if (!currentQuestionBankSubject){ showToast('أضيفي مادة أولاً من صفحة المناهج'); return; }
     editingQuestionId = questionId || null;
     document.getElementById('questionFormCard').style.display = 'block';
     document.getElementById('questionFormMsg').style.display = 'none';
@@ -1228,12 +1408,12 @@
   }
 
   async function deleteQuestionAdmin(id){
-    if (!confirm('حذف هذا السؤال نهائياً؟')) return;
+    if (!await confirmModal('حذف هذا السؤال نهائياً؟')) return;
     try {
       await apiFetch('/api/admin/questions/' + id, {method: 'DELETE'});
       renderQuestionList();
       loadCatalog();
-    } catch (e) { alert(e.detail || 'تعذّر الحذف'); }
+    } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   async function loadStudents(){
@@ -1310,14 +1490,14 @@
   async function liftBan(userId){
     if (!liveMode) return;
     try { await apiFetch('/api/admin/users/' + userId + '/unban', {method:'POST'}); loadBans(); }
-    catch (e) { alert(e.detail || 'تعذّر رفع الحظر'); }
+    catch (e) { showToast(e.detail || 'تعذّر رفع الحظر', 'error'); }
   }
   async function resolveAppeal(banId, approve){
     if (!liveMode) return;
     try {
       await apiFetch('/api/admin/bans/' + banId + '/' + (approve ? 'approve-appeal' : 'reject-appeal'), {method:'POST'});
       loadBans();
-    } catch (e) { alert(e.detail || 'تعذّر تنفيذ الإجراء'); }
+    } catch (e) { showToast(e.detail || 'تعذّر تنفيذ الإجراء', 'error'); }
   }
   function switchBanTab(tab){
     document.querySelectorAll('#sec-bans .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.btab === tab));
@@ -1341,7 +1521,7 @@
 
   async function uploadMediaFile(file){
     if (!file) return;
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم رفع الملفات)'); return; }
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم رفع الملفات)'); return; }
     const status = document.getElementById('mediaUploadStatus');
     status.style.display = 'block';
     status.style.color = 'var(--ink-faint)';
@@ -1380,30 +1560,30 @@
   }
 
   async function downloadTemplate(kind){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     try {
       const res = await fetch(API_BASE_URL + '/api/admin/import/template/' + kind, {
         headers: {'Authorization': 'Bearer ' + authToken},
       });
       if (!res.ok) throw new Error('فشل التنزيل');
       downloadBlob(await res.blob(), kind === 'students' ? 'قالب طلاب.xlsx' : 'قالب أسئلة.xlsx');
-    } catch (e) { alert('تعذّر تنزيل القالب'); }
+    } catch (e) { showToast('تعذّر تنزيل القالب', 'error'); }
   }
 
   async function exportData(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const boxes = document.querySelectorAll('#sec-importexport .check-row input[type=checkbox]');
     const keys = ['students', 'questions', 'orders', 'logs'];
     const selected = [];
     boxes.forEach((box, i) => { if (box.checked) selected.push(keys[i]); });
-    if (!selected.length){ alert('اختاري بيانات واحدة على الأقل للتصدير'); return; }
+    if (!selected.length){ showToast('اختاري بيانات واحدة على الأقل للتصدير'); return; }
     try {
       const res = await fetch(API_BASE_URL + '/api/admin/export?datasets=' + selected.join(','), {
         headers: {'Authorization': 'Bearer ' + authToken},
       });
       if (!res.ok) throw new Error('فشل التصدير');
       downloadBlob(await res.blob(), 'نبض-تصدير.xlsx');
-    } catch (e) { alert('تعذّر تصدير البيانات'); }
+    } catch (e) { showToast('تعذّر تصدير البيانات', 'error'); }
   }
 
   let selectedImportFile = null;
@@ -1414,8 +1594,8 @@
   }
 
   async function submitImport(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!selectedImportFile){ alert('اختاري ملفاً أولاً'); return; }
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!selectedImportFile){ showToast('اختاري ملفاً أولاً'); return; }
     const status = document.getElementById('importStatus');
     status.style.display = 'block';
     status.style.color = 'var(--ink-faint)';
@@ -1508,76 +1688,86 @@
 
   function invalidateProfDashboard(){ profDashboard = null; }
 
-  async function promptAddBooklet(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً'); return; }
-    const title = prompt('عنوان الملزمة الجديدة:');
-    if (!title) return;
-    const pages = parseInt(prompt('عدد الصفحات:', '20'), 10) || 0;
-    try {
-      await apiFetch('/api/professors/me/booklets', {method: 'POST', body: JSON.stringify({title, pages})});
+  function promptAddBooklet(){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً'); return; }
+    openGenericModal('إضافة ملزمة', [
+      {id: 'title', label: 'عنوان الملزمة', type: 'text'},
+      {id: 'pages', label: 'عدد الصفحات', type: 'number', value: 20},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/booklets', {method: 'POST', body: JSON.stringify({title: v.title.trim(), pages: parseInt(v.pages, 10) || 0})});
       invalidateProfDashboard();
       loadProfessorBooklets();
       loadProfessorOverview();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة الملزمة'); }
+    });
   }
   async function promptEditBooklet(id){
     const d = await fetchProfDashboard();
     const current = d.booklets.find(b => b.id === id);
     if (!current) return;
-    const title = prompt('عنوان الملزمة:', current.title);
-    if (!title) return;
-    const pages = parseInt(prompt('عدد الصفحات:', current.pages), 10) || 0;
-    try {
-      await apiFetch('/api/professors/me/booklets/' + id, {method: 'PUT', body: JSON.stringify({title, pages})});
+    openGenericModal('تعديل ملزمة', [
+      {id: 'title', label: 'عنوان الملزمة', type: 'text', value: current.title},
+      {id: 'pages', label: 'عدد الصفحات', type: 'number', value: current.pages},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/booklets/' + id, {method: 'PUT', body: JSON.stringify({title: v.title.trim(), pages: parseInt(v.pages, 10) || 0})});
       invalidateProfDashboard();
       loadProfessorBooklets();
-    } catch (e) { alert(e.detail || 'تعذّر تعديل الملزمة'); }
+    });
   }
   async function deleteBooklet(id){
-    if (!confirm('حذف هذه الملزمة نهائياً؟')) return;
+    if (!await confirmModal('حذف هذه الملزمة نهائياً؟')) return;
     try {
       await apiFetch('/api/professors/me/booklets/' + id, {method: 'DELETE'});
       invalidateProfDashboard();
       loadProfessorBooklets();
       loadProfessorOverview();
-    } catch (e) { alert(e.detail || 'تعذّر حذف الملزمة'); }
+    } catch (e) { showToast(e.detail || 'تعذّر حذف الملزمة', 'error'); }
   }
 
-  async function promptAddExam(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً'); return; }
-    const title = prompt('عنوان الامتحان الجديد:');
-    if (!title) return;
-    const questionCount = parseInt(prompt('عدد الأسئلة:', '20'), 10) || 0;
-    const duration = parseInt(prompt('المدة بالدقائق:', '30'), 10) || 30;
-    try {
-      await apiFetch('/api/professors/me/exams', {method: 'POST', body: JSON.stringify({title, question_count: questionCount, duration_minutes: duration})});
+  function promptAddExam(){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً'); return; }
+    openGenericModal('إنشاء امتحان', [
+      {id: 'title', label: 'عنوان الامتحان', type: 'text'},
+      {id: 'questionCount', label: 'عدد الأسئلة', type: 'number', value: 20},
+      {id: 'duration', label: 'المدة بالدقائق', type: 'number', value: 30},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/exams', {
+        method: 'POST',
+        body: JSON.stringify({title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0, duration_minutes: parseInt(v.duration, 10) || 30}),
+      });
       invalidateProfDashboard();
       loadProfessorExams();
       loadProfessorOverview();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة الامتحان'); }
+    });
   }
   async function promptEditExam(id){
     const d = await fetchProfDashboard();
     const current = d.exams.find(e => e.id === id);
     if (!current) return;
-    const title = prompt('عنوان الامتحان:', current.title);
-    if (!title) return;
-    const questionCount = parseInt(prompt('عدد الأسئلة:', current.question_count), 10) || 0;
-    const duration = parseInt(prompt('المدة بالدقائق:', current.duration_minutes), 10) || 30;
-    try {
-      await apiFetch('/api/professors/me/exams/' + id, {method: 'PUT', body: JSON.stringify({title, question_count: questionCount, duration_minutes: duration})});
+    openGenericModal('تعديل امتحان', [
+      {id: 'title', label: 'عنوان الامتحان', type: 'text', value: current.title},
+      {id: 'questionCount', label: 'عدد الأسئلة', type: 'number', value: current.question_count},
+      {id: 'duration', label: 'المدة بالدقائق', type: 'number', value: current.duration_minutes},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/exams/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0, duration_minutes: parseInt(v.duration, 10) || 30}),
+      });
       invalidateProfDashboard();
       loadProfessorExams();
-    } catch (e) { alert(e.detail || 'تعذّر تعديل الامتحان'); }
+    });
   }
   async function deleteExam(id){
-    if (!confirm('حذف هذا الامتحان نهائياً؟')) return;
+    if (!await confirmModal('حذف هذا الامتحان نهائياً؟')) return;
     try {
       await apiFetch('/api/professors/me/exams/' + id, {method: 'DELETE'});
       invalidateProfDashboard();
       loadProfessorExams();
       loadProfessorOverview();
-    } catch (e) { alert(e.detail || 'تعذّر حذف الامتحان'); }
+    } catch (e) { showToast(e.detail || 'تعذّر حذف الامتحان', 'error'); }
   }
 
   // ===== PROFESSOR: courses & lectures =====
@@ -1637,70 +1827,72 @@
     `).join('') || `<tr><td colspan="3" class="empty-row">لا توجد محاضرات بعد</td></tr>`;
   }
 
-  async function promptAddCourse(){
-    if (!liveMode){ alert('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const title = prompt('عنوان الكورس الجديد:');
-    if (!title) return;
-    try {
-      await apiFetch('/api/professors/me/courses', {method: 'POST', body: JSON.stringify({title})});
+  function promptAddCourse(){
+    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    openGenericModal('إضافة كورس', [{id: 'title', label: 'عنوان الكورس', type: 'text'}], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/courses', {method: 'POST', body: JSON.stringify({title: v.title.trim()})});
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة الكورس'); }
+    });
   }
 
-  async function promptEditCourse(id){
+  function promptEditCourse(id){
     const course = myCourses.find(c => c.id === id);
     if (!course) return;
-    const title = prompt('عنوان الكورس:', course.title);
-    if (!title) return;
-    try {
-      await apiFetch('/api/professors/me/courses/' + id, {method: 'PUT', body: JSON.stringify({title})});
+    openGenericModal('تعديل كورس', [{id: 'title', label: 'عنوان الكورس', type: 'text', value: course.title}], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/professors/me/courses/' + id, {method: 'PUT', body: JSON.stringify({title: v.title.trim()})});
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر تعديل الكورس'); }
+    });
   }
 
   async function deleteCourse(id){
-    if (!confirm('حذف هذا الكورس وكل محاضراته نهائياً؟')) return;
+    if (!await confirmModal('حذف هذا الكورس وكل محاضراته نهائياً؟')) return;
     try {
       await apiFetch('/api/professors/me/courses/' + id, {method: 'DELETE'});
       if (expandedCourseId === id) expandedCourseId = null;
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر حذف الكورس'); }
+    } catch (e) { showToast(e.detail || 'تعذّر حذف الكورس', 'error'); }
   }
 
-  async function promptAddLecture(){
+  function promptAddLecture(){
     if (!expandedCourseId) return;
-    const title = prompt('عنوان المحاضرة الجديدة:');
-    if (!title) return;
-    const minutes = parseFloat(prompt('المدة بالدقائق:', '15')) || 0;
-    try {
+    openGenericModal('محاضرة جديدة', [
+      {id: 'title', label: 'عنوان المحاضرة', type: 'text'},
+      {id: 'minutes', label: 'المدة بالدقائق', type: 'number', value: 15},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      const minutes = parseFloat(v.minutes) || 0;
       await apiFetch('/api/professors/me/courses/' + expandedCourseId + '/lectures', {
-        method: 'POST', body: JSON.stringify({title, duration_seconds: Math.round(minutes * 60)}),
+        method: 'POST', body: JSON.stringify({title: v.title.trim(), duration_seconds: Math.round(minutes * 60)}),
       });
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر إضافة المحاضرة'); }
+    });
   }
 
-  async function promptEditLecture(id){
+  function promptEditLecture(id){
     const course = myCourses.find(c => c.id === expandedCourseId);
     const lecture = course ? course.lectures.find(l => l.id === id) : null;
     if (!lecture) return;
-    const title = prompt('عنوان المحاضرة:', lecture.title);
-    if (!title) return;
-    const minutes = parseFloat(prompt('المدة بالدقائق:', Math.round(lecture.duration_seconds / 60))) || 0;
-    try {
+    openGenericModal('تعديل محاضرة', [
+      {id: 'title', label: 'عنوان المحاضرة', type: 'text', value: lecture.title},
+      {id: 'minutes', label: 'المدة بالدقائق', type: 'number', value: Math.round(lecture.duration_seconds / 60)},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      const minutes = parseFloat(v.minutes) || 0;
       await apiFetch('/api/professors/me/lectures/' + id, {
-        method: 'PUT', body: JSON.stringify({title, duration_seconds: Math.round(minutes * 60)}),
+        method: 'PUT', body: JSON.stringify({title: v.title.trim(), duration_seconds: Math.round(minutes * 60)}),
       });
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر تعديل المحاضرة'); }
+    });
   }
 
   async function deleteLecture(id){
-    if (!confirm('حذف هذه المحاضرة نهائياً؟')) return;
+    if (!await confirmModal('حذف هذه المحاضرة نهائياً؟')) return;
     try {
       await apiFetch('/api/professors/me/lectures/' + id, {method: 'DELETE'});
       loadProfessorCourses();
-    } catch (e) { alert(e.detail || 'تعذّر حذف المحاضرة'); }
+    } catch (e) { showToast(e.detail || 'تعذّر حذف المحاضرة', 'error'); }
   }
 
   async function loadProfessorStudents(){

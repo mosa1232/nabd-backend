@@ -29,6 +29,7 @@ class UserUpdateIn(BaseModel):
     email: str
     full_name: str
     role: str
+    password: Optional[str] = None  # leave empty to keep the current password unchanged
 
 
 class PasswordLoginIn(BaseModel):

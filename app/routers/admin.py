@@ -76,6 +76,8 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
     user.email = body.email.strip()
     user.full_name = body.full_name.strip()
     user.role = body.role
+    if body.password:
+        user.password_hash = hash_password(body.password)
     db.commit()
     db.refresh(user)
     return user
@@ -109,6 +111,30 @@ def generate_reseller_codes(
         codes.append(code_str)
     db.commit()
     return {"codes": codes}
+
+
+@router.get("/resellers/{reseller_id}/codes")
+def list_reseller_codes_admin(reseller_id: str, db: Session = Depends(get_db)):
+    """Unmasked view of a reseller's code inventory — lets an admin actually
+    read out an idle code to hand a student directly, instead of only seeing
+    the reseller's own masked view (••••)."""
+    reseller = db.get(models.User, reseller_id)
+    if not reseller or reseller.role != models.Role.reseller:
+        raise HTTPException(404, "المندوب غير موجود")
+    codes = (
+        db.query(models.ActivationCode)
+        .filter(models.ActivationCode.reseller_id == reseller_id)
+        .order_by(models.ActivationCode.status, models.ActivationCode.sold_at.desc().nullslast())
+        .all()
+    )
+    return [
+        {
+            "id": c.id, "code": c.code, "status": c.status,
+            "subject_name": c.subject.name if c.subject_id else "VIP — جميع المواد",
+            "sold_at": c.sold_at,
+        }
+        for c in codes
+    ]
 
 
 @router.post("/users/{user_id}/ban")
