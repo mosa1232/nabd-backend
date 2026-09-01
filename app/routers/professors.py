@@ -35,6 +35,24 @@ def get_professor(professor_id: str, db: Session = Depends(get_db), user: models
     return _to_out(p, db)
 
 
+@router.get("/booklets/latest")
+def latest_booklet(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Powers the home screen's "آخر ملزمة" continue-card with a real,
+    just-uploaded booklet instead of the fixed placeholder title it used to
+    show every student regardless of what actually exists."""
+    booklet = db.query(models.Booklet).order_by(models.Booklet.created_at.desc()).first()
+    if not booklet:
+        return None
+    professor = db.get(models.ProfessorProfile, booklet.professor_id)
+    return {
+        "id": booklet.id,
+        "title": booklet.title,
+        "pages": booklet.pages,
+        "subject_name": professor.subject.name if professor else "",
+        "professor_id": professor.id if professor else None,
+    }
+
+
 def _get_own_profile(db: Session, user: models.User) -> models.ProfessorProfile:
     if user.role != models.Role.professor:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")

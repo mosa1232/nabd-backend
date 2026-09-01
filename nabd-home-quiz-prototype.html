@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>نبض — معاينة الواجهة</title>
+<title>Kiur — معاينة الواجهة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -475,7 +475,7 @@
       <svg class="brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="brand-name display">نبض</span>
+      <span class="brand-name display">Kiur</span>
     </div>
     <div class="top-actions">
       <div class="lang-pills" role="group" aria-label="اللغة">
@@ -529,22 +529,17 @@
         <button class="path-node done" data-step="1">
           <span class="path-dot">✓</span>
           <span class="path-node-label" data-i18n="pathSection">القسم</span>
-          <span class="path-node-value">طب بشري</span>
+          <span class="path-node-value" id="pathValueSection">—</span>
         </button>
         <button class="path-node done" data-step="2">
           <span class="path-dot">✓</span>
           <span class="path-node-label" data-i18n="pathUni">الجامعة</span>
-          <span class="path-node-value">جامعة بغداد</span>
+          <span class="path-node-value" id="pathValueUni">—</span>
         </button>
-        <button class="path-node done" data-step="3">
-          <span class="path-dot">✓</span>
+        <button class="path-node current" data-step="3">
+          <span class="path-dot">3</span>
           <span class="path-node-label" data-i18n="pathStage">المرحلة</span>
-          <span class="path-node-value">الثانية</span>
-        </button>
-        <button class="path-node current" data-step="4">
-          <span class="path-dot">4</span>
-          <span class="path-node-label" data-i18n="pathSubject">المادة</span>
-          <span class="path-node-value">التشريح</span>
+          <span class="path-node-value" id="pathValueStage">—</span>
         </button>
       </div>
     </div>
@@ -568,12 +563,12 @@
       </button>
     </div>
 
-    <button class="continue-card glass" onclick="goToQuiz()" style="width:100%; cursor:pointer;">
+    <button class="continue-card glass" id="continueCard" onclick="goToProfessors()" style="width:100%; cursor:pointer; display:none;">
       <div class="continue-ring" style="--p:64;"></div>
       <div class="continue-body">
         <div class="continue-eyebrow" data-i18n="continueEyebrow">آخر ملزمة</div>
-        <div class="continue-title">الجهاز العصبي المركزي — الأنسجة</div>
-        <div class="continue-meta">طب بشري · جامعة بغداد · المرحلة الثانية</div>
+        <div class="continue-title" id="continueTitle"></div>
+        <div class="continue-meta" id="continueMeta"></div>
       </div>
       <span class="btn">
         <span data-i18n="continueBtn">متابعة</span>
@@ -581,7 +576,7 @@
       </span>
     </button>
 
-    <footer>معاينة تصميم — نبض · منصة طلاب الطب</footer>
+    <footer>معاينة تصميم — Kiur · منصة طلاب الطب</footer>
   </div>
 
   <!-- ============ QUIZ VIEW ============ -->
@@ -780,7 +775,7 @@
       <div class="auth-card glass">
         <div class="auth-logo">
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="display" style="font-size:1.1rem; font-weight:700;">نبض</span>
+          <span class="display" style="font-size:1.1rem; font-weight:700;">Kiur</span>
         </div>
         <div class="auth-title">مرحباً بعودتك</div>
         <div class="auth-sub">سجّل الدخول عبر Google للمتابعة</div>
@@ -799,7 +794,7 @@
         <button class="btn" style="width:100%; justify-content:center; padding:12px;" id="authSubmitBtn" onclick="submitEmailAuth()">تسجيل الدخول</button>
 
         <div class="link-muted" style="margin-top:14px;">
-          <span id="authToggleText">ليس لديك حساب؟</span> <span class="link-accent" onclick="toggleAuthMode()" id="authToggleLink">أنشئي حساب</span>
+          <span id="authToggleText">ليس لديك حساب؟</span> <span class="link-accent" onclick="toggleAuthMode()" id="authToggleLink">أنشئ حساب</span>
         </div>
         <div class="link-muted" style="margin-top:14px;">بالمتابعة أنت توافق على الشروط وسياسة الخصوصية</div>
       </div>
@@ -821,7 +816,7 @@
           </span>
         </div>
 
-        <button class="btn" style="width:100%; justify-content:center; padding:13px; margin-top:6px;" onclick="confirmOtp()">متابعة إلى نبض</button>
+        <button class="btn" style="width:100%; justify-content:center; padding:13px; margin-top:6px;" onclick="confirmOtp()">متابعة إلى Kiur</button>
         <button class="btn btn-ghost" style="width:100%; justify-content:center; padding:13px; margin-top:10px;" onclick="backToLoginFromOtp()">استخدام حساب آخر</button>
 
         <div class="otp-note">
@@ -836,19 +831,19 @@
   <div class="view" id="view-complete-profile">
     <div class="auth-view">
       <div class="auth-card glass">
-        <div class="auth-title">أكملي بياناتك</div>
-        <div class="auth-sub">نحتاج بعض المعلومات لتخصيص تجربتك على نبض</div>
+        <div class="auth-title">أكمل بياناتك</div>
+        <div class="auth-sub">نحتاج بعض المعلومات لتخصيص تجربتك على Kiur</div>
 
         <div class="form-field"><input id="cpFullName" type="text" placeholder="الاسم الثلاثي" /></div>
         <div class="form-field"><input id="cpPhone" type="tel" placeholder="رقم الهاتف" /></div>
-        <div class="form-field"><select id="cpSection" onchange="onCpSectionChange()"><option value="">اختاري التخصص/الكلية</option></select></div>
-        <div class="form-field"><select id="cpUniversity" onchange="onCpUniversityChange()" disabled><option value="">اختاري الجامعة</option></select></div>
+        <div class="form-field"><select id="cpSection" onchange="onCpSectionChange()"><option value="">اختر التخصص/الكلية</option></select></div>
+        <div class="form-field"><select id="cpUniversity" onchange="onCpUniversityChange()" disabled><option value="">اختر الجامعة</option></select></div>
         <div class="form-field"><select id="cpGraduate" onchange="onCpGraduateChange()">
-          <option value="">هل أنتِ طالبة أم متخرجة؟</option>
-          <option value="0">ما زلت طالبة</option>
-          <option value="1">متخرجة</option>
+          <option value="">هل أنت طالب أم متخرج؟</option>
+          <option value="0">ما زلت طالباً</option>
+          <option value="1">متخرج</option>
         </select></div>
-        <div class="form-field" id="cpStageField" style="display:none;"><select id="cpStage"><option value="">اختاري المرحلة</option></select></div>
+        <div class="form-field" id="cpStageField" style="display:none;"><select id="cpStage"><option value="">اختر المرحلة</option></select></div>
         <div id="cpMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
         <button class="btn" style="width:100%; justify-content:center; padding:12px;" onclick="submitCompleteProfile()">حفظ ومتابعة</button>
       </div>
@@ -1026,10 +1021,11 @@
     iconMoon.style.display = isDark ? 'block' : 'none';
   });
 
-  // ---------- Language (demo: AR / EN toggle dir + a few strings; KU shown as coming-soon-style highlight only) ----------
+  // ---------- Language (AR / EN / KU toggle dir + this same fixed set of home-screen labels) ----------
   const dict = {
     ar: {greeting:'مرحباً، عمر 👋', greetingSub:'استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل', streakLabel:'سلسلة', answeredLabel:'أُجيب اليوم', rankLabel:'ترتيبك بالجامعة', pathLabel:'المسار الدراسي', pathSection:'القسم', pathUni:'الجامعة', pathStage:'المرحلة', pathSubject:'المادة', tileBank:'بنك الأسئلة', tileVideo:'أكاديمية الفيديو', tileProf:'قسم الدكاترة', tileStore:'المتجر', continueEyebrow:'آخر ملزمة', continueBtn:'متابعة'},
-    en: {greeting:'Hi, Omar 👋', greetingSub:'Keep the pace — the mock exam is close', streakLabel:'Streak', answeredLabel:'Answered today', rankLabel:'Your uni rank', pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject', tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', continueEyebrow:'Last booklet', continueBtn:'Continue'}
+    en: {greeting:'Hi, Omar 👋', greetingSub:'Keep the pace — the mock exam is close', streakLabel:'Streak', answeredLabel:'Answered today', rankLabel:'Your uni rank', pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject', tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', continueEyebrow:'Last booklet', continueBtn:'Continue'},
+    ku: {greeting:'سڵاو، عومەر 👋', greetingSub:'بەردەوام بە، تاقیکردنەوەی گشتی نزیکە', streakLabel:'زنجیرە', answeredLabel:'ئەمڕۆ وەڵامدراوە', rankLabel:'پلەت لە زانکۆ', pathLabel:'ڕێڕەوی خوێندن', pathSection:'بەش', pathUni:'زانکۆ', pathStage:'قۆناغ', pathSubject:'بابەت', tileBank:'کۆگای پرسیار', tileVideo:'ئەکادیمیای ڤیدیۆ', tileProf:'بەشی مامۆستایان', tileStore:'فرۆشگا', continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون'}
   };
   document.querySelectorAll('.lang-pill').forEach(pill => {
     pill.addEventListener('click', () => {
@@ -1061,7 +1057,7 @@
     });
   }
   pathNodes.forEach(n => n.addEventListener('click', () => setPathStep(parseInt(n.dataset.step))));
-  setPathStep(4);
+  setPathStep(3);
 
   // ---------- View switching ----------
   function hideAllViews(){
@@ -1095,6 +1091,18 @@
       document.getElementById('statAnsweredToday').textContent = s.answered_today;
       document.getElementById('statRank').textContent = s.rank ? ('#' + s.rank) : '—';
     } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
+    await loadPathCard();
+    try {
+      const b = await apiFetch('/api/professors/booklets/latest');
+      const card = document.getElementById('continueCard');
+      if (b){
+        document.getElementById('continueTitle').textContent = b.title;
+        document.getElementById('continueMeta').textContent = b.subject_name || '';
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    } catch (e) { document.getElementById('continueCard').style.display = 'none'; }
   }
 
   // ---------- Timer ----------
@@ -1703,7 +1711,7 @@
       {title:'فسلجة الجهاز التنفسي', dur:'19:55', done:false},
       {title:'فسلجة الكلى — ملخص', dur:'16:20', done:false},
     ]},
-    {id:3, title:'مهارات الامتحان الشامل', instructor:'فريق نبض الأكاديمي', subject:'عام', color:'#7B6EF6', lectures:[
+    {id:3, title:'مهارات الامتحان الشامل', instructor:'فريق Kiur الأكاديمي', subject:'عام', color:'#7B6EF6', lectures:[
       {title:'كيف تدير وقتك أثناء الامتحان', dur:'12:05', done:false},
       {title:'استراتيجيات حل الأسئلة متعددة الخيارات', dur:'17:48', done:false},
       {title:'التعامل مع القلق قبل الامتحان', dur:'14:30', done:false},
@@ -1973,12 +1981,12 @@
     const msg = document.getElementById('passwordChangeMsg');
     if (!authToken){
       msg.style.color = 'var(--danger)';
-      msg.textContent = 'سجّلي الدخول أولاً';
+      msg.textContent = 'سجّل الدخول أولاً';
       return;
     }
     if (!next){
       msg.style.color = 'var(--danger)';
-      msg.textContent = 'أدخلي كلمة المرور الجديدة';
+      msg.textContent = 'أدخل كلمة المرور الجديدة';
       return;
     }
     try {
@@ -2042,7 +2050,7 @@
     if (!code) return;
     if (!authToken){
       msg.style.color = 'var(--danger)';
-      msg.textContent = 'سجّلي الدخول أولاً لتفعيل كود';
+      msg.textContent = 'سجّل الدخول أولاً لتفعيل كود';
       return;
     }
     msg.style.color = 'var(--ink-faint)';
@@ -2107,7 +2115,7 @@
     document.getElementById('authNameField').style.display = authMode === 'register' ? 'block' : 'none';
     document.getElementById('authSubmitBtn').textContent = authMode === 'register' ? 'إنشاء الحساب' : 'تسجيل الدخول';
     document.getElementById('authToggleText').textContent = authMode === 'register' ? 'عندك حساب؟' : 'ليس لديك حساب؟';
-    document.getElementById('authToggleLink').textContent = authMode === 'register' ? 'سجّلي دخولك' : 'أنشئي حساب';
+    document.getElementById('authToggleLink').textContent = authMode === 'register' ? 'سجّل دخولك' : 'أنشئ حساب';
     const msg = document.getElementById('authFormMsg');
     msg.style.display = 'none';
   }
@@ -2119,7 +2127,7 @@
     msg.style.display = 'block';
     if (!email || !password){
       msg.style.color = 'var(--danger)';
-      msg.textContent = 'أدخلي البريد الإلكتروني وكلمة المرور';
+      msg.textContent = 'أدخل البريد الإلكتروني وكلمة المرور';
       return;
     }
     try {
@@ -2128,7 +2136,7 @@
         const fullName = document.getElementById('authName').value.trim();
         if (!fullName){
           msg.style.color = 'var(--danger)';
-          msg.textContent = 'أدخلي اسمك الكامل';
+          msg.textContent = 'أدخل اسمك الكامل';
           return;
         }
         data = await apiFetch('/auth/register', {
@@ -2169,6 +2177,20 @@
     return catalogTreeCache;
   }
 
+  // Replaces the study-path card's fixed "طب بشري / جامعة بغداد / الثانية"
+  // placeholders with the student's real section/university/stage, set via
+  // the complete-profile gate.
+  async function loadPathCard(){
+    if (!currentUser?.section_id || !currentUser?.university_id) return;
+    const tree = await loadCatalogTreeForProfile();
+    const section = tree.find(s => s.id === currentUser.section_id);
+    const uni = section?.universities.find(u => u.id === currentUser.university_id);
+    const stage = uni?.stages.find(st => st.id === currentUser.stage_id);
+    document.getElementById('pathValueSection').textContent = section?.name || '—';
+    document.getElementById('pathValueUni').textContent = uni?.name || '—';
+    document.getElementById('pathValueStage').textContent = currentUser.is_graduate ? 'متخرج' : (stage?.name || '—');
+  }
+
   async function showCompleteProfileView(){
     hideAllViews();
     document.getElementById('view-complete-profile').classList.add('active');
@@ -2178,11 +2200,11 @@
     document.getElementById('cpGraduate').value = '';
     document.getElementById('cpStageField').style.display = 'none';
     const tree = await loadCatalogTreeForProfile();
-    document.getElementById('cpSection').innerHTML = '<option value="">اختاري التخصص/الكلية</option>' +
+    document.getElementById('cpSection').innerHTML = '<option value="">اختر التخصص/الكلية</option>' +
       tree.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    document.getElementById('cpUniversity').innerHTML = '<option value="">اختاري الجامعة</option>';
+    document.getElementById('cpUniversity').innerHTML = '<option value="">اختر الجامعة</option>';
     document.getElementById('cpUniversity').disabled = true;
-    document.getElementById('cpStage').innerHTML = '<option value="">اختاري المرحلة</option>';
+    document.getElementById('cpStage').innerHTML = '<option value="">اختر المرحلة</option>';
   }
 
   function onCpSectionChange(){
@@ -2190,7 +2212,7 @@
     const section = tree.find(s => s.id === document.getElementById('cpSection').value);
     const uniSel = document.getElementById('cpUniversity');
     uniSel.disabled = !section;
-    uniSel.innerHTML = '<option value="">اختاري الجامعة</option>' +
+    uniSel.innerHTML = '<option value="">اختر الجامعة</option>' +
       (section ? section.universities.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
     onCpUniversityChange();
   }
@@ -2199,7 +2221,7 @@
     const tree = catalogTreeCache || [];
     const section = tree.find(s => s.id === document.getElementById('cpSection').value);
     const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
-    document.getElementById('cpStage').innerHTML = '<option value="">اختاري المرحلة</option>' +
+    document.getElementById('cpStage').innerHTML = '<option value="">اختر المرحلة</option>' +
       (uni ? uni.stages.map(st => `<option value="${st.id}">${st.name}</option>`).join('') : '');
   }
 
@@ -2282,7 +2304,7 @@
   function appealFormHtml(){
     return `
       <div class="glass" style="padding:16px 18px;">
-        <div class="form-field" style="margin-bottom:8px;"><input id="appealMessage" type="text" placeholder="اكتبي سبب الطعن..." /></div>
+        <div class="form-field" style="margin-bottom:8px;"><input id="appealMessage" type="text" placeholder="اكتب سبب الطعن..." /></div>
         <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitAppeal()">إرسال الطعن</button>
         <div id="appealMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
       </div>`;

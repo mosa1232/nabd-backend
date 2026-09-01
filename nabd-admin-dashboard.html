@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>نبض — لوحة التحكم</title>
+<title>Kiur — لوحة التحكم</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -251,10 +251,10 @@
     <div class="login-card glass">
       <div class="login-logo">
         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="display" style="font-size:1.1rem; font-weight:700;">نبض — لوحة التحكم</span>
+        <span class="display" style="font-size:1.1rem; font-weight:700;">Kiur — لوحة التحكم</span>
       </div>
       <div class="login-title">تسجيل الدخول</div>
-      <div class="login-sub">أدخلي بريدك الإلكتروني وكلمة المرور</div>
+      <div class="login-sub">أدخل بريدك الإلكتروني وكلمة المرور</div>
 
       <form onsubmit="event.preventDefault(); submitPasswordLogin();">
         <div class="form-field"><input id="loginEmail" type="email" placeholder="البريد الإلكتروني" autocomplete="username" /></div>
@@ -263,7 +263,7 @@
         <button type="submit" class="btn" style="width:100%; justify-content:center; padding:12px;">تسجيل الدخول</button>
       </form>
 
-      <div class="login-divider">أو جرّبي بحساب تجريبي</div>
+      <div class="login-divider">أو جرّب بحساب تجريبي</div>
       <div class="login-sub" style="margin-bottom:16px;">ثلاث لوحات منفصلة حسب الصلاحية — متصلة بالخادم الحقيقي، بدون كلمة مرور</div>
 
       <button class="role-btn" onclick="loginAs('admin@nabd.app', 'admin')">
@@ -311,7 +311,7 @@
     <div class="sidebar-brand">
       <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div>
-        <div class="sidebar-brand-name display">نبض</div>
+        <div class="sidebar-brand-name display">Kiur</div>
         <div class="sidebar-brand-tag">لوحة التحكم</div>
       </div>
     </div>
@@ -516,7 +516,7 @@
             <div class="dash-card-head"><span class="dash-card-title">استيراد بيانات</span></div>
             <div class="dropzone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault()" ondrop="event.preventDefault(); handleImportFileSelect(event.dataTransfer.files[0]);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
-              <div id="importDropLabel">اسحبي ملف Excel هنا أو اضغطي للاختيار</div>
+              <div id="importDropLabel">اسحب ملف Excel هنا أو اضغط للاختيار</div>
             </div>
             <input type="file" id="importFileInput" accept=".xlsx" style="display:none;" onchange="handleImportFileSelect(this.files[0])" />
             <div style="margin-top:14px; font-size:.78rem; color:var(--ink-faint);">تنزيل قالب فارغ: <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('questions')">قالب أسئلة.xlsx</span> · <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('students')">قالب طلاب.xlsx</span></div>
@@ -850,7 +850,7 @@
     document.getElementById('statusDot').className = 'status-dot ' + (ok ? 'live' : 'offline');
     document.getElementById('statusText').textContent = ok
       ? 'الخادم متصل — الدخول سيجلب بيانات حقيقية'
-      : 'لا يوجد اتصال بالخادم — استخدمي "معاينة بدون اتصال" أو شغّلي الباك اند';
+      : 'لا يوجد اتصال بالخادم — استخدم "معاينة بدون اتصال" أو شغّل الباك اند';
   })();
 
   // ---------- Theme ----------
@@ -869,7 +869,7 @@
     const errEl = document.getElementById('loginError');
     errEl.style.display = 'none';
     if (!email || !password){
-      errEl.textContent = 'أدخلي البريد الإلكتروني وكلمة المرور';
+      errEl.textContent = 'أدخل البريد الإلكتروني وكلمة المرور';
       errEl.style.display = 'block';
       return;
     }
@@ -889,7 +889,7 @@
       liveMode = true;
       enterShell(data.user.role);
     } catch (e) {
-      errEl.textContent = e.message || 'تعذّر تسجيل الدخول — تأكدي من البريد وكلمة المرور، أو أن الخادم يعمل';
+      errEl.textContent = e.message || 'تعذّر تسجيل الدخول — تأكد من البريد وكلمة المرور، أو أن الخادم يعمل';
       errEl.style.display = 'block';
     }
   }
@@ -907,7 +907,7 @@
       // really logged in, never a role picked by which button was clicked.
       enterShell(roles[data.user.role] ? data.user.role : role);
     } catch (e) {
-      showToast('تعذّر الاتصال بالخادم — جرّبي "معاينة بدون اتصال" بدلاً من ذلك، أو شغّلي الباك اند محلياً.', 'error');
+      showToast('تعذّر الاتصال بالخادم — جرّب "معاينة بدون اتصال" بدلاً من ذلك، أو شغّل الباك اند محلياً.', 'error');
     }
   }
 
@@ -1143,7 +1143,7 @@
   }
 
   function promptBanUser(userId, name){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal(`حظر ${name}`, [
       {id: 'reason', label: 'سبب الحظر', type: 'text', placeholder: 'مثال: غش بالامتحان'},
     ], async (v) => {
@@ -1154,7 +1154,7 @@
   }
 
   async function unbanUserAccount(userId){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     try {
       await apiFetch('/api/admin/users/' + userId + '/unban', {method: 'POST'});
       await loadAccounts();
@@ -1162,7 +1162,7 @@
   }
 
   function promptGenerateCodes(resellerId, name){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal(`توليد أكواد لـ ${name}`, [
       {id: 'count', label: 'كم كود تريدين تولّدين؟', type: 'number', value: 10},
     ], async (v) => {
@@ -1174,7 +1174,7 @@
   }
 
   async function openResellerCodesModal(resellerId, name){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     document.getElementById('resellerCodesTitle').textContent = `أكواد ${name}`;
     const listEl = document.getElementById('resellerCodesList');
     listEl.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
@@ -1229,7 +1229,7 @@
   ];
 
   function promptAddUser(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
@@ -1291,7 +1291,7 @@
   }
 
   function promptAddSection(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal('إضافة قسم', [
       {id: 'name', label: 'اسم القسم الجديد', type: 'text', placeholder: 'مثال: طب بشري'},
     ], async (v) => {
@@ -1308,7 +1308,7 @@
   };
 
   function promptAddCatalogChild(parentType, parentId){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const config = CATALOG_CHILD_CONFIG[parentType];
     if (!config) return;
     openGenericModal(config.label, [{id: 'name', label: config.label, type: 'text'}], async (v) => {
@@ -1323,7 +1323,7 @@
   const CATALOG_TYPE_LABEL = {section: 'القسم', university: 'الجامعة', stage: 'المرحلة', subject: 'المادة'};
 
   function promptRenameCatalog(type, id){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const row = allCatalogRows.find(r => r.id === id);
     openGenericModal(`تعديل ${CATALOG_TYPE_LABEL[type]}`, [
       {id: 'name', label: `الاسم الجديد لـ ${CATALOG_TYPE_LABEL[type]}`, type: 'text', value: row ? row.name : ''},
@@ -1335,7 +1335,7 @@
   }
 
   async function deleteCatalogNode(type, id){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     if (!await confirmModal(`حذف ${CATALOG_TYPE_LABEL[type]} نهائياً؟`)) return;
     try {
       await apiFetch(`/api/admin/catalog/${CATALOG_ENDPOINTS[type]}/${id}`, {method: 'DELETE'});
@@ -1378,8 +1378,8 @@
 
   async function renderQuestionList(){
     const listEl = document.getElementById('questionBankList');
-    if (!currentQuestionBankSubject){ listEl.innerHTML = '<div class="empty-row">أضيفي مادة أولاً من صفحة المناهج</div>'; return; }
-    if (!liveMode){ listEl.innerHTML = '<div class="empty-row">سجّلي دخول حقيقي لعرض الأسئلة</div>'; return; }
+    if (!currentQuestionBankSubject){ listEl.innerHTML = '<div class="empty-row">أضف مادة أولاً من صفحة المناهج</div>'; return; }
+    if (!liveMode){ listEl.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الأسئلة</div>'; return; }
     try {
       currentQuestions = await apiFetch('/api/admin/questions?subject_id=' + currentQuestionBankSubject);
       listEl.innerHTML = currentQuestions.map(q => `
@@ -1413,7 +1413,7 @@
   }
 
   function openQuestionForm(questionId){
-    if (!currentQuestionBankSubject){ showToast('أضيفي مادة أولاً من صفحة المناهج'); return; }
+    if (!currentQuestionBankSubject){ showToast('أضف مادة أولاً من صفحة المناهج'); return; }
     editingQuestionId = questionId || null;
     document.getElementById('questionFormCard').style.display = 'block';
     document.getElementById('questionFormMsg').style.display = 'none';
@@ -1457,7 +1457,7 @@
 
     if (!text || choices.length < 2){
       msg.style.color = 'var(--danger)';
-      msg.textContent = 'أدخلي نص السؤال وخيارين على الأقل';
+      msg.textContent = 'أدخل نص السؤال وخيارين على الأقل';
       return;
     }
     const body = {subject_id: currentQuestionBankSubject, text, eyebrow, rationale, choices};
@@ -1590,7 +1590,7 @@
 
   async function uploadMediaFile(file){
     if (!file) return;
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم رفع الملفات)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم رفع الملفات)'); return; }
     const status = document.getElementById('mediaUploadStatus');
     status.style.display = 'block';
     status.style.color = 'var(--ink-faint)';
@@ -1629,7 +1629,7 @@
   }
 
   async function downloadTemplate(kind){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     try {
       const res = await fetch(API_BASE_URL + '/api/admin/import/template/' + kind, {
         headers: {'Authorization': 'Bearer ' + authToken},
@@ -1640,18 +1640,18 @@
   }
 
   async function exportData(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const boxes = document.querySelectorAll('#sec-importexport .check-row input[type=checkbox]');
     const keys = ['students', 'questions', 'orders', 'logs'];
     const selected = [];
     boxes.forEach((box, i) => { if (box.checked) selected.push(keys[i]); });
-    if (!selected.length){ showToast('اختاري بيانات واحدة على الأقل للتصدير'); return; }
+    if (!selected.length){ showToast('اختر بيانات واحدة على الأقل للتصدير'); return; }
     try {
       const res = await fetch(API_BASE_URL + '/api/admin/export?datasets=' + selected.join(','), {
         headers: {'Authorization': 'Bearer ' + authToken},
       });
       if (!res.ok) throw new Error('فشل التصدير');
-      downloadBlob(await res.blob(), 'نبض-تصدير.xlsx');
+      downloadBlob(await res.blob(), 'Kiur-تصدير.xlsx');
     } catch (e) { showToast('تعذّر تصدير البيانات', 'error'); }
   }
 
@@ -1659,12 +1659,12 @@
   function handleImportFileSelect(file){
     selectedImportFile = file || null;
     document.getElementById('importDropLabel').textContent =
-      selectedImportFile ? ('الملف المحدد: ' + selectedImportFile.name) : 'اسحبي ملف Excel هنا أو اضغطي للاختيار';
+      selectedImportFile ? ('الملف المحدد: ' + selectedImportFile.name) : 'اسحب ملف Excel هنا أو اضغط للاختيار';
   }
 
   async function submitImport(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!selectedImportFile){ showToast('اختاري ملفاً أولاً'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!selectedImportFile){ showToast('اختر ملفاً أولاً'); return; }
     const status = document.getElementById('importStatus');
     status.style.display = 'block';
     status.style.color = 'var(--ink-faint)';
@@ -1682,7 +1682,7 @@
       const kindLabel = data.kind === 'students' ? 'طلاب' : 'أسئلة';
       let msg = `تم استيراد ${data.created} ${kindLabel} بنجاح`;
       if (data.skipped) msg += ` (تخطّي ${data.skipped} مكرر)`;
-      if (data.errors && data.errors.length) msg += ` — ${data.errors.length} صف فيه خطأ (راجعي الـ console)`;
+      if (data.errors && data.errors.length) msg += ` — ${data.errors.length} صف فيه خطأ (راجع الـ console)`;
       status.style.color = 'var(--success)';
       status.textContent = msg;
       if (data.errors && data.errors.length) console.warn('أخطاء الاستيراد:', data.errors);
@@ -1758,7 +1758,7 @@
   function invalidateProfDashboard(){ profDashboard = null; }
 
   function promptAddBooklet(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
     openGenericModal('إضافة ملزمة', [
       {id: 'title', label: 'عنوان الملزمة', type: 'text'},
       {id: 'pages', label: 'عدد الصفحات', type: 'number', value: 20},
@@ -1795,7 +1795,7 @@
   }
 
   function promptAddExam(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
     openGenericModal('إنشاء امتحان', [
       {id: 'title', label: 'عنوان الامتحان', type: 'text'},
       {id: 'questionCount', label: 'عدد الأسئلة', type: 'number', value: 20},
@@ -1897,7 +1897,7 @@
   }
 
   function promptAddCourse(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal('إضافة كورس', [{id: 'title', label: 'عنوان الكورس', type: 'text'}], async (v) => {
       if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
       await apiFetch('/api/professors/me/courses', {method: 'POST', body: JSON.stringify({title: v.title.trim()})});
@@ -2003,7 +2003,7 @@
   }
 
   async function loadResellerCodes(){
-    if (!liveMode){ document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّلي دخول حقيقي أولاً لعرض الأكواد</td></tr>`; return; }
+    if (!liveMode){ document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي أولاً لعرض الأكواد</td></tr>`; return; }
     try {
       const codes = await apiFetch('/api/reseller/codes');
       const statusLabel = {active: 'مفعّل', idle: 'متاح', expired: 'منتهي'};
@@ -2014,14 +2014,14 @@
           <td><span class="badge ${c.status==='idle'?'badge-idle':(c.status==='active'?'badge-active':'badge-disabled')}">${statusLabel[c.status] || c.status}</span></td>
           <td>${c.sold_at ? fmtDate(c.sold_at) : '—'}</td>
         </tr>
-      `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد أكواد بعد — اضغطي "أخذ كود"</td></tr>`;
+      `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد أكواد بعد — اضغط "أخذ كود"</td></tr>`;
     } catch (e) {
       document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">${e.detail || 'تعذّر تحميل الأكواد'}</td></tr>`;
     }
   }
 
   async function promptTakeCode(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const subjectOptions = [{value: '', label: 'VIP — جميع المواد'}];
     try {
       const tree = await apiFetch('/api/catalog/tree');
@@ -2060,8 +2060,8 @@
 
   async function loadStore(){
     if (!liveMode){
-      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّلي دخول حقيقي أولاً لعرض الطلبات</td></tr>`;
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّلي دخول حقيقي أولاً لعرض المنتجات</td></tr>`;
+      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً لعرض الطلبات</td></tr>`;
+      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي أولاً لعرض المنتجات</td></tr>`;
       return;
     }
     try {
@@ -2142,7 +2142,7 @@
   }
 
   async function promptAddProduct(){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const subjectOptions = await productSubjectOptions();
     openGenericModal('إضافة منتج', [
       {id: 'name', label: 'اسم المنتج', type: 'text'},
@@ -2164,7 +2164,7 @@
   }
 
   async function promptEditProduct(id){
-    if (!liveMode){ showToast('سجّلي دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const product = storeProducts.find(p => p.id === id);
     if (!product) return;
     const subjectOptions = await productSubjectOptions();
