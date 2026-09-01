@@ -236,6 +236,66 @@ def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_curr
     )
 
 
+@router.get("/me/performance")
+def my_performance(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Per-subject accuracy breakdown — the account page's "تقرير أدائي"."""
+    answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.user_id == user.id).all()
+    by_question = {a.question_id for a in answers}
+    if not by_question:
+        return []
+    questions = db.query(models.Question).filter(models.Question.id.in_(by_question)).all()
+    subject_of = {q.id: q.subject_id for q in questions}
+
+    stats: dict[str, dict] = {}
+    for a in answers:
+        subj_id = subject_of.get(a.question_id)
+        if not subj_id:
+            continue
+        s = stats.setdefault(subj_id, {"answered": 0, "correct": 0})
+        s["answered"] += 1
+        if a.is_correct:
+            s["correct"] += 1
+
+    subjects = db.query(models.Subject).filter(models.Subject.id.in_(stats.keys())).all()
+    out = []
+    for subj in subjects:
+        s = stats[subj.id]
+        pct = round(s["correct"] / s["answered"] * 100) if s["answered"] else 0
+        out.append({
+            "subject_id": subj.id, "subject_name": subj.name,
+            "answered": s["answered"], "correct": s["correct"], "accuracy_pct": pct,
+        })
+    out.sort(key=lambda r: -r["answered"])
+    return out
+
+
+@router.get("/leaderboard")
+def leaderboard(limit: int = 20, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Top students by correct-answer count, scoped to the caller's own
+    university when they have one (same peer group used in /me/stats)."""
+    students_q = db.query(models.User).filter(models.User.role == models.Role.student)
+    if user.university_id:
+        students_q = students_q.filter(models.User.university_id == user.university_id)
+    students = students_q.all()
+
+    correct_by_user: dict[str, int] = {}
+    answers = db.query(models.StudentAnswer).filter(
+        models.StudentAnswer.user_id.in_([s.id for s in students])
+    ).all()
+    for a in answers:
+        if a.is_correct:
+            correct_by_user[a.user_id] = correct_by_user.get(a.user_id, 0) + 1
+
+    ranked = sorted(students, key=lambda s: (-correct_by_user.get(s.id, 0), s.id))
+    return [
+        {
+            "rank": i + 1, "user_id": s.id, "full_name": s.full_name,
+            "correct_count": correct_by_user.get(s.id, 0), "is_you": s.id == user.id,
+        }
+        for i, s in enumerate(ranked[:limit])
+    ]
+
+
 @router.post("/change-password")
 def change_password(
     body: schemas.ChangePasswordIn,

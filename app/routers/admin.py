@@ -638,3 +638,31 @@ def update_order_status(order_id: str, status: str, db: Session = Depends(get_db
     db.commit()
     return {"ok": True}
 
+
+# ===================================================== ADMIN: notifications
+@router.get("/notifications")
+def list_notifications_admin(db: Session = Depends(get_db)):
+    notifs = db.query(models.Notification).order_by(models.Notification.created_at.desc()).limit(50).all()
+    return [
+        {
+            "id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at,
+            "user_id": n.user_id, "broadcast": n.user_id is None,
+        }
+        for n in notifs
+    ]
+
+
+@router.post("/notifications")
+def send_notification(
+    body: schemas.NotificationCreateIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("admin")),
+):
+    if body.user_id and not db.get(models.User, body.user_id):
+        raise HTTPException(404, "المستخدم غير موجود")
+    n = models.Notification(title=body.title.strip(), body=body.body.strip(), user_id=body.user_id, created_by=user.id)
+    db.add(n)
+    db.commit()
+    db.refresh(n)
+    return {"id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at}
+

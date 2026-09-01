@@ -125,12 +125,27 @@ def my_students(db: Session = Depends(get_db), user: models.User = Depends(get_c
     return out
 
 
+_NEW_ADJ = {"ملزمة": "جديدة", "امتحان": "جديد", "كورس": "جديد"}
+
+
+def _notify_new_content(db: Session, profile: models.ProfessorProfile, kind: str, title: str) -> None:
+    """Broadcasts a "new content" notice whenever a professor publishes a
+    booklet, exam, or course — students otherwise have no way to know
+    something new landed in a subject they follow."""
+    adj = _NEW_ADJ.get(kind, "جديد")
+    db.add(models.Notification(
+        title=f"{kind} {adj}: {title}",
+        body=f"أضاف {profile.user.full_name} {kind} {adj} في مادة {profile.subject.name}",
+    ))
+
+
 # ---------------------------------------------------------- booklet CRUD
 @router.post("/me/booklets", response_model=schemas.BookletOut)
 def create_booklet(body: schemas.BookletIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     profile = _get_own_profile(db, user)
     b = models.Booklet(professor_id=profile.id, title=body.title, pages=body.pages)
     db.add(b)
+    _notify_new_content(db, profile, "ملزمة", body.title)
     db.commit()
     db.refresh(b)
     return b
@@ -169,6 +184,7 @@ def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: model
         question_count=body.question_count, duration_minutes=body.duration_minutes,
     )
     db.add(e)
+    _notify_new_content(db, profile, "امتحان", body.title)
     db.commit()
     db.refresh(e)
     return e
@@ -221,6 +237,7 @@ def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: m
     profile = _get_own_profile(db, user)
     c = models.Course(subject_id=profile.subject_id, professor_id=profile.id, title=body.title)
     db.add(c)
+    _notify_new_content(db, profile, "كورس", body.title)
     db.commit()
     db.refresh(c)
     return {"id": c.id, "title": c.title, "lectures": []}

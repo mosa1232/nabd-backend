@@ -10,7 +10,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import models
 from .config import get_settings
 from .database import Base, engine
-from .routers import activation, admin, auth, bans, catalog, courses, import_export, professors, questions, reseller, store
+from .routers import (
+    activation, admin, auth, bans, catalog, courses, exams, import_export,
+    notifications, professors, questions, reseller, store,
+)
 from .routers.admin import UPLOAD_DIR
 
 settings = get_settings()
@@ -41,6 +44,8 @@ app.include_router(reseller.router)
 app.include_router(activation.router)
 app.include_router(bans.router)
 app.include_router(import_export.router)
+app.include_router(exams.router)
+app.include_router(notifications.router)
 
 app.mount("/media-files", StaticFiles(directory=UPLOAD_DIR), name="media-files")
 

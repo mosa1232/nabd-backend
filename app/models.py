@@ -302,3 +302,68 @@ class MediaFile(Base):
     size_bytes = Column(Integer, default=0)
     uploaded_by = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------------------- exam engine
+class ExamAttempt(Base):
+    """One row per student who starts an exam. Its ExamAttemptQuestion rows
+    are a fixed, shuffled snapshot of that exam's questions at start time —
+    so the exam stays consistent for that student even if the subject's
+    question bank changes mid-attempt."""
+    __tablename__ = "exam_attempts"
+    id = Column(String, primary_key=True, default=gen_id)
+    exam_id = Column(String, ForeignKey("exams.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+    score = Column(Integer, default=0)
+    total = Column(Integer, default=0)
+
+    exam = relationship("Exam")
+    items = relationship("ExamAttemptQuestion", back_populates="attempt", cascade="all, delete-orphan")
+
+
+class ExamAttemptQuestion(Base):
+    __tablename__ = "exam_attempt_questions"
+    id = Column(String, primary_key=True, default=gen_id)
+    attempt_id = Column(String, ForeignKey("exam_attempts.id"), nullable=False)
+    question_id = Column(String, ForeignKey("questions.id"), nullable=False)
+    order_index = Column(Integer, default=0)
+    choice_id = Column(String, ForeignKey("choices.id"), nullable=True)
+    is_correct = Column(Boolean, nullable=True)
+    answered_at = Column(DateTime, nullable=True)
+
+    attempt = relationship("ExamAttempt", back_populates="items")
+    question = relationship("Question")
+
+
+# ------------------------------------------------------------ review/saving
+class SavedQuestion(Base):
+    """A student's bookmark on a question, for the "المحفوظة" review tab."""
+    __tablename__ = "saved_questions"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    question_id = Column(String, ForeignKey("questions.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------------------- notifications
+class Notification(Base):
+    """user_id null = broadcast to every student. Per-user read state lives
+    in NotificationRead rather than a column here, so one broadcast row can
+    be read by some recipients and not others."""
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    title = Column(String, nullable=False)
+    body = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+
+class NotificationRead(Base):
+    __tablename__ = "notification_reads"
+    id = Column(String, primary_key=True, default=gen_id)
+    notification_id = Column(String, ForeignKey("notifications.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    read_at = Column(DateTime, default=datetime.utcnow)

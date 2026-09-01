@@ -317,3 +317,14 @@ class OrderAdminOut(BaseModel):
     delivery_phone: Optional[str] = None
     delivery_address: Optional[str] = None
     items: list[OrderAdminItemOut] = []
+
+
+# ------------------------------------------------------------------ exams
+class ExamAttemptAnswerIn(BaseModel):
+    choice_id: str
+
+
+class NotificationCreateIn(BaseModel):
+    title: str
+    body: str = ""
+    user_id: Optional[str] = None  # null = broadcast to every student
