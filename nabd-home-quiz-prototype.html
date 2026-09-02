@@ -356,11 +356,19 @@
   .checkout-section{margin-bottom:18px;}
   .section-title{font-size:.8rem; font-weight:700; color:var(--ink-soft); margin-bottom:10px;}
   .form-field{margin-bottom:10px;}
-  .form-field input{
+  .form-field input, .form-field select, .form-field textarea{
     width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border);
     background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);
   }
-  .form-field input::placeholder{color:var(--ink-faint);}
+  .form-field input::placeholder, .form-field textarea::placeholder{color:var(--ink-faint);}
+  .form-field select{
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237E88AC' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position:left 12px center; background-size:16px;
+    padding-left:36px;
+  }
+  .form-field select:disabled{opacity:.55; cursor:not-allowed;}
+  .form-field select option{background:var(--bg-1); color:var(--ink);}
   .pay-options{display:flex; flex-direction:column; gap:10px;}
   .pay-option{
     display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-md);
@@ -1021,6 +1029,32 @@
         <div class="prof-header-name" id="accName">—</div>
         <div class="prof-header-title mono" id="accPhone"></div>
         <div class="prof-tags" id="accTags"></div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">المسار الدراسي</div>
+      <div class="item-list">
+        <div class="item-card glass">
+          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></div>
+          <div class="item-body">
+            <div class="item-title">القسم والجامعة والمرحلة</div>
+            <div class="item-meta" id="acPathSummary">جارٍ التحميل...</div>
+          </div>
+          <button class="btn btn-ghost item-action" onclick="toggleAcademicPathForm()">تعديل</button>
+        </div>
+        <div class="glass" id="academicPathForm" style="display:none; padding:16px 18px;">
+          <div class="form-field"><select id="acSection" onchange="onAcSectionChange()"><option value="">اختر القسم</option></select></div>
+          <div class="form-field"><select id="acUniversity" onchange="onAcUniversityChange()" disabled><option value="">اختر الجامعة</option></select></div>
+          <div class="form-field"><select id="acGraduate" onchange="onAcGraduateChange()">
+            <option value="">هل أنت طالب أم متخرج؟</option>
+            <option value="0">ما زلت طالباً</option>
+            <option value="1">متخرج</option>
+          </select></div>
+          <div class="form-field" id="acStageField" style="display:none;"><select id="acStage"><option value="">اختر المرحلة</option></select></div>
+          <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="saveAcademicPath()">حفظ</button>
+          <div id="acPathMsg" style="font-size:.78rem; margin-top:8px; text-align:center; display:none;"></div>
+        </div>
       </div>
     </div>
 
@@ -2119,6 +2153,8 @@
     hideAllViews();
     document.getElementById('view-account').classList.add('active');
     renderAccountHeader();
+    renderAcademicPathSummary();
+    document.getElementById('academicPathForm').style.display = 'none';
     loadActivations();
     loadActiveSession();
     document.getElementById('passwordMeta').textContent = currentUser?.has_password
@@ -2153,6 +2189,98 @@
   function backHomeFromAccount(){
     hideAllViews();
     document.getElementById('view-home').classList.add('active');
+  }
+
+  // ---------- Academic path (account page, editable) ----------
+  async function renderAcademicPathSummary(){
+    const u = currentUser;
+    if (!u) return;
+    const summary = document.getElementById('acPathSummary');
+    if (!u.section_id || !u.university_id){ summary.textContent = 'لم تُحدَّد بعد'; return; }
+    try {
+      const tree = await loadCatalogTreeForProfile();
+      const section = tree.find(s => s.id === u.section_id);
+      const uni = section?.universities.find(x => x.id === u.university_id);
+      const stage = uni?.stages.find(x => x.id === u.stage_id);
+      const parts = [section?.name, uni?.name, u.is_graduate ? 'متخرج' : stage?.name].filter(Boolean);
+      summary.textContent = parts.join(' · ') || 'لم تُحدَّد بعد';
+    } catch (e) { summary.textContent = 'لم تُحدَّد بعد'; }
+  }
+
+  async function toggleAcademicPathForm(){
+    const form = document.getElementById('academicPathForm');
+    if (form.style.display === 'block'){ form.style.display = 'none'; return; }
+    const tree = await loadCatalogTreeForProfile();
+    const u = currentUser;
+    document.getElementById('acSection').innerHTML = '<option value="">اختر القسم</option>' +
+      tree.map(s => `<option value="${s.id}" ${s.id === u.section_id ? 'selected' : ''}>${s.name}</option>`).join('');
+    onAcSectionChange(u.university_id, u.stage_id);
+    document.getElementById('acGraduate').value = u.is_graduate === true ? '1' : (u.is_graduate === false ? '0' : '');
+    onAcGraduateChange();
+    document.getElementById('acPathMsg').style.display = 'none';
+    form.style.display = 'block';
+  }
+
+  function onAcSectionChange(preselectUniId, preselectStageId){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('acSection').value);
+    const uniSel = document.getElementById('acUniversity');
+    uniSel.disabled = !section;
+    uniSel.innerHTML = '<option value="">اختر الجامعة</option>' +
+      (section ? section.universities.map(u => `<option value="${u.id}" ${u.id === preselectUniId ? 'selected' : ''}>${u.name}</option>`).join('') : '');
+    onAcUniversityChange(preselectStageId);
+  }
+  function onAcUniversityChange(preselectStageId){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('acSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('acUniversity').value);
+    const stageSel = document.getElementById('acStage');
+    stageSel.disabled = !uni;
+    stageSel.innerHTML = '<option value="">اختر المرحلة</option>' +
+      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${st.name}</option>`).join('') : '');
+  }
+  function onAcGraduateChange(){
+    const isGraduate = document.getElementById('acGraduate').value === '1';
+    document.getElementById('acStageField').style.display = isGraduate ? 'none' : 'block';
+  }
+
+  async function saveAcademicPath(){
+    const msg = document.getElementById('acPathMsg');
+    msg.style.display = 'block';
+    const sectionId = document.getElementById('acSection').value;
+    const universityId = document.getElementById('acUniversity').value;
+    const graduateVal = document.getElementById('acGraduate').value;
+    const stageId = document.getElementById('acStage').value;
+    if (!sectionId || !universityId || graduateVal === ''){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'الرجاء تعبئة جميع الحقول';
+      return;
+    }
+    const isGraduate = graduateVal === '1';
+    if (!isGraduate && !stageId){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'الرجاء اختيار المرحلة الدراسية';
+      return;
+    }
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = 'جارٍ الحفظ...';
+    try {
+      const updated = await apiFetch('/auth/me/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          full_name: currentUser.full_name, phone: currentUser.phone || '',
+          section_id: sectionId, university_id: universityId,
+          is_graduate: isGraduate, stage_id: isGraduate ? null : stageId,
+        }),
+      });
+      currentUser = updated;
+      document.getElementById('academicPathForm').style.display = 'none';
+      renderAcademicPathSummary();
+      showToast('تم تحديث المسار الدراسي ✓');
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'تعذّر الحفظ';
+    }
   }
 
   // ---------- Security: active session + password change ----------
