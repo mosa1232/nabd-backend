@@ -760,12 +760,48 @@
       <div class="quiz-count">لوحة المتصدرين</div>
       <div style="width:38px"></div>
     </div>
-    <div class="tabs">
-      <button class="tab-btn active" data-ltab="rank" onclick="switchLeaderboardTab('rank')">الترتيب</button>
-      <button class="tab-btn" data-ltab="perf" onclick="switchLeaderboardTab('perf')">تقرير أدائي</button>
+    <div class="form-field" style="margin:0 16px 10px;"><input id="studentSearchInput" type="text" placeholder="ابحث عن طالب بالاسم..." oninput="searchStudents()" /></div>
+    <div class="item-list" id="studentSearchResults" style="display:none; padding:0 16px;"></div>
+    <div id="leaderboardTabsWrap">
+      <div class="tabs">
+        <button class="tab-btn active" data-ltab="rank" onclick="switchLeaderboardTab('rank')">الترتيب</button>
+        <button class="tab-btn" data-ltab="perf" onclick="switchLeaderboardTab('perf')">تقرير أدائي</button>
+      </div>
+      <div class="tab-panel active" id="ltab-rank"><div class="item-list" id="leaderboardList"></div></div>
+      <div class="tab-panel" id="ltab-perf"><div class="item-list" id="performanceList"></div></div>
     </div>
-    <div class="tab-panel active" id="ltab-rank"><div class="item-list" id="leaderboardList"></div></div>
-    <div class="tab-panel" id="ltab-perf"><div class="item-list" id="performanceList"></div></div>
+  </div>
+
+  <!-- ============ STUDENT PUBLIC PROFILE VIEW ============ -->
+  <div class="view" id="view-student-profile">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backFromStudentProfile()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">ملف الطالب</div>
+      <div style="width:38px"></div>
+    </div>
+    <div class="prof-header glass">
+      <div class="prof-header-avatar" id="spAvatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); overflow:hidden;"></div>
+      <div>
+        <div class="prof-header-name" id="spName">—</div>
+        <div class="item-meta" id="spCaption"></div>
+      </div>
+    </div>
+    <div class="kpi-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px;">
+      <div class="glass" style="padding:14px; text-align:center;">
+        <div class="item-meta">الترتيب</div>
+        <div class="prof-header-name" id="spRank" style="margin-top:4px;">—</div>
+      </div>
+      <div class="glass" style="padding:14px; text-align:center;">
+        <div class="item-meta">سلسلة</div>
+        <div class="prof-header-name" id="spStreak" style="margin-top:4px;">—</div>
+      </div>
+    </div>
+    <div class="section-block">
+      <div class="section-title">المهارات</div>
+      <div id="spSkills" style="display:flex; flex-wrap:wrap; gap:8px; padding:0 16px;"></div>
+    </div>
   </div>
 
   <!-- ============ NOTIFICATIONS VIEW ============ -->
@@ -1034,6 +1070,17 @@
         <div class="form-field" id="accCaptionForm" style="display:none; margin-top:8px; max-width:280px;">
           <input id="accCaptionInput" type="text" maxlength="200" placeholder="اكتب كابشن قصير عن نفسك..." />
           <button class="btn btn-ghost" style="margin-top:6px; padding:6px 14px; font-size:.75rem;" onclick="saveMyCaption()">حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">المهارات</div>
+      <div class="glass" style="padding:14px 16px;">
+        <div id="mySkillsList" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input id="newSkillInput" type="text" maxlength="40" placeholder="أضف مهارة (مثال: تشريح، إسعافات أولية)" onkeydown="if(event.key==='Enter'){event.preventDefault(); addMySkill();}" style="flex:1; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);" />
+          <button class="btn" style="padding:0 16px; font-size:.8rem;" onclick="addMySkill()">إضافة</button>
         </div>
       </div>
     </div>
@@ -2159,6 +2206,7 @@
     hideAllViews();
     document.getElementById('view-account').classList.add('active');
     renderAccountHeader();
+    loadMySkills();
     renderAcademicPathSummary();
     document.getElementById('academicPathForm').style.display = 'none';
     loadActivations();
@@ -2228,6 +2276,39 @@
       showToast('تم الحفظ ✓');
     } catch (e) { showToast(e.detail || 'تعذّر الحفظ'); }
   }
+
+  // ---------- Skills ----------
+  async function loadMySkills(){
+    const list = document.getElementById('mySkillsList');
+    try {
+      const skills = await apiFetch('/auth/me/skills');
+      list.innerHTML = skills.map(s => `
+        <span class="prof-tag" style="display:inline-flex; align-items:center; gap:6px;">
+          ${s.text}
+          <span onclick="removeMySkill('${s.id}')" style="cursor:pointer; font-weight:900;">×</span>
+        </span>
+      `).join('') || '<span class="item-meta">ما أضفت أي مهارة بعد</span>';
+    } catch (e) { list.innerHTML = '<span class="item-meta">تعذّر تحميل المهارات</span>'; }
+  }
+
+  async function addMySkill(){
+    const input = document.getElementById('newSkillInput');
+    const text = input.value.trim();
+    if (!text) return;
+    try {
+      await apiFetch('/auth/me/skills', {method: 'POST', body: JSON.stringify({text})});
+      input.value = '';
+      loadMySkills();
+    } catch (e) { showToast(e.detail || 'تعذّر إضافة المهارة'); }
+  }
+
+  async function removeMySkill(id){
+    try {
+      await apiFetch('/auth/me/skills/' + id, {method: 'DELETE'});
+      loadMySkills();
+    } catch (e) { showToast(e.detail || 'تعذّر الحذف'); }
+  }
+
   function backHomeFromAccount(){
     hideAllViews();
     document.getElementById('view-home').classList.add('active');
@@ -2980,6 +3061,9 @@
   function goToLeaderboard(){
     hideAllViews();
     document.getElementById('view-leaderboard').classList.add('active');
+    document.getElementById('studentSearchInput').value = '';
+    document.getElementById('studentSearchResults').style.display = 'none';
+    document.getElementById('leaderboardTabsWrap').style.display = 'block';
     switchLeaderboardTab('rank');
   }
   function backHomeFromLeaderboard(){ goHome(); }
@@ -2996,7 +3080,7 @@
     try {
       const rows = await apiFetch('/auth/leaderboard');
       list.innerHTML = rows.map(r => `
-        <div class="item-card glass" style="${r.is_you ? 'border:1.5px solid var(--accent);' : ''}">
+        <div class="item-card glass" style="cursor:pointer; ${r.is_you ? 'border:1.5px solid var(--accent);' : ''}" onclick="openStudentProfile('${r.user_id}')">
           <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${r.photo_url ? `<img src="${API_BASE_URL}${r.photo_url}" style="width:100%; height:100%; object-fit:cover;" />` : '#' + r.rank}</div>
           <div class="item-body">
             <div class="item-title">${r.full_name}${r.is_you ? ' (أنت)' : ''}</div>
@@ -3007,6 +3091,70 @@
     } catch (e) {
       list.innerHTML = '<div class="empty-row">تعذّر تحميل الترتيب</div>';
     }
+  }
+
+  // ---------- Student search ----------
+  let studentSearchTimer = null;
+  function searchStudents(){
+    clearTimeout(studentSearchTimer);
+    studentSearchTimer = setTimeout(runStudentSearch, 250);
+  }
+  async function runStudentSearch(){
+    const q = document.getElementById('studentSearchInput').value.trim();
+    const resultsEl = document.getElementById('studentSearchResults');
+    const tabsWrap = document.getElementById('leaderboardTabsWrap');
+    if (!q){
+      resultsEl.style.display = 'none';
+      tabsWrap.style.display = 'block';
+      return;
+    }
+    tabsWrap.style.display = 'none';
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div class="empty-row">جارٍ البحث...</div>';
+    try {
+      const rows = await apiFetch('/api/students/search?q=' + encodeURIComponent(q));
+      resultsEl.innerHTML = rows.map(s => `
+        <div class="item-card glass" style="cursor:pointer;" onclick="openStudentProfile('${s.id}')">
+          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${s.photo_url ? `<img src="${API_BASE_URL}${s.photo_url}" style="width:100%; height:100%; object-fit:cover;" />` : (s.full_name||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')}</div>
+          <div class="item-body">
+            <div class="item-title">${s.full_name}</div>
+            ${s.caption ? `<div class="item-meta">${s.caption}</div>` : ''}
+          </div>
+        </div>
+      `).join('') || '<div class="empty-row">ما اكو نتائج</div>';
+    } catch (e) {
+      resultsEl.innerHTML = '<div class="empty-row">تعذّر البحث</div>';
+    }
+  }
+
+  // ---------- Student public profile ----------
+  async function openStudentProfile(id){
+    hideAllViews();
+    document.getElementById('view-student-profile').classList.add('active');
+    document.getElementById('spName').textContent = 'جارٍ التحميل...';
+    document.getElementById('spCaption').textContent = '';
+    document.getElementById('spRank').textContent = '—';
+    document.getElementById('spStreak').textContent = '—';
+    document.getElementById('spSkills').innerHTML = '';
+    try {
+      const p = await apiFetch('/api/students/' + id + '/profile');
+      document.getElementById('spAvatar').innerHTML = p.photo_url
+        ? `<img src="${API_BASE_URL}${p.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
+        : (p.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+      document.getElementById('spName').textContent = p.full_name;
+      document.getElementById('spCaption').textContent = p.caption || '';
+      document.getElementById('spRank').textContent = p.rank ? ('#' + p.rank + ' / ' + p.total_ranked) : '—';
+      document.getElementById('spStreak').textContent = p.streak_days;
+      document.getElementById('spSkills').innerHTML = p.skills.length
+        ? p.skills.map(t => `<span class="prof-tag">${t}</span>`).join('')
+        : '<span class="item-meta">ما أضاف أي مهارة بعد</span>';
+    } catch (e) {
+      document.getElementById('spName').textContent = 'تعذّر تحميل الملف';
+    }
+  }
+  function backFromStudentProfile(){
+    hideAllViews();
+    document.getElementById('view-leaderboard').classList.add('active');
   }
 
   async function loadPerformanceReport(){

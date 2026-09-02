@@ -274,6 +274,36 @@ def update_my_caption(
     return user
 
 
+@router.get("/me/skills")
+def list_my_skills(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    skills = db.query(models.UserSkill).filter(models.UserSkill.user_id == user.id).order_by(models.UserSkill.created_at).all()
+    return [{"id": s.id, "text": s.text} for s in skills]
+
+
+@router.post("/me/skills")
+def add_my_skill(body: schemas.SkillIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    text = body.text.strip()[:40]
+    if not text:
+        raise HTTPException(400, "اكتب مهارة قبل الإضافة")
+    if db.query(models.UserSkill).filter(models.UserSkill.user_id == user.id).count() >= 12:
+        raise HTTPException(400, "الحد الأقصى 12 مهارة")
+    skill = models.UserSkill(user_id=user.id, text=text)
+    db.add(skill)
+    db.commit()
+    db.refresh(skill)
+    return {"id": skill.id, "text": skill.text}
+
+
+@router.delete("/me/skills/{skill_id}")
+def delete_my_skill(skill_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    skill = db.get(models.UserSkill, skill_id)
+    if not skill or skill.user_id != user.id:
+        raise HTTPException(404, "المهارة غير موجودة")
+    db.delete(skill)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/me/photo", response_model=schemas.UserOut)
 async def upload_my_photo(
     file: UploadFile = File(...),

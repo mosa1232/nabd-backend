@@ -343,6 +343,17 @@ class ExamAttemptQuestion(Base):
     question = relationship("Question")
 
 
+# -------------------------------------------------------------------- skills
+class UserSkill(Base):
+    """A free-text tag a student adds to their own profile — shown on their
+    public profile card alongside rank and streak."""
+    __tablename__ = "user_skills"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ------------------------------------------------------------ review/saving
 class SavedQuestion(Base):
     """A student's bookmark on a question, for the "المحفوظة" review tab."""

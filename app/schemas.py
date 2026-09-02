@@ -58,6 +58,10 @@ class CaptionUpdateIn(BaseModel):
     caption: str = ""
 
 
+class SkillIn(BaseModel):
+    text: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

@@ -12,7 +12,7 @@ from .config import get_settings
 from .database import Base, engine
 from .routers import (
     activation, admin, auth, bans, catalog, courses, exams, import_export,
-    notifications, professors, questions, reseller, store,
+    notifications, professors, questions, reseller, store, students,
 )
 from .routers.admin import UPLOAD_DIR
 
@@ -46,6 +46,7 @@ app.include_router(bans.router)
 app.include_router(import_export.router)
 app.include_router(exams.router)
 app.include_router(notifications.router)
+app.include_router(students.router)
 
 app.mount("/media-files", StaticFiles(directory=UPLOAD_DIR), name="media-files")
 
