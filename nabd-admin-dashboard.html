@@ -327,6 +327,10 @@
           <div class="admin-mini-role" id="miniRole">—</div>
         </div>
       </div>
+      <button class="logout-row" onclick="openSecuritySettings()" style="margin-bottom:4px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3Z"/><path d="m9.5 12 2 2 4-4"/></svg>
+        الأمان
+      </button>
       <button class="logout-row" onclick="doLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
         تسجيل الخروج
@@ -730,6 +734,15 @@
   </div>
 </div>
 
+<!-- ============ SECURITY / 2FA MODAL ============ -->
+<div id="securityOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:999; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:400px; width:100%; max-height:88vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title">الأمان — التحقق بخطوتين</span></div>
+    <div id="securityBody"></div>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="document.getElementById('securityOverlay').style.display='none'">إغلاق</button>
+  </div>
+</div>
+
 <!-- ============ CONFIRM MODAL (replaces window.confirm) ============ -->
 <div id="confirmModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:1000; align-items:center; justify-content:center; padding:16px;">
   <div class="dash-card glass" style="max-width:360px; width:100%;">
@@ -911,6 +924,19 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'فشل تسجيل الدخول');
+      if (data.requires_2fa){
+        promptTotpVerify(data.pending_token, (loginData) => {
+          if (!roles[loginData.user.role]){
+            showToast('هذا الحساب من نوع "طالب" — لوحة التحكم هذه للأدمن/الدكتور/المندوب فقط', 'error');
+            return;
+          }
+          authToken = loginData.access_token;
+          currentUser = loginData.user;
+          liveMode = true;
+          enterShell(loginData.user.role);
+        });
+        return;
+      }
       if (!roles[data.user.role]){
         throw new Error('هذا الحساب من نوع "طالب" — لوحة التحكم هذه للأدمن/الدكتور/المندوب فقط');
       }
@@ -921,6 +947,92 @@
     } catch (e) {
       errEl.textContent = e.message || 'تعذّر تسجيل الدخول — تأكد من البريد وكلمة المرور، أو أن الخادم يعمل';
       errEl.style.display = 'block';
+    }
+  }
+
+  // ---------- 2FA ----------
+  function promptTotpVerify(pendingToken, onSuccess){
+    openGenericModal('التحقق بخطوتين', [
+      {id: 'code', label: 'أدخل الرمز من تطبيق المصادقة', type: 'text', placeholder: '123456'},
+    ], async (v) => {
+      if (!/^\d{6}$/.test(v.code.trim())) throw {detail: 'أدخل رمز مكوّن من 6 أرقام'};
+      const res = await fetch(API_BASE_URL + '/auth/2fa/verify', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pending_token: pendingToken, code: v.code.trim()}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw {detail: data.detail || 'رمز غير صحيح'};
+      onSuccess(data);
+    });
+  }
+
+  function openSecuritySettings(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    document.getElementById('securityOverlay').style.display = 'flex';
+    renderSecurityBody();
+  }
+
+  function renderSecurityBody(){
+    const body = document.getElementById('securityBody');
+    if (currentUser?.totp_enabled){
+      body.innerHTML = `
+        <div class="item-card glass" style="align-items:center;">
+          <div class="item-body">
+            <div class="item-title">التحقق بخطوتين مفعّل ✓</div>
+            <div class="item-meta">حسابك محمي برمز إضافي من تطبيق المصادقة</div>
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:12px;"><input id="totpDisableCode" type="text" placeholder="أدخل الرمز الحالي لتعطيله" /></div>
+        <button class="btn" style="width:100%; justify-content:center; background:var(--danger);" onclick="confirmTotpDisable()">تعطيل التحقق بخطوتين</button>
+        <div id="totpMsg" style="display:none; font-size:.78rem; margin-top:8px; text-align:center;"></div>
+      `;
+    } else {
+      body.innerHTML = `
+        <div class="item-meta" style="margin-bottom:10px;">التحقق بخطوتين غير مفعّل — فعّله لحماية إضافية لحسابك عبر تطبيق مصادقة مثل Google Authenticator.</div>
+        <button class="btn" style="width:100%; justify-content:center;" onclick="startTotpSetup()">بدء الإعداد</button>
+        <div id="totpSetupArea" style="margin-top:12px;"></div>
+      `;
+    }
+  }
+
+  async function startTotpSetup(){
+    try {
+      const data = await apiFetch('/auth/2fa/setup', {method: 'POST'});
+      document.getElementById('totpSetupArea').innerHTML = `
+        <div class="item-meta">افتح تطبيق المصادقة (Google Authenticator أو مشابه) واختر "إدخال المفتاح يدوياً"، ثم أدخل هذا المفتاح:</div>
+        <div class="mono" style="direction:ltr; text-align:center; font-size:.95rem; font-weight:700; padding:10px; margin:8px 0; background:var(--glass-bg-strong); border-radius:var(--radius-sm); letter-spacing:2px;">${data.secret}</div>
+        <div class="form-field" style="margin-top:8px;"><input id="totpEnableCode" type="text" placeholder="أدخل الرمز المكوّن من 6 أرقام من التطبيق" /></div>
+        <button class="btn" style="width:100%; justify-content:center;" onclick="confirmTotpEnable()">تفعيل</button>
+        <div id="totpMsg" style="display:none; font-size:.78rem; margin-top:8px; text-align:center;"></div>
+      `;
+    } catch (e) { showToast(e.detail || 'تعذّر بدء الإعداد', 'error'); }
+  }
+
+  async function confirmTotpEnable(){
+    const code = document.getElementById('totpEnableCode').value.trim();
+    const msg = document.getElementById('totpMsg');
+    msg.style.display = 'block';
+    try {
+      await apiFetch('/auth/2fa/enable', {method: 'POST', body: JSON.stringify({code})});
+      currentUser = await apiFetch('/auth/me');
+      msg.style.color = 'var(--success)'; msg.textContent = 'تم التفعيل ✓';
+      setTimeout(renderSecurityBody, 800);
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'رمز غير صحيح';
+    }
+  }
+
+  async function confirmTotpDisable(){
+    const code = document.getElementById('totpDisableCode').value.trim();
+    const msg = document.getElementById('totpMsg');
+    msg.style.display = 'block';
+    try {
+      await apiFetch('/auth/2fa/disable', {method: 'POST', body: JSON.stringify({code})});
+      currentUser = await apiFetch('/auth/me');
+      msg.style.color = 'var(--success)'; msg.textContent = 'تم التعطيل ✓';
+      setTimeout(renderSecurityBody, 800);
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'رمز غير صحيح';
     }
   }
 

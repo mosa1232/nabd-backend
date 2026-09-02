@@ -68,6 +68,18 @@ def _patch_missing_columns():
                     continue
                 col_type = column.type.compile(engine.dialect)
                 conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}'))
+                # A freshly-added column is NULL on every pre-existing row.
+                # Backfill it to the model's declared default (when it's a
+                # plain literal) so those rows match what a brand-new row
+                # would get — e.g. a bool column with default=False must
+                # never come back as NULL, which schemas.py's `bool` fields
+                # reject outright.
+                default = getattr(column, "default", None)
+                if default is not None and getattr(default, "is_scalar", False):
+                    conn.execute(
+                        text(f'UPDATE {table.name} SET {column.name} = :val WHERE {column.name} IS NULL'),
+                        {"val": default.arg},
+                    )
 
 
 @app.on_event("startup")

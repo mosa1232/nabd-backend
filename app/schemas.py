@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     section_id: Optional[str] = None
     stage_id: Optional[str] = None
     is_graduate: Optional[bool] = None
+    totp_enabled: bool = False
     password_hash: Optional[str] = Field(default=None, exclude=True)
 
     @computed_field
@@ -289,6 +290,20 @@ class ActivationOut(BaseModel):
 class ChangePasswordIn(BaseModel):
     current_password: str = ""
     new_password: str
+
+
+class TOTPSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class TOTPCodeIn(BaseModel):
+    code: str
+
+
+class TOTPVerifyIn(BaseModel):
+    pending_token: str
+    code: str
 
 
 class SessionOut(BaseModel):

@@ -9,7 +9,11 @@ from .. import models, schemas
 from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user
-from ..security import create_access_token, hash_password, start_new_session, verify_password
+from ..security import (
+    create_2fa_pending_token, create_access_token, decode_2fa_pending_token,
+    generate_totp_secret, hash_password, start_new_session, totp_provisioning_uri,
+    verify_password, verify_totp,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -58,6 +62,13 @@ def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models
 
 
 def _issue_session_and_redirect(db: Session, user: models.User, device_label: str) -> RedirectResponse:
+    if user.totp_enabled:
+        # Don't start the real session yet — a session here would already
+        # count as "logged in" for the single-active-session rule before the
+        # second factor is checked. Hand the SPA a pending token instead;
+        # it only unlocks POST /auth/2fa/verify.
+        pending = create_2fa_pending_token(user.id)
+        return RedirectResponse(f"{settings.frontend_url}#requires_2fa=1&pending_token={pending}")
     session = start_new_session(db, user, device_label)
     token = create_access_token(user.id, session.id)
     # Hand the token to the SPA via a URL fragment (never logged by servers/proxies).
@@ -102,7 +113,7 @@ def dev_login(email: str, name: str = "طالب تجريبي", db: Session = Dep
     return schemas.LoginResponse(access_token=token, user=user)
 
 
-@router.post("/login", response_model=schemas.LoginResponse)
+@router.post("/login")
 def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
     """Email + password login for the admin/professor/reseller dashboard —
     a real alternative to Google OAuth and the dev-login stand-in."""
@@ -112,9 +123,66 @@ def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
     if user.is_banned:
         raise HTTPException(403, "هذا الحساب محظور")
 
+    if user.totp_enabled:
+        return {"requires_2fa": True, "pending_token": create_2fa_pending_token(user.id)}
+
     session = start_new_session(db, user, "متصفح")
     token = create_access_token(user.id, session.id)
     return schemas.LoginResponse(access_token=token, user=user)
+
+
+@router.post("/2fa/verify", response_model=schemas.LoginResponse)
+def verify_2fa_login(body: schemas.TOTPVerifyIn, db: Session = Depends(get_db)):
+    """Completes a login that /auth/login or the Google callback paused for
+    a second factor — the only thing a pending_token is good for."""
+    user_id = decode_2fa_pending_token(body.pending_token)
+    if not user_id:
+        raise HTTPException(401, "انتهت صلاحية الجلسة المؤقتة — سجّل الدخول من جديد")
+    user = db.get(models.User, user_id)
+    if not user or not user.totp_enabled:
+        raise HTTPException(401, "جلسة غير صالحة")
+    if user.is_banned:
+        raise HTTPException(403, "هذا الحساب محظور")
+    if not verify_totp(user.totp_secret, body.code):
+        raise HTTPException(401, "رمز التحقق غير صحيح")
+
+    session = start_new_session(db, user, "متصفح")
+    token = create_access_token(user.id, session.id)
+    return schemas.LoginResponse(access_token=token, user=user)
+
+
+@router.post("/2fa/setup", response_model=schemas.TOTPSetupOut)
+def setup_2fa(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Generates a new TOTP secret for the caller to scan/enter into an
+    authenticator app. Not active yet — POST /auth/2fa/enable with a valid
+    code from it is what actually turns 2FA on."""
+    secret = generate_totp_secret()
+    user.totp_secret = secret
+    db.commit()
+    return schemas.TOTPSetupOut(secret=secret, otpauth_uri=totp_provisioning_uri(secret, user.email))
+
+
+@router.post("/2fa/enable")
+def enable_2fa(body: schemas.TOTPCodeIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    if not user.totp_secret:
+        raise HTTPException(400, "لم تبدئي إعداد التحقق بخطوتين بعد")
+    if not verify_totp(user.totp_secret, body.code):
+        raise HTTPException(401, "رمز التحقق غير صحيح")
+    user.totp_enabled = True
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/2fa/disable")
+def disable_2fa(body: schemas.TOTPCodeIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    if not user.totp_enabled:
+        raise HTTPException(400, "التحقق بخطوتين غير مفعّل أصلاً")
+    if not verify_totp(user.totp_secret, body.code):
+        raise HTTPException(401, "رمز التحقق غير صحيح")
+    user.totp_enabled = False
+    user.totp_secret = None
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/register", response_model=schemas.LoginResponse)

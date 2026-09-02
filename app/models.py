@@ -61,6 +61,8 @@ class User(Base):
     phone = Column(String, nullable=True)
     is_graduate = Column(Boolean, nullable=True)  # null = not asked yet
     is_banned = Column(Boolean, default=False)
+    totp_secret = Column(String, nullable=True)
+    totp_enabled = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     university = relationship("University")

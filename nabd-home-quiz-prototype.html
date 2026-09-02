@@ -965,6 +965,23 @@
     </div>
   </div>
 
+  <!-- ============ 2FA VERIFY VIEW ============ -->
+  <div class="view" id="view-totp-verify">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="prof-header-avatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); margin:0 auto 14px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3Z"/><path d="m9.5 12 2 2 4-4"/></svg>
+        </div>
+        <div class="auth-title">التحقق بخطوتين</div>
+        <div class="auth-sub">أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة</div>
+        <div class="form-field" style="margin-top:14px;"><input id="totpVerifyCode" type="text" inputmode="numeric" placeholder="123456" style="text-align:center; letter-spacing:6px; font-size:1.2rem;" /></div>
+        <div id="totpVerifyMsg" style="display:none; font-size:.78rem; margin-bottom:8px; text-align:center;"></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:13px;" onclick="submitTotpVerify()">تأكيد</button>
+        <button class="btn btn-ghost" style="width:100%; justify-content:center; padding:13px; margin-top:10px;" onclick="backToLoginFromOtp()">استخدام حساب آخر</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ COMPLETE PROFILE VIEW ============ -->
   <div class="view" id="view-complete-profile">
     <div class="auth-view">
@@ -1038,11 +1055,20 @@
           <button class="btn btn-ghost item-action" onclick="togglePasswordChangeForm()">تغيير</button>
         </div>
         <div class="glass" id="passwordChangeForm" style="display:none; padding:16px 18px;">
-          <div class="form-field"><input id="currentPasswordInput" type="password" placeholder="كلمة المرور الحالية (اتركيه فارغاً إن لم تحددي واحدة من قبل)" /></div>
+          <div class="form-field"><input id="currentPasswordInput" type="password" placeholder="كلمة المرور الحالية (اتركه فارغاً إن لم تحدد واحدة من قبل)" /></div>
           <div class="form-field" style="margin-bottom:8px;"><input id="newPasswordInput" type="password" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" /></div>
           <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitPasswordChange()">حفظ كلمة المرور</button>
           <div id="passwordChangeMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
         </div>
+        <div class="item-card glass">
+          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3Z"/><path d="m9.5 12 2 2 4-4"/></svg></div>
+          <div class="item-body">
+            <div class="item-title">التحقق بخطوتين</div>
+            <div class="item-meta" id="totpStatusMeta">جارٍ التحميل...</div>
+          </div>
+          <button class="btn btn-ghost item-action" id="totpToggleBtn" onclick="toggleTotpForm()">إعداد</button>
+        </div>
+        <div class="glass" id="totpForm" style="display:none; padding:16px 18px;"></div>
       </div>
     </div>
 
@@ -1134,11 +1160,18 @@
   }
 
   // If the page just loaded after Google's redirect back from
-  // /auth/google/callback, the backend hands the token off via URL fragment.
+  // /auth/google/callback, the backend hands the token off via URL fragment —
+  // either a real access_token, or (on a 2FA-enabled account) a pending_token
+  // that still needs a code before any session actually starts.
+  let pending2faToken = null;
   (function captureRedirectToken(){
     const m = location.hash.match(/access_token=([^&]+)/);
+    const m2 = location.hash.match(/requires_2fa=1&pending_token=([^&]+)/);
     if (m){
       authToken = decodeURIComponent(m[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+    } else if (m2){
+      pending2faToken = decodeURIComponent(m2[1]);
       history.replaceState(null, '', location.pathname + location.search);
     }
   })();
@@ -2090,6 +2123,7 @@
     loadActiveSession();
     document.getElementById('passwordMeta').textContent = currentUser?.has_password
       ? 'كلمة مرور مضبوطة' : 'لا توجد كلمة مرور — الدخول عبر Google فقط';
+    renderTotpStatus();
     loadMyHistory();
   }
 
@@ -2141,6 +2175,72 @@
   function togglePasswordChangeForm(){
     const form = document.getElementById('passwordChangeForm');
     form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  // ---------- 2FA (account page) ----------
+  function renderTotpStatus(){
+    const on = !!currentUser?.totp_enabled;
+    document.getElementById('totpStatusMeta').textContent = on
+      ? 'مفعّل — حسابك محمي برمز إضافي' : 'غير مفعّل';
+    document.getElementById('totpToggleBtn').textContent = on ? 'تعطيل' : 'تفعيل';
+    document.getElementById('totpForm').style.display = 'none';
+    document.getElementById('totpForm').innerHTML = '';
+  }
+
+  function toggleTotpForm(){
+    const form = document.getElementById('totpForm');
+    const on = !!currentUser?.totp_enabled;
+    if (form.style.display === 'block'){ form.style.display = 'none'; return; }
+    form.innerHTML = on ? `
+      <div class="form-field"><input id="totpDisableCode" type="text" inputmode="numeric" placeholder="أدخل الرمز الحالي لتعطيله" /></div>
+      <button class="btn" style="width:100%; justify-content:center; background:var(--danger);" onclick="confirmTotpDisableStudent()">تعطيل التحقق بخطوتين</button>
+      <div id="totpFormMsg" style="display:none; font-size:.78rem; margin-top:8px; text-align:center;"></div>
+    ` : `
+      <button class="btn" style="width:100%; justify-content:center;" onclick="startTotpSetupStudent()">بدء الإعداد</button>
+      <div id="totpSetupArea"></div>
+    `;
+    form.style.display = 'block';
+  }
+
+  async function startTotpSetupStudent(){
+    try {
+      const data = await apiFetch('/auth/2fa/setup', {method: 'POST'});
+      document.getElementById('totpSetupArea').innerHTML = `
+        <div class="item-meta" style="margin-top:10px;">افتح تطبيق مصادقة مثل Google Authenticator، واختر "إدخال المفتاح يدوياً"، ثم أدخل هذا المفتاح:</div>
+        <div class="mono" style="direction:ltr; text-align:center; font-size:.95rem; font-weight:700; padding:10px; margin:8px 0; background:var(--track); border-radius:12px; letter-spacing:2px;">${data.secret}</div>
+        <div class="form-field"><input id="totpEnableCode" type="text" inputmode="numeric" placeholder="أدخل الرمز المكوّن من 6 أرقام" /></div>
+        <button class="btn" style="width:100%; justify-content:center;" onclick="confirmTotpEnableStudent()">تفعيل</button>
+        <div id="totpFormMsg" style="display:none; font-size:.78rem; margin-top:8px; text-align:center;"></div>
+      `;
+    } catch (e) { showToast(e.detail || 'تعذّر بدء الإعداد'); }
+  }
+
+  async function confirmTotpEnableStudent(){
+    const code = document.getElementById('totpEnableCode').value.trim();
+    const msg = document.getElementById('totpFormMsg');
+    msg.style.display = 'block';
+    try {
+      await apiFetch('/auth/2fa/enable', {method: 'POST', body: JSON.stringify({code})});
+      currentUser = await apiFetch('/auth/me');
+      msg.style.color = 'var(--success)'; msg.textContent = 'تم التفعيل ✓';
+      setTimeout(renderTotpStatus, 900);
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'رمز غير صحيح';
+    }
+  }
+
+  async function confirmTotpDisableStudent(){
+    const code = document.getElementById('totpDisableCode').value.trim();
+    const msg = document.getElementById('totpFormMsg');
+    msg.style.display = 'block';
+    try {
+      await apiFetch('/auth/2fa/disable', {method: 'POST', body: JSON.stringify({code})});
+      currentUser = await apiFetch('/auth/me');
+      msg.style.color = 'var(--success)'; msg.textContent = 'تم التعطيل ✓';
+      setTimeout(renderTotpStatus, 900);
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'رمز غير صحيح';
+    }
   }
 
   const HISTORY_ICON = {
@@ -2343,6 +2443,10 @@
           body: JSON.stringify({email, password}),
         });
       }
+      if (data.requires_2fa){
+        goToTotpVerify(data.pending_token);
+        return;
+      }
       authToken = data.access_token;
       currentUser = data.user;
       proceedAfterAuth();
@@ -2475,6 +2579,40 @@
   }
   function confirmOtp(){
     proceedAfterAuth();
+  }
+
+  // ---------- 2FA login step ----------
+  let totpPendingToken = null;
+  function goToTotpVerify(pendingToken){
+    totpPendingToken = pendingToken;
+    hideAllViews();
+    document.getElementById('view-totp-verify').classList.add('active');
+    document.body.classList.add('auth-mode');
+    document.getElementById('totpVerifyCode').value = '';
+    document.getElementById('totpVerifyMsg').style.display = 'none';
+  }
+  async function submitTotpVerify(){
+    const code = document.getElementById('totpVerifyCode').value.trim();
+    const msg = document.getElementById('totpVerifyMsg');
+    msg.style.display = 'block';
+    if (!/^\d{6}$/.test(code)){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = 'أدخل رمز مكوّن من 6 أرقام';
+      return;
+    }
+    try {
+      const data = await apiFetch('/auth/2fa/verify', {
+        method: 'POST',
+        body: JSON.stringify({pending_token: totpPendingToken, code}),
+      });
+      authToken = data.access_token;
+      currentUser = data.user;
+      totpPendingToken = null;
+      proceedAfterAuth();
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || 'رمز غير صحيح';
+    }
   }
   async function loadRealProfile(){
     try {
@@ -2843,6 +2981,8 @@
   if (authToken){
     goToOtpFromLogin();
     loadRealProfile();
+  } else if (pending2faToken){
+    goToTotpVerify(pending2faToken);
   } else {
     goToLogin();
   }

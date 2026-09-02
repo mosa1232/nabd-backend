@@ -162,6 +162,20 @@ def unban_user(user_id: str, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+@router.post("/users/{user_id}/2fa/reset")
+def reset_2fa(user_id: str, db: Session = Depends(get_db)):
+    """Safety net for someone locked out of their own account (lost phone,
+    uninstalled the authenticator app, etc.) — an admin can turn 2FA back
+    off for them since there's no recovery-code system."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    user.totp_enabled = False
+    user.totp_secret = None
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/logs")
 def list_logs(limit: int = 50, db: Session = Depends(get_db)):
     logs = (
