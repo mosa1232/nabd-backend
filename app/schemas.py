@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class UserOut(BaseModel):
@@ -16,6 +16,15 @@ class UserOut(BaseModel):
     section_id: Optional[str] = None
     stage_id: Optional[str] = None
     is_graduate: Optional[bool] = None
+    password_hash: Optional[str] = Field(default=None, exclude=True)
+
+    @computed_field
+    @property
+    def has_password(self) -> bool:
+        """Drives the account page's real password status — was showing a
+        fixed, fake "last changed 3 months ago" for every account regardless
+        of whether it ever had one (Google-only accounts never do)."""
+        return bool(self.password_hash)
 
     @computed_field
     @property
@@ -161,8 +170,17 @@ class ProfessorOut(BaseModel):
     title: str
     name: str
     subject_name: str
+    university_name: str = ""
+    bio: str = ""
+    photo_url: Optional[str] = None
     booklets: list[BookletOut] = []
     exams: list[ExamOut] = []
+
+
+class ProfessorProfileUpdateIn(BaseModel):
+    title: str
+    bio: str = ""
+    photo_url: Optional[str] = None
 
 
 class LectureOut(BaseModel):

@@ -296,6 +296,51 @@ def leaderboard(limit: int = 20, db: Session = Depends(get_db), user: models.Use
     ]
 
 
+@router.get("/me/history")
+def my_history(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Powers the account page's "نشاطي" section — a real chronological
+    feed of exam results, store orders, and activation-code redemptions,
+    instead of the page having no activity trail at all."""
+    events = []
+
+    attempts = (
+        db.query(models.ExamAttempt)
+        .filter(models.ExamAttempt.user_id == user.id, models.ExamAttempt.finished_at.isnot(None))
+        .all()
+    )
+    for a in attempts:
+        exam = db.get(models.Exam, a.exam_id)
+        events.append({
+            "type": "exam", "at": a.finished_at,
+            "title": exam.title if exam else "امتحان",
+            "detail": f"{a.score} / {a.total}",
+        })
+
+    orders = db.query(models.Order).filter(models.Order.user_id == user.id).all()
+    for o in orders:
+        status_ar = {"pending": "قيد الانتظار", "paid": "مدفوع", "fulfilled": "مكتمل", "cancelled": "ملغي"}
+        events.append({
+            "type": "order", "at": o.created_at,
+            "title": f"طلب بقيمة {o.total} د.ع",
+            "detail": status_ar.get(o.status, o.status),
+        })
+
+    codes = (
+        db.query(models.ActivationCode)
+        .filter(models.ActivationCode.activated_by_user_id == user.id, models.ActivationCode.activated_at.isnot(None))
+        .all()
+    )
+    for c in codes:
+        events.append({
+            "type": "code", "at": c.activated_at,
+            "title": c.subject.name if c.subject_id else "تفعيل VIP — جميع المواد",
+            "detail": c.code,
+        })
+
+    events.sort(key=lambda e: e["at"], reverse=True)
+    return events[:30]
+
+
 @router.post("/change-password")
 def change_password(
     body: schemas.ChangePasswordIn,

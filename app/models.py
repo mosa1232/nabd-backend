@@ -127,6 +127,8 @@ class ProfessorProfile(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     title = Column(String, default="أستاذ مساعد")
     subject_id = Column(String, ForeignKey("subjects.id"), nullable=False)
+    bio = Column(Text, default="")
+    photo_url = Column(String, nullable=True)
 
     user = relationship("User")
     subject = relationship("Subject")

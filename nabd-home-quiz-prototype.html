@@ -554,7 +554,7 @@
     </div>
 
     <div class="tiles">
-      <button class="tile glass" onclick="goToQuiz()">
+      <button class="tile glass" onclick="goToBankSelect()">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
         <span class="tile-label" data-i18n="tileBank">بنك الأسئلة</span>
       </button>
@@ -652,6 +652,24 @@
         التالي
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>
       </button>
+    </div>
+  </div>
+
+  <!-- ============ QUESTION BANK SELECTOR VIEW ============ -->
+  <div class="view" id="view-bank-select">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backHomeFromBankSelect()" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count">بنك الأسئلة</div>
+      <div style="width:38px"></div>
+    </div>
+    <div class="glass" style="margin:16px; padding:18px 20px;">
+      <div class="form-field"><select id="bsSection" onchange="onBsSectionChange()"><option value="">اختر القسم</option></select></div>
+      <div class="form-field"><select id="bsUniversity" onchange="onBsUniversityChange()" disabled><option value="">اختر الجامعة</option></select></div>
+      <div class="form-field"><select id="bsStage" onchange="onBsStageChange()" disabled><option value="">اختر المرحلة</option></select></div>
+      <div class="form-field"><select id="bsSubject" disabled><option value="">اختر المادة</option></select></div>
+      <button class="btn" style="width:100%; justify-content:center; padding:12px; margin-top:6px;" onclick="startBankQuizFromSelection()">ابدأ</button>
     </div>
   </div>
 
@@ -843,6 +861,7 @@
       <div style="width:38px"></div>
     </div>
 
+    <div class="form-field" style="margin:0 16px 12px;"><input id="academySearch" type="text" placeholder="ابحث باسم الكورس أو الدكتور..." oninput="renderAcademy()" /></div>
     <div class="course-grid" id="courseGrid"></div>
   </div>
 
@@ -1024,15 +1043,12 @@
           <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitPasswordChange()">حفظ كلمة المرور</button>
           <div id="passwordChangeMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
         </div>
-        <div class="item-card glass">
-          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3Z"/><path d="m9.5 12 2 2 4-4"/></svg></div>
-          <div class="item-body">
-            <div class="item-title">التحقق بخطوتين (2FA)</div>
-            <div class="item-meta">رمز إضافي عبر الرسائل عند الدخول من جهاز جديد</div>
-          </div>
-          <button class="switch-wrap on" id="twoFaSwitch" onclick="this.classList.toggle('on')" aria-label="تبديل"></button>
-        </div>
       </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">نشاطي</div>
+      <div class="item-list" id="myHistoryList"></div>
     </div>
 
     <button class="btn btn-danger" style="width:100%; justify-content:center; padding:13px;" onclick="goToLogin()">
@@ -1181,14 +1197,14 @@
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.body.classList.remove('auth-mode');
   }
-  async function goToQuiz(){
+  async function goToQuiz(subjectId, subjectLabel){
     if (typeof stopPlayerTimer === 'function') stopPlayerTimer();
     hideAllViews();
     document.getElementById('view-quiz').classList.add('active');
     document.getElementById('qText').textContent = 'جارٍ التحميل...';
     document.getElementById('qOptions').innerHTML = '';
     qi = 0;
-    await loadApiQuestions();
+    await loadApiQuestions(subjectId);
     renderQuestion();
     startTimer();
   }
@@ -1272,15 +1288,63 @@
     return apiSubjectId;
   }
 
-  async function loadApiQuestions(){
+  async function loadApiQuestions(subjectId){
     apiQuestions = [];
     if (!authToken) return;
     try {
-      const subjId = await resolveApiSubjectId();
+      const subjId = subjectId || await resolveApiSubjectId();
       if (!subjId) return;
       const data = await apiFetch('/api/subjects/' + subjId + '/questions?limit=10');
       if (Array.isArray(data)) apiQuestions = data;
     } catch (e) { apiQuestions = []; }
+  }
+
+  // ---------- Question bank subject picker ----------
+  let bsCatalogTree = null;
+
+  async function goToBankSelect(){
+    hideAllViews();
+    document.getElementById('view-bank-select').classList.add('active');
+    if (!bsCatalogTree) bsCatalogTree = await loadCatalogTreeForProfile();
+    document.getElementById('bsSection').innerHTML = '<option value="">اختر القسم</option>' +
+      bsCatalogTree.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    ['bsUniversity', 'bsStage', 'bsSubject'].forEach(id => {
+      document.getElementById(id).innerHTML = `<option value="">${{bsUniversity:'اختر الجامعة', bsStage:'اختر المرحلة', bsSubject:'اختر المادة'}[id]}</option>`;
+      document.getElementById(id).disabled = true;
+    });
+  }
+  function backHomeFromBankSelect(){ goHome(); }
+
+  function onBsSectionChange(){
+    const section = bsCatalogTree.find(s => s.id === document.getElementById('bsSection').value);
+    const uniSel = document.getElementById('bsUniversity');
+    uniSel.disabled = !section;
+    uniSel.innerHTML = '<option value="">اختر الجامعة</option>' +
+      (section ? section.universities.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
+    onBsUniversityChange();
+  }
+  function onBsUniversityChange(){
+    const section = bsCatalogTree.find(s => s.id === document.getElementById('bsSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('bsUniversity').value);
+    const stageSel = document.getElementById('bsStage');
+    stageSel.disabled = !uni;
+    stageSel.innerHTML = '<option value="">اختر المرحلة</option>' +
+      (uni ? uni.stages.map(st => `<option value="${st.id}">${st.name}</option>`).join('') : '');
+    onBsStageChange();
+  }
+  function onBsStageChange(){
+    const section = bsCatalogTree.find(s => s.id === document.getElementById('bsSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('bsUniversity').value);
+    const stage = uni?.stages.find(st => st.id === document.getElementById('bsStage').value);
+    const subjSel = document.getElementById('bsSubject');
+    subjSel.disabled = !stage;
+    subjSel.innerHTML = '<option value="">اختر المادة</option>' +
+      (stage ? stage.subjects.map(sub => `<option value="${sub.id}">${sub.name}</option>`).join('') : '');
+  }
+  function startBankQuizFromSelection(){
+    const subjSel = document.getElementById('bsSubject');
+    if (!subjSel.value){ showToast('اختر المادة أولاً'); return; }
+    goToQuiz(subjSel.value, subjSel.options[subjSel.selectedIndex].textContent);
   }
 
   // The correct answer is never sent to the client up front — we post the
@@ -1384,8 +1448,9 @@
       if (Array.isArray(data) && data.length){
         apiProfessorsNormalized = data.map((p, idx) => ({
           id: p.id, name: p.name, title: p.title, subject: p.subject_name,
-          uni: 'جامعة بغداد', color: profColors[idx % profColors.length],
+          uni: p.university_name || '', color: profColors[idx % profColors.length],
           booklets: p.booklets.length, exams: p.exams.length, followers: null,
+          bio: p.bio || '', photoUrl: p.photo_url || null,
           apiBooklets: p.booklets, apiExams: p.exams,
         }));
         usingApiProfessors = true;
@@ -1413,10 +1478,10 @@
     const list = filter === 'all' ? all : all.filter(p => p.subject === filter);
     document.getElementById('profList').innerHTML = list.map(p => `
       <button class="prof-card glass" onclick="openProfessor('${p.id}')">
-        <div class="prof-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2))">${initials(p.name)}</div>
+        <div class="prof-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2)); overflow:hidden;">${p.photoUrl ? `<img src="${API_BASE_URL}${p.photoUrl}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" />` : initials(p.name)}</div>
         <div class="prof-info">
           <div class="prof-name">${p.name}</div>
-          <div class="prof-meta">${p.title} · ${p.subject} · ${p.uni}</div>
+          <div class="prof-meta">${p.title} · ${p.subject}${p.uni ? ' · ' + p.uni : ''}</div>
           <div class="prof-stats">
             <span>${pdfIcon}${p.booklets} ملزمة</span>
             <span>${examIcon}${p.exams} امتحان</span>
@@ -1430,15 +1495,19 @@
   function openProfessor(id){
     const p = activeProfessorsList().find(x => String(x.id) === String(id));
     if (!p) return;
+    const avatarInner = p.photoUrl
+      ? `<img src="${API_BASE_URL}${p.photoUrl}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" />`
+      : initials(p.name);
     document.getElementById('profHeader').innerHTML = `
-      <div class="prof-header-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2))">${initials(p.name)}</div>
+      <div class="prof-header-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2)); overflow:hidden;">${avatarInner}</div>
       <div>
         <div class="prof-header-name">${p.name}</div>
         <div class="prof-header-title">${p.title} · ${p.subject}</div>
         <div class="prof-tags">
-          <span class="prof-tag">${p.uni}</span>
+          ${p.uni ? `<span class="prof-tag">${p.uni}</span>` : ''}
           ${p.followers != null ? `<span class="prof-tag">${p.followers.toLocaleString('en-US')} طالب يتابعه</span>` : ''}
         </div>
+        ${p.bio ? `<div class="item-meta" style="margin-top:8px; max-width:340px;">${p.bio}</div>` : ''}
       </div>
     `;
     const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({t: b.title, p: b.pages})) : (bookletsBySubject[p.subject] || []);
@@ -1838,7 +1907,13 @@
   }
 
   function renderAcademy(){
-    const list = activeCoursesList();
+    const q = (document.getElementById('academySearch')?.value || '').trim().toLowerCase();
+    let list = activeCoursesList();
+    if (q) list = list.filter(c => c.title.toLowerCase().includes(q) || c.instructor.toLowerCase().includes(q));
+    if (!list.length){
+      document.getElementById('courseGrid').innerHTML = `<div class="empty-row">${q ? 'ما لكيت نتائج مطابقة' : 'لا توجد كورسات بعد'}</div>`;
+      return;
+    }
     document.getElementById('courseGrid').innerHTML = list.map(c => {
       const stats = courseStats(c);
       return `
@@ -1854,7 +1929,7 @@
         </div>
         <span class="course-chevron">${chevronIcon}</span>
       </button>`;
-    }).join('') || '<div class="empty-row">لا توجد كورسات بعد</div>';
+    }).join('');
   }
 
   async function goToAcademy(){
@@ -2013,6 +2088,9 @@
     renderAccountHeader();
     loadActivations();
     loadActiveSession();
+    document.getElementById('passwordMeta').textContent = currentUser?.has_password
+      ? 'كلمة مرور مضبوطة' : 'لا توجد كلمة مرور — الدخول عبر Google فقط';
+    loadMyHistory();
   }
 
   // The account header used to be a hardcoded person ("عمر الساعدي", a fake
@@ -2063,6 +2141,32 @@
   function togglePasswordChangeForm(){
     const form = document.getElementById('passwordChangeForm');
     form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  const HISTORY_ICON = {
+    exam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="m9.5 13 2 2 4-4"/></svg>',
+    order: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>',
+  };
+  const HISTORY_LABEL = {exam: 'امتحان', order: 'طلب', code: 'تفعيل كود'};
+
+  async function loadMyHistory(){
+    const list = document.getElementById('myHistoryList');
+    list.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
+    try {
+      const events = await apiFetch('/auth/me/history');
+      list.innerHTML = events.map(e => `
+        <div class="item-card glass">
+          <div class="item-icon ${e.type === 'exam' ? 'exam' : 'pdf'}">${HISTORY_ICON[e.type] || ''}</div>
+          <div class="item-body">
+            <div class="item-title">${e.title}</div>
+            <div class="item-meta">${HISTORY_LABEL[e.type] || ''} · ${e.detail} · ${fmtDate(e.at)}</div>
+          </div>
+        </div>
+      `).join('') || '<div class="empty-row">ما اكو نشاط مسجّل بعد</div>';
+    } catch (e) {
+      list.innerHTML = '<div class="empty-row">تعذّر تحميل النشاط</div>';
+    }
   }
 
   async function submitPasswordChange(){

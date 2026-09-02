@@ -1,9 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+import secrets
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
+from .admin import MAX_UPLOAD_BYTES, UPLOAD_DIR
 
 router = APIRouter(prefix="/api/professors", tags=["professors"])
 
@@ -16,6 +20,9 @@ def _to_out(p: models.ProfessorProfile, db: Session) -> schemas.ProfessorOut:
         title=p.title,
         name=p.user.full_name,
         subject_name=p.subject.name,
+        university_name=p.subject.stage.university.name if p.subject.stage else "",
+        bio=p.bio or "",
+        photo_url=p.photo_url,
         booklets=booklets,
         exams=exams,
     )
@@ -62,6 +69,42 @@ def _get_own_profile(db: Session, user: models.User) -> models.ProfessorProfile:
     return profile
 
 
+@router.put("/me/profile", response_model=schemas.ProfessorOut)
+def update_my_profile(
+    body: schemas.ProfessorProfileUpdateIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Lets a professor fill in their own bio and photo — the student-facing
+    "صفحة الدكتور" used to show only a name, title and subject."""
+    profile = _get_own_profile(db, user)
+    profile.title = body.title.strip() or profile.title
+    profile.bio = body.bio.strip()
+    if body.photo_url is not None:
+        profile.photo_url = body.photo_url
+    db.commit()
+    db.refresh(profile)
+    return _to_out(profile, db)
+
+
+@router.post("/me/photo")
+async def upload_my_photo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    profile = _get_own_profile(db, user)
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
+    safe_name = Path(file.filename or "photo").name
+    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    profile.photo_url = f"/media-files/{stored_name}"
+    db.commit()
+    return {"photo_url": profile.photo_url}
+
+
 @router.get("/me/dashboard")
 def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Powers the Professor Panel — a professor's own booklets, exams, and
@@ -80,7 +123,10 @@ def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_
     avg_score = round(100 * sum(a.is_correct for a in answers) / len(answers)) if answers else None
 
     return {
-        "professor": {"id": profile.id, "name": user.full_name, "title": profile.title, "subject": profile.subject.name},
+        "professor": {
+            "id": profile.id, "name": user.full_name, "title": profile.title, "subject": profile.subject.name,
+            "bio": profile.bio or "", "photo_url": profile.photo_url,
+        },
         "booklet_count": len(booklets),
         "exam_count": len(exams),
         "student_count": len(student_ids),
