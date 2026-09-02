@@ -1,7 +1,9 @@
+import secrets
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,7 @@ from ..security import (
     generate_totp_secret, hash_password, start_new_session, totp_provisioning_uri,
     verify_password, verify_totp,
 )
+from .admin import MAX_UPLOAD_BYTES, UPLOAD_DIR
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -257,6 +260,40 @@ def update_my_profile(
     return user
 
 
+@router.put("/me/caption", response_model=schemas.UserOut)
+def update_my_caption(
+    body: schemas.CaptionUpdateIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """A short one-line status any account can set for their own profile —
+    same idea as a professor's bio, just for everyone (students included)."""
+    user.caption = body.caption.strip()[:200]
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/me/photo", response_model=schemas.UserOut)
+async def upload_my_photo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Every account — student or professor — can set a real profile photo,
+    not just the auto-generated initials avatar."""
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
+    safe_name = Path(file.filename or "photo").name
+    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    user.photo_url = f"/media-files/{stored_name}"
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.get("/me/stats", response_model=schemas.StudentStatsOut)
 def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Powers the home screen's streak / answered-today / uni-rank chips —
@@ -357,7 +394,7 @@ def leaderboard(limit: int = 20, db: Session = Depends(get_db), user: models.Use
     ranked = sorted(students, key=lambda s: (-correct_by_user.get(s.id, 0), s.id))
     return [
         {
-            "rank": i + 1, "user_id": s.id, "full_name": s.full_name,
+            "rank": i + 1, "user_id": s.id, "full_name": s.full_name, "photo_url": s.photo_url,
             "correct_count": correct_by_user.get(s.id, 0), "is_you": s.id == user.id,
         }
         for i, s in enumerate(ranked[:limit])

@@ -1024,11 +1024,17 @@
     </div>
 
     <div class="prof-header glass">
-      <div class="prof-header-avatar" id="accAvatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2))"></div>
+      <button class="prof-header-avatar" id="accAvatar" onclick="document.getElementById('accPhotoInput').click()" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); overflow:hidden; cursor:pointer; border:none; position:relative;" aria-label="تغيير الصورة"></button>
+      <input type="file" id="accPhotoInput" accept="image/*" style="display:none;" onchange="uploadMyPhoto(this.files[0])" />
       <div>
         <div class="prof-header-name" id="accName">—</div>
         <div class="prof-header-title mono" id="accPhone"></div>
         <div class="prof-tags" id="accTags"></div>
+        <div class="item-meta" id="accCaptionDisplay" style="margin-top:6px; cursor:pointer;" onclick="toggleCaptionForm()"></div>
+        <div class="form-field" id="accCaptionForm" style="display:none; margin-top:8px; max-width:280px;">
+          <input id="accCaptionInput" type="text" maxlength="200" placeholder="اكتب كابشن قصير عن نفسك..." />
+          <button class="btn btn-ghost" style="margin-top:6px; padding:6px 14px; font-size:.75rem;" onclick="saveMyCaption()">حفظ</button>
+        </div>
       </div>
     </div>
 
@@ -2169,8 +2175,10 @@
     const u = currentUser;
     if (!u) return;
     document.getElementById('accName').textContent = u.full_name || '—';
-    document.getElementById('accAvatar').textContent =
-      (u.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+    const avatar = document.getElementById('accAvatar');
+    avatar.innerHTML = u.photo_url
+      ? `<img src="${API_BASE_URL}${u.photo_url}" alt="${u.full_name}" style="width:100%; height:100%; object-fit:cover;" />`
+      : (u.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
     document.getElementById('accPhone').textContent = u.phone || u.email || '';
     const tags = [];
     try {
@@ -2185,6 +2193,40 @@
     } catch (e) { /* catalogue unreachable — show whatever we already have */ }
     document.getElementById('accTags').innerHTML =
       tags.map(t => `<span class="prof-tag">${t}</span>`).join('');
+    document.getElementById('accCaptionDisplay').textContent = u.caption || 'اضغط لإضافة كابشن...';
+    document.getElementById('accCaptionForm').style.display = 'none';
+  }
+
+  async function uploadMyPhoto(file){
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(API_BASE_URL + '/auth/me/photo', {
+        method: 'POST', headers: {'Authorization': 'Bearer ' + authToken}, body: form,
+      });
+      if (!res.ok) throw new Error();
+      currentUser = await res.json();
+      renderAccountHeader();
+      showToast('تم تحديث الصورة ✓');
+    } catch (e) { showToast('تعذّر رفع الصورة'); }
+  }
+
+  function toggleCaptionForm(){
+    const form = document.getElementById('accCaptionForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (form.style.display === 'block'){
+      document.getElementById('accCaptionInput').value = currentUser?.caption || '';
+    }
+  }
+
+  async function saveMyCaption(){
+    const caption = document.getElementById('accCaptionInput').value.trim();
+    try {
+      currentUser = await apiFetch('/auth/me/caption', {method: 'PUT', body: JSON.stringify({caption})});
+      renderAccountHeader();
+      showToast('تم الحفظ ✓');
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ'); }
   }
   function backHomeFromAccount(){
     hideAllViews();
@@ -2955,10 +2997,10 @@
       const rows = await apiFetch('/auth/leaderboard');
       list.innerHTML = rows.map(r => `
         <div class="item-card glass" style="${r.is_you ? 'border:1.5px solid var(--accent);' : ''}">
-          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700;">#${r.rank}</div>
+          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${r.photo_url ? `<img src="${API_BASE_URL}${r.photo_url}" style="width:100%; height:100%; object-fit:cover;" />` : '#' + r.rank}</div>
           <div class="item-body">
             <div class="item-title">${r.full_name}${r.is_you ? ' (أنت)' : ''}</div>
-            <div class="item-meta">${r.correct_count} إجابة صحيحة</div>
+            <div class="item-meta">#${r.rank} · ${r.correct_count} إجابة صحيحة</div>
           </div>
         </div>
       `).join('') || '<div class="empty-row">لا يوجد ترتيب بعد</div>';

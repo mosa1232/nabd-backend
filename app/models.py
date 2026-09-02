@@ -63,6 +63,8 @@ class User(Base):
     is_banned = Column(Boolean, default=False)
     totp_secret = Column(String, nullable=True)
     totp_enabled = Column(Boolean, default=False)
+    photo_url = Column(String, nullable=True)
+    caption = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     university = relationship("University")

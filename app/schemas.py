@@ -17,6 +17,8 @@ class UserOut(BaseModel):
     stage_id: Optional[str] = None
     is_graduate: Optional[bool] = None
     totp_enabled: bool = False
+    photo_url: Optional[str] = None
+    caption: Optional[str] = None
     password_hash: Optional[str] = Field(default=None, exclude=True)
 
     @computed_field
@@ -50,6 +52,10 @@ class ProfileUpdateIn(BaseModel):
     university_id: str
     is_graduate: bool
     stage_id: Optional[str] = None
+
+
+class CaptionUpdateIn(BaseModel):
+    caption: str = ""
 
 
 class LoginResponse(BaseModel):
