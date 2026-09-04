@@ -42,6 +42,31 @@ def _no_admin_exists(db: Session) -> bool:
     return db.query(models.User).filter(models.User.role == models.Role.admin).first() is None
 
 
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
+
+
+def _check_not_locked(user: models.User):
+    if user.locked_until and user.locked_until > datetime.utcnow():
+        minutes_left = max(1, int((user.locked_until - datetime.utcnow()).total_seconds() // 60) + 1)
+        raise HTTPException(429, f"تم قفل الحساب مؤقتاً بسبب محاولات دخول فاشلة متكررة — حاول بعد {minutes_left} دقيقة")
+
+
+def _register_failed_attempt(db: Session, user: models.User):
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+        user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
+        user.failed_login_attempts = 0
+    db.commit()
+
+
+def _clear_failed_attempts(db: Session, user: models.User):
+    if user.failed_login_attempts or user.locked_until:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.commit()
+
+
 def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models.User:
     user = db.query(models.User).filter(models.User.email == email).first()
     if user:
@@ -121,10 +146,16 @@ def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
     """Email + password login for the admin/professor/reseller dashboard —
     a real alternative to Google OAuth and the dev-login stand-in."""
     user = db.query(models.User).filter(models.User.email == body.email.strip()).first()
+    if user:
+        _check_not_locked(user)
     if not user or not verify_password(body.password, user.password_hash):
+        if user:
+            _register_failed_attempt(db, user)
         raise HTTPException(401, "البريد الإلكتروني أو كلمة المرور غير صحيحة")
     if user.is_banned:
         raise HTTPException(403, "هذا الحساب محظور")
+
+    _clear_failed_attempts(db, user)
 
     if user.totp_enabled:
         return {"requires_2fa": True, "pending_token": create_2fa_pending_token(user.id)}
@@ -146,9 +177,12 @@ def verify_2fa_login(body: schemas.TOTPVerifyIn, db: Session = Depends(get_db)):
         raise HTTPException(401, "جلسة غير صالحة")
     if user.is_banned:
         raise HTTPException(403, "هذا الحساب محظور")
+    _check_not_locked(user)
     if not verify_totp(user.totp_secret, body.code):
+        _register_failed_attempt(db, user)
         raise HTTPException(401, "رمز التحقق غير صحيح")
 
+    _clear_failed_attempts(db, user)
     session = start_new_session(db, user, "متصفح")
     token = create_access_token(user.id, session.id)
     return schemas.LoginResponse(access_token=token, user=user)
@@ -274,6 +308,28 @@ def update_my_caption(
     return user
 
 
+@router.put("/me/preferences", response_model=schemas.UserOut)
+def update_my_preferences(
+    body: schemas.PreferencesUpdateIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """The theme toggle and language switcher used to be pure client-side
+    state — reset to light/Arabic on every refresh or new device. This
+    makes the choice stick to the account, like everything else here."""
+    if body.theme is not None:
+        if body.theme not in ("light", "dark"):
+            raise HTTPException(400, "قيمة المظهر غير صالحة")
+        user.theme = body.theme
+    if body.language is not None:
+        if body.language not in ("ar", "en", "ku"):
+            raise HTTPException(400, "قيمة اللغة غير صالحة")
+        user.language = body.language
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.get("/me/skills")
 def list_my_skills(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     skills = db.query(models.UserSkill).filter(models.UserSkill.user_id == user.id).order_by(models.UserSkill.created_at).all()
@@ -322,6 +378,69 @@ async def upload_my_photo(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/me/recent-view")
+def record_recent_view(
+    body: schemas.RecentViewIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Called whenever a student actually opens a booklet or a lecture —
+    powers a real per-student "continue where I left off" on the home
+    screen instead of a platform-wide "newest upload" card."""
+    if body.content_type not in ("booklet", "lecture"):
+        raise HTTPException(400, "نوع غير صالح")
+    existing = (
+        db.query(models.RecentView)
+        .filter(
+            models.RecentView.user_id == user.id,
+            models.RecentView.content_type == body.content_type,
+            models.RecentView.content_id == body.content_id,
+        )
+        .first()
+    )
+    if existing:
+        existing.viewed_at = datetime.utcnow()
+    else:
+        db.add(models.RecentView(user_id=user.id, content_type=body.content_type, content_id=body.content_id))
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/me/continue")
+def get_continue_card(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The single most recent thing this student actually opened — real
+    per-student data, not the old "latest booklet uploaded platform-wide"
+    placeholder that had nothing to do with what the student was doing."""
+    view = (
+        db.query(models.RecentView)
+        .filter(models.RecentView.user_id == user.id)
+        .order_by(models.RecentView.viewed_at.desc())
+        .first()
+    )
+    if not view:
+        return None
+
+    if view.content_type == "booklet":
+        b = db.get(models.Booklet, view.content_id)
+        if not b:
+            return None
+        professor = db.get(models.ProfessorProfile, b.professor_id)
+        return {
+            "type": "booklet", "id": b.id, "title": b.title,
+            "subject_name": professor.subject.name if professor else "",
+            "professor_id": professor.id if professor else None,
+            "file_url": b.file_url or None,
+        }
+    else:
+        l = db.get(models.Lecture, view.content_id)
+        if not l or not l.course:
+            return None
+        return {
+            "type": "lecture", "id": l.id, "title": l.title,
+            "course_id": l.course_id, "course_title": l.course.title,
+        }
 
 
 @router.get("/me/stats", response_model=schemas.StudentStatsOut)

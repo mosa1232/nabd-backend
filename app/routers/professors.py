@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
-from .admin import MAX_UPLOAD_BYTES, UPLOAD_DIR
+from .admin import MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UPLOAD_DIR
 
 router = APIRouter(prefix="/api/professors", tags=["professors"])
 
@@ -55,6 +55,7 @@ def latest_booklet(db: Session = Depends(get_db), user: models.User = Depends(ge
         "id": booklet.id,
         "title": booklet.title,
         "pages": booklet.pages,
+        "file_url": booklet.file_url or None,
         "subject_name": professor.subject.name if professor else "",
         "professor_id": professor.id if professor else None,
     }
@@ -131,7 +132,7 @@ def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_
         "exam_count": len(exams),
         "student_count": len(student_ids),
         "avg_student_score": avg_score,
-        "booklets": [{"id": b.id, "title": b.title, "pages": b.pages} for b in booklets],
+        "booklets": [{"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None} for b in booklets],
         "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes} for e in exams],
     }
 
@@ -221,6 +222,31 @@ def delete_booklet(booklet_id: str, db: Session = Depends(get_db), user: models.
     return {"ok": True}
 
 
+@router.post("/me/booklets/{booklet_id}/file", response_model=schemas.BookletOut)
+async def upload_booklet_file(
+    booklet_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """The "فتح" button on a booklet used to have nothing to open — this is
+    what actually puts a real file behind it."""
+    profile = _get_own_profile(db, user)
+    b = db.get(models.Booklet, booklet_id)
+    if not b or b.professor_id != profile.id:
+        raise HTTPException(404, "الملزمة غير موجودة")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
+    safe_name = Path(file.filename or "booklet").name
+    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    b.file_url = f"/media-files/{stored_name}"
+    db.commit()
+    db.refresh(b)
+    return b
+
+
 # ------------------------------------------------------------- exam CRUD
 @router.post("/me/exams", response_model=schemas.ExamOut)
 def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
@@ -270,7 +296,7 @@ def my_courses(db: Session = Depends(get_db), user: models.User = Depends(get_cu
         {
             "id": c.id, "title": c.title,
             "lectures": [
-                {"id": l.id, "title": l.title, "duration_seconds": l.duration_seconds}
+                {"id": l.id, "title": l.title, "duration_seconds": l.duration_seconds, "video_url": l.video_url or None}
                 for l in sorted(c.lectures, key=lambda l: l.order_index)
             ],
         }
@@ -322,7 +348,7 @@ def create_lecture(course_id: str, body: schemas.LectureIn, db: Session = Depend
     db.add(lec)
     db.commit()
     db.refresh(lec)
-    return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds}
+    return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": None}
 
 
 def _get_own_lecture(db: Session, profile: models.ProfessorProfile, lecture_id: str) -> models.Lecture:
@@ -349,3 +375,26 @@ def delete_lecture(lecture_id: str, db: Session = Depends(get_db), user: models.
     db.delete(lec)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/me/lectures/{lecture_id}/file")
+async def upload_lecture_video(
+    lecture_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Replaces the old fake progress-bar "player" — a real video file
+    behind a real lecture, played by a real <video> element on the student
+    side."""
+    profile = _get_own_profile(db, user)
+    lec = _get_own_lecture(db, profile, lecture_id)
+    contents = await file.read()
+    if len(contents) > MAX_VIDEO_BYTES:
+        raise HTTPException(400, "الملف أكبر من الحد المسموح (150 ميغابايت)")
+    safe_name = Path(file.filename or "lecture").name
+    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    lec.video_url = f"/media-files/{stored_name}"
+    db.commit()
+    return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": lec.video_url}

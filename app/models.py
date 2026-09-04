@@ -65,6 +65,12 @@ class User(Base):
     totp_enabled = Column(Boolean, default=False)
     photo_url = Column(String, nullable=True)
     caption = Column(String, nullable=True)
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
+    failed_redeem_attempts = Column(Integer, default=0)
+    redeem_locked_until = Column(DateTime, nullable=True)
+    theme = Column(String, default="light")
+    language = Column(String, default="ar")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     university = relationship("University")
@@ -218,8 +224,31 @@ class Lecture(Base):
     title = Column(String, nullable=False)
     duration_seconds = Column(Integer, default=0)
     order_index = Column(Integer, default=0)
+    video_url = Column(String, default="")
 
     course = relationship("Course", back_populates="lectures")
+
+
+class RecentView(Base):
+    """The last booklet/lecture a student actually opened — powers a real
+    per-student "continue where I left off" instead of a platform-wide
+    "newest upload" card that has nothing to do with what this student did."""
+    __tablename__ = "recent_views"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    content_type = Column(String, nullable=False)  # "booklet" | "lecture"
+    content_id = Column(String, nullable=False)
+    viewed_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LectureProgress(Base):
+    """One row per student per lecture they've actually finished watching —
+    replaces the old client-only "done" flag that reset on every refresh."""
+    __tablename__ = "lecture_progress"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    lecture_id = Column(String, ForeignKey("lectures.id"), nullable=False)
+    completed_at = Column(DateTime, default=datetime.utcnow)
 
 
 # --------------------------------------------------------------- activation

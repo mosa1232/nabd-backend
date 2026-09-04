@@ -397,6 +397,31 @@
         </div>
       </section>
 
+      <!-- ===== ADMIN: Notifications ===== -->
+      <section class="dash-section" id="sec-notifications">
+        <div class="dash-card glass" style="margin-bottom:16px;">
+          <div class="dash-card-head"><span class="dash-card-title">إرسال إشعار</span></div>
+          <div class="form-field"><input id="notifTitle" type="text" placeholder="عنوان الإشعار" /></div>
+          <div class="form-field"><textarea id="notifBody" rows="3" placeholder="نص الإشعار (اختياري)" style="width:100%; resize:vertical; font-family:inherit; font-size:.85rem; color:var(--ink); padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong);"></textarea></div>
+          <div class="tabs" style="margin:12px 0;">
+            <button class="tab-btn active" data-ntab="broadcast" onclick="switchNotifTarget('broadcast')">للجميع</button>
+            <button class="tab-btn" data-ntab="single" onclick="switchNotifTarget('single')">طالب معيّن</button>
+          </div>
+          <div id="notifSingleWrap" style="display:none;">
+            <div class="form-field" style="position:relative;">
+              <input id="notifStudentSearch" type="text" placeholder="ابحث عن طالب بالاسم..." oninput="searchNotifStudents()" autocomplete="off" />
+              <div id="notifStudentResults" style="display:none; position:absolute; z-index:5; top:100%; right:0; left:0; background:var(--glass-bg-strong); border:1.5px solid var(--glass-border); border-radius:var(--radius-sm); max-height:220px; overflow-y:auto; margin-top:4px;"></div>
+            </div>
+            <div id="notifSelectedStudent" class="item-card glass" style="display:none; align-items:center; margin-top:8px;"></div>
+          </div>
+          <button class="btn" style="margin-top:8px;" onclick="sendNotificationFromAdmin()">إرسال</button>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-head"><span class="dash-card-title">آخر الإشعارات المُرسلة</span></div>
+          <div id="notifHistoryList"></div>
+        </div>
+      </section>
+
       <!-- ===== ADMIN: Catalog ===== -->
       <section class="dash-section" id="sec-catalog">
         <div class="dash-card glass">
@@ -575,9 +600,10 @@
             <span class="dash-card-title">ملازمي</span>
             <button class="btn" onclick="promptAddBooklet()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>رفع ملزمة جديدة</button>
           </div>
+          <input type="file" id="bookletFileInput" accept="application/pdf,image/*" style="display:none;" onchange="uploadBookletFile(this.files[0])" />
           <div class="table-wrap">
             <table class="dash-table">
-              <thead><tr><th>العنوان</th><th>الصفحات</th><th></th></tr></thead>
+              <thead><tr><th>العنوان</th><th>الصفحات</th><th>الملف</th><th></th></tr></thead>
               <tbody id="pBookletsBody"></tbody>
             </table>
           </div>
@@ -619,9 +645,10 @@
             <span class="dash-card-title" id="pLecturesCourseTitle">محاضرات</span>
             <button class="btn btn-ghost" onclick="promptAddLecture()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>محاضرة جديدة</button>
           </div>
+          <input type="file" id="lectureFileInput" accept="video/*" style="display:none;" onchange="uploadLectureVideo(this.files[0])" />
           <div class="table-wrap">
             <table class="dash-table">
-              <thead><tr><th>العنوان</th><th>المدة</th><th></th></tr></thead>
+              <thead><tr><th>العنوان</th><th>المدة</th><th>الفيديو</th><th></th></tr></thead>
               <tbody id="pLecturesBody"></tbody>
             </table>
           </div>
@@ -1089,12 +1116,14 @@
     pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>',
     exam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="m9.5 13 2 2 4-4"/></svg>',
     key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   };
 
   const roles = {
     admin: {label:'سوبر أدمن', items:[
       {id:'overview', label:'نظرة عامة', icon:'grid'},
       {id:'accounts', label:'الحسابات', icon:'users'},
+      {id:'notifications', label:'الإشعارات', icon:'bell'},
       {id:'catalog', label:'المناهج', icon:'book'},
       {id:'questions', label:'بنك الأسئلة', icon:'pdf'},
       {id:'students', label:'الطلاب', icon:'student'},
@@ -1188,7 +1217,7 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, catalog: loadCatalog, questions: loadQuestionBank,
+    overview: loadOverview, accounts: loadAccounts, notifications: loadNotifHistory, catalog: loadCatalog, questions: loadQuestionBank,
     students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
@@ -1265,6 +1294,9 @@
     const banBtn = a => a.is_banned
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="unbanUserAccount('${a.id}')">رفع الحظر</button>`
       : `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="promptBanUser('${a.id}', '${a.full_name}')">حظر</button>`;
+    const totpBtn = a => a.totp_enabled
+      ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" title="يلغي التحقق بخطوتين عن هذا الحساب" onclick="promptReset2FA('${a.id}', '${a.full_name}')">إعادة تعيين 2FA</button>`
+      : '';
     document.getElementById('accountsBody').innerHTML = list.map(a => `
       <tr>
         <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${a.full_name}</div><div class="cell-sub mono">${a.email}</div></div></div></td>
@@ -1275,13 +1307,95 @@
           ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
               <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}', '${a.full_name}')">توليد أكواد</button>
               <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${a.id}', '${a.full_name}')">أخذ كود</button>
+              ${totpBtn(a)}
               ${editBtn(a)}
             </div>`
           : a.role === 'admin'
-          ? editBtn(a)
-          : `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${banBtn(a)}${editBtn(a)}</div>`}</td>
+          ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${totpBtn(a)}${editBtn(a)}</div>`
+          : `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${banBtn(a)}${totpBtn(a)}${editBtn(a)}</div>`}</td>
       </tr>
     `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد نتائج</td></tr>`;
+  }
+
+  async function promptReset2FA(userId, name){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!await confirmModal(`سيتم إيقاف التحقق بخطوتين عن حساب ${name} — يستخدم هذا عند فقدان الطالب/الدكتور لهاتفه أو تطبيق المصادقة. متابعة؟`)) return;
+    try {
+      await apiFetch('/api/admin/users/' + userId + '/2fa/reset', {method: 'POST'});
+      showToast('تم إلغاء التحقق بخطوتين عن الحساب');
+      await loadAccounts();
+    } catch (e) { showToast(e.detail || 'تعذّر إعادة التعيين', 'error'); }
+  }
+
+  // ---------- Notifications ----------
+  let notifTarget = 'broadcast';
+  let notifSelectedStudentId = null;
+  function switchNotifTarget(target){
+    notifTarget = target;
+    document.querySelectorAll('[data-ntab]').forEach(b => b.classList.toggle('active', b.dataset.ntab === target));
+    document.getElementById('notifSingleWrap').style.display = target === 'single' ? 'block' : 'none';
+  }
+  let notifSearchTimer = null;
+  function searchNotifStudents(){
+    notifSelectedStudentId = null;
+    document.getElementById('notifSelectedStudent').style.display = 'none';
+    clearTimeout(notifSearchTimer);
+    const q = document.getElementById('notifStudentSearch').value.trim();
+    const box = document.getElementById('notifStudentResults');
+    if (!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    notifSearchTimer = setTimeout(async () => {
+      if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+      try {
+        const results = await apiFetch('/api/students/search?q=' + encodeURIComponent(q));
+        box.innerHTML = results.map(s => `
+          <div style="padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--glass-border);" onclick="pickNotifStudent('${s.id}', '${s.full_name.replace(/'/g,"\\'")}')">
+            ${s.full_name}
+          </div>
+        `).join('') || '<div style="padding:10px 12px; color:var(--ink-faint);">لا يوجد نتائج</div>';
+        box.style.display = 'block';
+      } catch (e) { showToast(e.detail || 'تعذّر البحث', 'error'); }
+    }, 300);
+  }
+  function pickNotifStudent(id, name){
+    notifSelectedStudentId = id;
+    document.getElementById('notifStudentResults').style.display = 'none';
+    document.getElementById('notifStudentSearch').value = '';
+    const sel = document.getElementById('notifSelectedStudent');
+    sel.style.display = 'flex';
+    sel.innerHTML = `<div class="item-body"><div class="item-title">${name}</div></div><button class="btn btn-ghost item-action" onclick="notifSelectedStudentId=null; document.getElementById('notifSelectedStudent').style.display='none';">إزالة</button>`;
+  }
+  async function sendNotificationFromAdmin(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    const title = document.getElementById('notifTitle').value.trim();
+    const body = document.getElementById('notifBody').value.trim();
+    if (!title){ showToast('عنوان الإشعار مطلوب', 'error'); return; }
+    if (notifTarget === 'single' && !notifSelectedStudentId){ showToast('اختر طالباً أولاً', 'error'); return; }
+    try {
+      await apiFetch('/api/admin/notifications', {
+        method: 'POST',
+        body: JSON.stringify({title, body, user_id: notifTarget === 'single' ? notifSelectedStudentId : null}),
+      });
+      showToast('تم إرسال الإشعار');
+      document.getElementById('notifTitle').value = '';
+      document.getElementById('notifBody').value = '';
+      notifSelectedStudentId = null;
+      document.getElementById('notifSelectedStudent').style.display = 'none';
+      switchNotifTarget('broadcast');
+      await loadNotifHistory();
+    } catch (e) { showToast(e.detail || 'تعذّر إرسال الإشعار', 'error'); }
+  }
+  async function loadNotifHistory(){
+    if (!liveMode){ document.getElementById('notifHistoryList').innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الإشعارات المُرسلة</div>'; return; }
+    try {
+      const list = await apiFetch('/api/admin/notifications');
+      document.getElementById('notifHistoryList').innerHTML = list.map(n => `
+        <div class="activity-row">
+          <span class="activity-dot"></span>
+          <span class="activity-text">${n.title}${n.broadcast ? ' <span class="badge badge-active" style="margin-right:6px;">للجميع</span>' : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
+          <span class="activity-time">${fmtDate(n.created_at)}</span>
+        </div>
+      `).join('') || '<div class="empty-row">لا يوجد إشعارات مُرسلة بعد</div>';
+    } catch (e) { showToast(e.detail || 'تعذّر تحميل الإشعارات', 'error'); }
   }
 
   function promptBanUser(userId, name){
@@ -1928,17 +2042,43 @@
     } catch (e) { showToast('تعذّر رفع الصورة'); }
   }
 
+  let pendingBookletUploadId = null;
+  function triggerBookletUpload(id){
+    pendingBookletUploadId = id;
+    document.getElementById('bookletFileInput').click();
+  }
+  async function uploadBookletFile(file){
+    if (!file || !pendingBookletUploadId) return;
+    const id = pendingBookletUploadId;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(API_BASE_URL + '/api/professors/me/booklets/' + id + '/file', {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + authToken},
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'فشل الرفع');
+      document.getElementById('bookletFileInput').value = '';
+      invalidateProfDashboard();
+      await loadProfessorBooklets();
+      showToast('تم رفع الملف بنجاح');
+    } catch (e) { showToast(e.message || 'تعذّر رفع الملف', 'error'); }
+  }
   async function loadProfessorBooklets(){
     const d = await fetchProfDashboard();
     document.getElementById('pBookletsBody').innerHTML = d.booklets.map(b => `
       <tr>
         <td><div class="cell-name">${b.title}</div></td><td>${b.pages}</td>
-        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+        <td>${b.file_url ? `<a href="${API_BASE_URL}${b.file_url}" target="_blank" class="badge badge-active" style="text-decoration:none;">عرض الملف</a>` : '<span class="badge badge-disabled">لا يوجد ملف</span>'}</td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="triggerBookletUpload('${b.id}')">${b.file_url ? 'تغيير الملف' : 'رفع ملف'}</button>
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditBooklet('${b.id}')">تعديل</button>
           <button class="icon-btn" style="width:30px;height:30px;" onclick="deleteBooklet('${b.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
-    `).join('') || `<tr><td colspan="3" class="empty-row">لا توجد ملازم بعد</td></tr>`;
+    `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد ملازم بعد</td></tr>`;
   }
   async function loadProfessorExams(){
     const d = await fetchProfDashboard();
@@ -2086,12 +2226,39 @@
       <tr>
         <td><div class="cell-name">${l.title}</div></td>
         <td class="mono">${fmtLectureDuration(l.duration_seconds)}</td>
-        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+        <td>${l.video_url ? '<span class="badge badge-active">مرفوع</span>' : '<span class="badge badge-disabled">لا يوجد فيديو</span>'}</td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="triggerLectureUpload('${l.id}')">${l.video_url ? 'تغيير الفيديو' : 'رفع فيديو'}</button>
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="promptEditLecture('${l.id}')">تعديل</button>
           <button class="icon-btn" style="width:28px;height:28px;" onclick="deleteLecture('${l.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
-    `).join('') || `<tr><td colspan="3" class="empty-row">لا توجد محاضرات بعد</td></tr>`;
+    `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد محاضرات بعد</td></tr>`;
+  }
+
+  let pendingLectureUploadId = null;
+  function triggerLectureUpload(id){
+    pendingLectureUploadId = id;
+    document.getElementById('lectureFileInput').click();
+  }
+  async function uploadLectureVideo(file){
+    if (!file || !pendingLectureUploadId) return;
+    const id = pendingLectureUploadId;
+    showToast('جارٍ رفع الفيديو... قد يستغرق وقتاً حسب حجم الملف');
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(API_BASE_URL + '/api/professors/me/lectures/' + id + '/file', {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + authToken},
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'فشل الرفع');
+      document.getElementById('lectureFileInput').value = '';
+      await loadProfessorCourses();
+      showToast('تم رفع الفيديو بنجاح');
+    } catch (e) { showToast(e.message || 'تعذّر رفع الفيديو', 'error'); }
   }
 
   function promptAddCourse(){

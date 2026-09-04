@@ -407,8 +407,10 @@
   .course-chevron svg{width:16px; height:16px;}
 
   .player-card{padding:0; overflow:hidden; margin-bottom:16px;}
-  .player-screen{position:relative; height:210px; display:flex; align-items:flex-end; transition:background .3s ease;}
-  .player-screen::before{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%);}
+  .player-screen{position:relative; height:210px; display:flex; align-items:flex-end; transition:background .3s ease; overflow:hidden;}
+  .player-screen::before{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%); z-index:1;}
+  .player-video{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; z-index:0;}
+  .player-no-video{position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:rgba(255,255,255,.85); font-size:.78rem; text-align:center; padding:0 24px;}
   .player-top-controls{position:absolute; top:12px; inset-inline:12px; display:flex; justify-content:flex-end; gap:8px; z-index:2;}
   .player-pill{padding:5px 12px; border-radius:999px; background:rgba(10,14,28,.55); color:#fff; font-size:.68rem; font-weight:700; backdrop-filter:blur(6px);}
   .player-center-btn{
@@ -588,10 +590,10 @@
       </button>
     </div>
 
-    <button class="continue-card glass" id="continueCard" onclick="goToProfessors()" style="width:100%; cursor:pointer; display:none;">
+    <button class="continue-card glass" id="continueCard" style="width:100%; cursor:pointer; display:none;">
       <div class="continue-ring" style="--p:64;"></div>
       <div class="continue-body">
-        <div class="continue-eyebrow" data-i18n="continueEyebrow">آخر ملزمة</div>
+        <div class="continue-eyebrow" id="continueEyebrowText" data-i18n="continueEyebrow">آخر ملزمة</div>
         <div class="continue-title" id="continueTitle"></div>
         <div class="continue-meta" id="continueMeta"></div>
       </div>
@@ -921,8 +923,12 @@
 
     <div class="player-card glass">
       <div class="player-screen" id="playerScreen">
+        <video class="player-video" id="playerVideoEl" playsinline preload="metadata" style="display:none;"></video>
+        <div class="player-no-video" id="playerNoVideo" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:28px; height:28px;"><path d="M23 7l-7 5 7 5V7Z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <span>لا يوجد فيديو مرفوع بعد لهذه المحاضرة</span>
+        </div>
         <div class="player-top-controls">
-          <button class="player-pill" onclick="cycleQuality()" id="playerQualityPill">720p</button>
           <button class="player-pill" onclick="cycleSpeed()" id="playerSpeedPill">x1</button>
         </div>
         <button class="player-center-btn" onclick="togglePlay()" id="playerCenterBtn" aria-label="تشغيل"></button>
@@ -930,7 +936,7 @@
       </div>
       <div class="player-controls-bar">
         <button class="icon-btn" onclick="togglePlay()" id="playBtnSmall" style="width:32px; height:32px;"></button>
-        <div class="player-scrub"><div class="player-scrub-fill" id="playerScrubFill"></div></div>
+        <div class="player-scrub" id="playerScrubTrack"><div class="player-scrub-fill" id="playerScrubFill"></div></div>
         <span class="player-time mono" id="playerTime">00:00 / 00:00</span>
       </div>
     </div>
@@ -1264,14 +1270,25 @@
   })();
 
   // ---------- Theme ----------
+  // Was pure DOM state with zero persistence — reset to light on every
+  // refresh. Now synced to the account via PUT /auth/me/preferences so it
+  // follows the student across sessions/devices, same as everything else.
   const themeBtn = document.getElementById('themeToggle');
   const iconSun = document.getElementById('iconSun');
   const iconMoon = document.getElementById('iconMoon');
-  themeBtn.addEventListener('click', () => {
-    document.documentElement.classList.toggle('dark');
-    const isDark = document.documentElement.classList.contains('dark');
+  function applyTheme(isDark){
+    document.documentElement.classList.toggle('dark', isDark);
     iconSun.style.display = isDark ? 'none' : 'block';
     iconMoon.style.display = isDark ? 'block' : 'none';
+  }
+  function savePreference(patch){
+    if (!authToken) return;
+    apiFetch('/auth/me/preferences', {method: 'PUT', body: JSON.stringify(patch)}).catch(() => {});
+  }
+  themeBtn.addEventListener('click', () => {
+    const isDark = !document.documentElement.classList.contains('dark');
+    applyTheme(isDark);
+    savePreference({theme: isDark ? 'dark' : 'light'});
   });
 
   // ---------- Language (AR / EN / KU toggle dir + this same fixed set of home-screen labels) ----------
@@ -1280,21 +1297,33 @@
     en: {greeting:'Hi, Omar 👋', greetingSub:'Keep the pace — the mock exam is close', streakLabel:'Streak', answeredLabel:'Answered today', rankLabel:'Your uni rank', pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject', tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', tileReview:'Review', tileLeaderboard:'Leaderboard', continueEyebrow:'Last booklet', continueBtn:'Continue'},
     ku: {greeting:'سڵاو، عومەر 👋', greetingSub:'بەردەوام بە، تاقیکردنەوەی گشتی نزیکە', streakLabel:'زنجیرە', answeredLabel:'ئەمڕۆ وەڵامدراوە', rankLabel:'پلەت لە زانکۆ', pathLabel:'ڕێڕەوی خوێندن', pathSection:'بەش', pathUni:'زانکۆ', pathStage:'قۆناغ', pathSubject:'بابەت', tileBank:'کۆگای پرسیار', tileVideo:'ئەکادیمیای ڤیدیۆ', tileProf:'بەشی مامۆستایان', tileStore:'فرۆشگا', tileReview:'پێداچوونەوە', tileLeaderboard:'پێشەنگەکان', continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون'}
   };
+  function applyLanguage(lang){
+    document.querySelectorAll('.lang-pill').forEach(p => p.classList.toggle('active', p.dataset.lang === lang));
+    const table = dict[lang] || dict.ar;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (table[key]) el.textContent = table[key];
+    });
+    const rtl = lang !== 'en';
+    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang === 'ku' ? 'ckb' : lang;
+  }
   document.querySelectorAll('.lang-pill').forEach(pill => {
     pill.addEventListener('click', () => {
-      document.querySelectorAll('.lang-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
       const lang = pill.dataset.lang;
-      const table = dict[lang] || dict.ar;
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.dataset.i18n;
-        if (table[key]) el.textContent = table[key];
-      });
-      const rtl = lang !== 'en';
-      document.documentElement.dir = rtl ? 'rtl' : 'ltr';
-      document.documentElement.lang = lang === 'ku' ? 'ckb' : lang;
+      applyLanguage(lang);
+      savePreference({language: lang});
     });
   });
+
+  // Called once real account data is available (post-login) so the saved
+  // theme/language actually take effect instead of always defaulting to
+  // light/Arabic regardless of what the account has stored.
+  function applyUserPreferences(){
+    if (!currentUser) return;
+    applyTheme(currentUser.theme === 'dark');
+    applyLanguage(currentUser.language || 'ar');
+  }
 
   // ---------- Living path ----------
   const pathFill = document.getElementById('pathFill');
@@ -1317,8 +1346,19 @@
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.body.classList.remove('auth-mode');
   }
+  function stopPlayerVideo(){
+    const video = document.getElementById('playerVideoEl');
+    if (video) video.pause();
+  }
+
+  // Powers the real per-student "continue where I left off" card — fires
+  // whenever a booklet/lecture is actually opened.
+  function recordRecentView(contentType, contentId){
+    if (!authToken || !contentId) return;
+    apiFetch('/auth/me/recent-view', {method: 'POST', body: JSON.stringify({content_type: contentType, content_id: contentId})}).catch(() => {});
+  }
   async function goToQuiz(subjectId, subjectLabel){
-    if (typeof stopPlayerTimer === 'function') stopPlayerTimer();
+    stopPlayerVideo();
     hideAllViews();
     document.getElementById('view-quiz').classList.add('active');
     document.getElementById('qText').textContent = 'جارٍ التحميل...';
@@ -1332,6 +1372,7 @@
     hideAllViews();
     document.getElementById('view-home').classList.add('active');
     stopTimer();
+    applyUserPreferences();
     loadHomeStats();
     refreshNotifBadge();
   }
@@ -1352,11 +1393,25 @@
     } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
     await loadPathCard();
     try {
-      const b = await apiFetch('/api/professors/booklets/latest');
+      const c = await apiFetch('/auth/me/continue');
       const card = document.getElementById('continueCard');
-      if (b){
-        document.getElementById('continueTitle').textContent = b.title;
-        document.getElementById('continueMeta').textContent = b.subject_name || '';
+      const eyebrow = document.getElementById('continueEyebrowText');
+      if (c && c.type === 'booklet'){
+        eyebrow.textContent = 'آخر ملزمة فتحتها';
+        document.getElementById('continueTitle').textContent = c.title;
+        document.getElementById('continueMeta').textContent = c.subject_name || '';
+        card.onclick = async () => { await goToProfessors(); if (c.professor_id) openProfessor(c.professor_id); };
+        card.style.display = 'flex';
+      } else if (c && c.type === 'lecture'){
+        eyebrow.textContent = 'آخر محاضرة فتحتها';
+        document.getElementById('continueTitle').textContent = c.title;
+        document.getElementById('continueMeta').textContent = c.course_title || '';
+        card.onclick = async () => {
+          await tryLoadApiCourses();
+          openCourse(c.course_id);
+          const idx = currentCourse ? currentCourse.lectures.findIndex(l => l.id === c.id) : -1;
+          if (idx !== -1) selectLecture(idx);
+        };
         card.style.display = 'flex';
       } else {
         card.style.display = 'none';
@@ -1630,7 +1685,7 @@
         ${p.bio ? `<div class="item-meta" style="margin-top:8px; max-width:340px;">${p.bio}</div>` : ''}
       </div>
     `;
-    const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({t: b.title, p: b.pages})) : (bookletsBySubject[p.subject] || []);
+    const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({id: b.id, t: b.title, p: b.pages, fileUrl: b.file_url || null})) : (bookletsBySubject[p.subject] || []);
     const exams = p.apiExams ? p.apiExams.map(e => ({id: e.id, t: e.title, q: e.question_count, m: e.duration_minutes})) : (examsBySubject[p.subject] || []);
     document.getElementById('bookletsList').innerHTML = booklets.map(b => `
       <div class="item-card glass">
@@ -1639,7 +1694,7 @@
           <div class="item-title">${b.t}</div>
           <div class="item-meta">${b.p} صفحة · PDF</div>
         </div>
-        <button class="btn btn-ghost item-action">فتح</button>
+        ${b.fileUrl ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${b.fileUrl}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">فتح</a>` : `<button class="btn btn-ghost item-action" onclick="showToast('لا يوجد ملف مرفوع بعد لهذه الملزمة')" style="opacity:.6;">فتح</button>`}
       </div>
     `).join('') || '<div class="empty-row">لا توجد ملازم بعد</div>';
     document.getElementById('examsList').innerHTML = exams.map(e => `
@@ -1981,10 +2036,9 @@
   const pauseGlyph = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
   const replayGlyph = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v6h6"/><path d="M20 12A8 8 0 1 0 6 6.3L4 10"/></svg>';
   const speedOptions = [0.5, 1, 1.25, 1.5, 2];
-  const qualityOptions = ['480p','720p','1080p'];
 
-  let currentCourse = null, currentLectureIndex = 0, playState = false, playbackSeconds = 0;
-  let playbackSpeedIdx = 1, playbackQualityIdx = 1, playerTimer = null;
+  let currentCourse = null, currentLectureIndex = 0;
+  let playbackSpeedIdx = 1;
 
   function parseDur(str){ const [m,s] = str.split(':').map(Number); return m*60+s; }
   function formatSec(sec){ sec = Math.max(0, Math.round(sec)); const m = Math.floor(sec/60); const s = sec%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
@@ -2000,9 +2054,9 @@
   }
 
   // Real-backend path: fetch /api/courses once per session and normalize it
-  // into the same shape the local demo array uses. The backend has no
-  // per-user watch-progress endpoint yet, so lectures start as not-done —
-  // "done" then tracks locally for the rest of the session, same as the demo.
+  // into the same shape the local demo array uses. "done" comes straight
+  // from the backend's real per-student LectureProgress rows, so it
+  // survives a refresh instead of resetting every session.
   const courseColors = ['#4C5FE0', '#FF8A5B', '#7B6EF6', '#1FAE72'];
   let usingApiCourses = false;
   let apiCoursesNormalized = null;
@@ -2016,7 +2070,7 @@
         apiCoursesNormalized = data.map((c, idx) => ({
           id: c.id, title: c.title, instructor: c.instructor,
           subject: null, color: courseColors[idx % courseColors.length],
-          lectures: c.lectures.map(l => ({title: l.title, dur: formatSec(l.duration_seconds), done: false})),
+          lectures: c.lectures.map(l => ({id: l.id, title: l.title, dur: formatSec(l.duration_seconds), done: !!l.done, videoUrl: l.video_url || null})),
         }));
         usingApiCourses = true;
       }
@@ -2063,7 +2117,7 @@
     document.getElementById('view-home').classList.add('active');
   }
   function backToAcademy(){
-    stopPlayerTimer();
+    stopPlayerVideo();
     hideAllViews();
     document.getElementById('view-academy').classList.add('active');
     renderAcademy();
@@ -2074,8 +2128,7 @@
     if (!currentCourse) return;
     currentLectureIndex = currentCourse.lectures.findIndex(l => !l.done);
     if (currentLectureIndex === -1) currentLectureIndex = 0;
-    playbackSeconds = 0; playState = false; playbackSpeedIdx = 1; playbackQualityIdx = 1;
-    stopPlayerTimer();
+    playbackSpeedIdx = 1;
     hideAllViews();
     document.getElementById('view-course').classList.add('active');
     renderCourseHeader();
@@ -2094,70 +2147,104 @@
 
   function renderCoursePlayer(){
     const lec = currentCourse.lectures[currentLectureIndex];
-    const total = parseDur(lec.dur);
+    if (lec.id) recordRecentView('lecture', lec.id);
+    const video = document.getElementById('playerVideoEl');
+    const placeholder = document.getElementById('playerNoVideo');
     document.getElementById('playerScreen').style.background = `linear-gradient(160deg, ${currentCourse.color}, var(--accent-2))`;
     document.getElementById('playerLectureTitle').textContent = lec.title;
-    document.getElementById('playerQualityPill').textContent = qualityOptions[playbackQualityIdx];
     document.getElementById('playerSpeedPill').textContent = 'x' + speedOptions[playbackSpeedIdx];
-    document.getElementById('playerTime').textContent = formatSec(playbackSeconds) + ' / ' + lec.dur;
-    document.getElementById('playerScrubFill').style.width = (playbackSeconds/total*100) + '%';
+    document.getElementById('playerCenterBtn').style.display = lec.videoUrl ? '' : 'none';
+    document.getElementById('playBtnSmall').style.display = lec.videoUrl ? '' : 'none';
+    if (lec.videoUrl){
+      placeholder.style.display = 'none';
+      video.style.display = 'block';
+      const src = API_BASE_URL + lec.videoUrl;
+      if (video.getAttribute('data-src') !== src){
+        video.pause();
+        video.src = src;
+        video.setAttribute('data-src', src);
+      }
+      video.playbackRate = speedOptions[playbackSpeedIdx];
+    } else {
+      video.style.display = 'none';
+      video.pause();
+      video.removeAttribute('src');
+      video.removeAttribute('data-src');
+      placeholder.style.display = 'flex';
+    }
+    document.getElementById('playerTime').textContent = '00:00 / ' + (lec.videoUrl ? lec.dur : '00:00');
+    document.getElementById('playerScrubFill').style.width = '0%';
     updatePlayIcon();
   }
 
   function updatePlayIcon(){
-    const lec = currentCourse.lectures[currentLectureIndex];
-    const total = parseDur(lec.dur);
-    let glyph = playState ? pauseGlyph : (playbackSeconds >= total ? replayGlyph : playGlyph);
+    const video = document.getElementById('playerVideoEl');
+    let glyph = (!video.paused) ? pauseGlyph : (video.ended ? replayGlyph : playGlyph);
     document.getElementById('playerCenterBtn').innerHTML = glyph;
     document.getElementById('playBtnSmall').innerHTML = glyph;
   }
 
   function togglePlay(){
     const lec = currentCourse.lectures[currentLectureIndex];
-    const total = parseDur(lec.dur);
-    if (!playState && playbackSeconds >= total) playbackSeconds = 0;
-    playState = !playState;
-    updatePlayIcon();
-    if (playState){
-      playerTimer = setInterval(() => {
-        playbackSeconds += speedOptions[playbackSpeedIdx];
-        if (playbackSeconds >= total){
-          playbackSeconds = total;
-          stopPlayerTimer();
-          playState = false;
-          lec.done = true;
-          updatePlayIcon();
-          renderLectureList();
-        }
-        document.getElementById('playerScrubFill').style.width = (playbackSeconds/total*100) + '%';
-        document.getElementById('playerTime').textContent = formatSec(playbackSeconds) + ' / ' + lec.dur;
-      }, 400);
+    if (!lec.videoUrl) return;
+    const video = document.getElementById('playerVideoEl');
+    if (video.paused){
+      if (video.ended) video.currentTime = 0;
+      video.play();
     } else {
-      stopPlayerTimer();
+      video.pause();
     }
   }
-  function stopPlayerTimer(){ clearInterval(playerTimer); playerTimer = null; }
 
-  function cycleQuality(){
-    playbackQualityIdx = (playbackQualityIdx + 1) % qualityOptions.length;
-    document.getElementById('playerQualityPill').textContent = qualityOptions[playbackQualityIdx];
-  }
   function cycleSpeed(){
     playbackSpeedIdx = (playbackSpeedIdx + 1) % speedOptions.length;
     document.getElementById('playerSpeedPill').textContent = 'x' + speedOptions[playbackSpeedIdx];
+    document.getElementById('playerVideoEl').playbackRate = speedOptions[playbackSpeedIdx];
   }
 
+  // Wired once — the real <video> element drives its own play/pause/scrub
+  // state directly, no fake setInterval progress simulation.
+  function initPlayerVideoEvents(){
+    const video = document.getElementById('playerVideoEl');
+    video.addEventListener('play', updatePlayIcon);
+    video.addEventListener('pause', updatePlayIcon);
+    video.addEventListener('timeupdate', () => {
+      const d = video.duration || 0;
+      document.getElementById('playerTime').textContent = formatSec(video.currentTime) + ' / ' + (d ? formatSec(d) : '00:00');
+      document.getElementById('playerScrubFill').style.width = (d ? (video.currentTime / d * 100) : 0) + '%';
+    });
+    video.addEventListener('ended', () => {
+      const lec = currentCourse.lectures[currentLectureIndex];
+      if (lec && !lec.done){
+        lec.done = true;
+        if (lec.id && authToken){
+          apiFetch('/api/courses/lectures/' + lec.id + '/complete', {method: 'POST'}).catch(() => {});
+        }
+      }
+      updatePlayIcon();
+      renderLectureList();
+    });
+    document.getElementById('playerScrubTrack').addEventListener('click', (e) => {
+      if (!video.duration) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+      const ratio = rtl ? (rect.right - e.clientX) / rect.width : (e.clientX - rect.left) / rect.width;
+      video.currentTime = Math.max(0, Math.min(1, ratio)) * video.duration;
+    });
+  }
+  initPlayerVideoEvents();
+
   function selectLecture(idx){
-    stopPlayerTimer();
     currentLectureIndex = idx;
-    playbackSeconds = 0; playState = false;
     renderCoursePlayer();
     renderLectureList();
   }
 
   function renderLectureList(){
+    const video = document.getElementById('playerVideoEl');
     document.getElementById('lectureList').innerHTML = currentCourse.lectures.map((l, idx) => {
       const isCurrent = idx === currentLectureIndex;
+      const isPlaying = isCurrent && video && !video.paused;
       return `
       <button class="item-card lecture-item glass ${isCurrent ? 'current' : ''} ${l.done ? 'done' : ''}" onclick="selectLecture(${idx})">
         <span class="lecture-num">${l.done ? '✓' : idx+1}</span>
@@ -2165,31 +2252,44 @@
           <span class="item-title">${l.title}</span>
           <span class="item-meta mono">${l.dur}</span>
         </span>
-        <span class="lecture-play">${isCurrent && playState ? pauseGlyph : playGlyph}</span>
+        <span class="lecture-play">${isPlaying ? pauseGlyph : playGlyph}</span>
       </button>`;
     }).join('');
   }
 
-  function renderCourseMaterials(){
-    const subj = currentCourse.subject;
-    document.getElementById('courseBooklets').innerHTML = (bookletsBySubject[subj] || []).map(b => `
+  async function renderCourseMaterials(){
+    const bookletsEl = document.getElementById('courseBooklets');
+    const quizzesEl = document.getElementById('courseQuizzes');
+    if (!currentCourse.id || !usingApiCourses){
+      bookletsEl.innerHTML = '<div class="empty-row">لا توجد ملازم مرتبطة بهذا الكورس</div>';
+      quizzesEl.innerHTML = '<div class="empty-row">لا توجد كويزات مرتبطة بهذا الكورس</div>';
+      return;
+    }
+    bookletsEl.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
+    quizzesEl.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
+    const requestedCourseId = currentCourse.id;
+    let materials;
+    try { materials = await apiFetch('/api/courses/' + requestedCourseId + '/materials'); }
+    catch (e) { materials = {booklets: [], exams: []}; }
+    if (!currentCourse || currentCourse.id !== requestedCourseId) return; // navigated to another course meanwhile
+    bookletsEl.innerHTML = materials.booklets.map(b => `
       <div class="item-card glass">
         <div class="item-icon pdf">${pdfIcon}</div>
         <div class="item-body">
-          <div class="item-title">${b.t}</div>
-          <div class="item-meta">${b.p} صفحة · PDF</div>
+          <div class="item-title">${b.title}</div>
+          <div class="item-meta">${b.pages} صفحة · PDF</div>
         </div>
-        <button class="btn btn-ghost item-action">فتح</button>
+        ${b.file_url ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${b.file_url}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">فتح</a>` : `<button class="btn btn-ghost item-action" onclick="showToast('لا يوجد ملف مرفوع بعد لهذه الملزمة')" style="opacity:.6;">فتح</button>`}
       </div>
     `).join('') || '<div class="empty-row">لا توجد ملازم مرتبطة بهذا الكورس</div>';
-    document.getElementById('courseQuizzes').innerHTML = (examsBySubject[subj] || []).map(e => `
+    quizzesEl.innerHTML = materials.exams.map(e => `
       <div class="item-card glass">
         <div class="item-icon exam">${examIcon}</div>
         <div class="item-body">
-          <div class="item-title">${e.t}</div>
-          <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة · ${e.a} محاولة</div>
+          <div class="item-title">${e.title}</div>
+          <div class="item-meta">${e.question_count} سؤال · ${e.duration_minutes} دقيقة</div>
         </div>
-        <button class="btn item-action" onclick="goToQuiz()">ابدأ</button>
+        <button class="btn item-action" onclick="startExam('${e.id}')">ابدأ</button>
       </div>
     `).join('') || '<div class="empty-row">لا توجد كويزات مرتبطة بهذا الكورس</div>';
   }

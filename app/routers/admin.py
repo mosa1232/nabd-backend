@@ -15,6 +15,7 @@ VALID_ROLES = {r.value for r in models.Role}
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB — plenty for booklets/slide images in this prototype
+MAX_VIDEO_BYTES = 150 * 1024 * 1024  # 150MB — real lecture videos need more room than a PDF/photo
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
 

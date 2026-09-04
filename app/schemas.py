@@ -19,6 +19,8 @@ class UserOut(BaseModel):
     totp_enabled: bool = False
     photo_url: Optional[str] = None
     caption: Optional[str] = None
+    theme: str = "light"
+    language: str = "ar"
     password_hash: Optional[str] = Field(default=None, exclude=True)
 
     @computed_field
@@ -60,6 +62,16 @@ class CaptionUpdateIn(BaseModel):
 
 class SkillIn(BaseModel):
     text: str
+
+
+class PreferencesUpdateIn(BaseModel):
+    theme: Optional[str] = None
+    language: Optional[str] = None
+
+
+class RecentViewIn(BaseModel):
+    content_type: str
+    content_id: str
 
 
 class LoginResponse(BaseModel):
@@ -154,6 +166,7 @@ class BookletOut(BaseModel):
     id: str
     title: str
     pages: int
+    file_url: Optional[str] = None
 
 
 class BookletIn(BaseModel):
@@ -199,6 +212,8 @@ class LectureOut(BaseModel):
     id: str
     title: str
     duration_seconds: int
+    video_url: Optional[str] = None
+    done: bool = False
 
 
 class LectureIn(BaseModel):
@@ -211,6 +226,7 @@ class CourseOut(BaseModel):
     id: str
     title: str
     instructor: str
+    subject_id: Optional[str] = None
     lectures: list[LectureOut] = []
 
 
