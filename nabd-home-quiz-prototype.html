@@ -91,6 +91,34 @@
   .sb-item svg{width:19px; height:19px; flex:none;}
   .sb-item:hover{background:var(--glass-bg);}
   .sb-item.active{background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;}
+  .sb-collapse-btn{
+    width:32px; height:32px; display:grid; place-items:center; border-radius:10px;
+    color:var(--ink-faint); transition:.2s; flex:none;
+  }
+  .sb-collapse-btn:hover{background:var(--glass-bg); color:var(--ink);}
+  .sb-collapse-btn svg{transition:transform .25s;}
+  .sb-profile{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:14px;
+    background:var(--glass-bg); transition:.2s; width:100%; text-align:start;
+  }
+  .sb-profile:hover{background:var(--track);}
+  .sb-profile-avatar{
+    width:34px; height:34px; border-radius:50%; flex:none; overflow:hidden;
+    background:linear-gradient(145deg, var(--accent), var(--accent-2)); color:#fff;
+    display:grid; place-items:center; font-size:.72rem; font-weight:700;
+  }
+  .sb-profile-avatar img{width:100%; height:100%; object-fit:cover;}
+  .sb-profile-name{font-size:.82rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  /* Collapsed state: icon-only rail. Only takes effect on desktop, where
+     the sidebar is actually visible (display:flex is set inside the
+     ≥1024px media query below). */
+  body.sidebar-collapsed .shell{grid-template-columns:84px 1fr;}
+  body.sidebar-collapsed .sidebar{padding-inline:14px;}
+  body.sidebar-collapsed .sb-item span, body.sidebar-collapsed .sb-profile-name,
+  body.sidebar-collapsed .brand-name{display:none;}
+  body.sidebar-collapsed .sb-item, body.sidebar-collapsed .sb-profile{justify-content:center; padding-inline:0;}
+  body.sidebar-collapsed .sb-collapse-btn svg{transform:rotate(180deg);}
+  body.sidebar-collapsed .brand{justify-content:center;}
 
   /* ---------- Topbar ---------- */
   .topbar{
@@ -521,7 +549,7 @@
 
   /* ---------- Desktop shell (≥1024px) ---------- */
   @media (min-width:1024px){
-    .shell{display:grid; grid-template-columns:248px 1fr; align-items:start; min-height:100vh;}
+    .shell{display:grid; grid-template-columns:248px 1fr; align-items:start; min-height:100vh; transition:grid-template-columns .25s ease;}
     .sidebar{
       display:flex; flex-direction:column; gap:3px; position:sticky; top:0; height:100vh;
       padding:22px 14px; border-inline-end:1px solid var(--glass-border); background:var(--glass-bg);
@@ -547,11 +575,16 @@
 <body>
 <div class="shell">
   <nav class="sidebar" id="sidebar">
-    <div class="brand" style="padding:0 6px 18px;">
-      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span class="brand-name display">Kiur</span>
+    <div class="brand" style="padding:0 6px 18px; justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-name display">Kiur</span>
+      </div>
+      <button class="sb-collapse-btn" onclick="toggleSidebar()" aria-label="طي القائمة" data-i18n-aria="toggleSidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
     </div>
     <button class="sb-item" data-nav="view-home" onclick="goHome()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
@@ -582,9 +615,9 @@
       <span data-i18n="tileLeaderboard">المتصدرين</span>
     </button>
     <div style="flex:1;"></div>
-    <button class="sb-item" data-nav="view-account" onclick="goToAccount()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4.5-6 7-6s5.5 2 7 6"/></svg>
-      <span data-i18n="navAccount">حسابي</span>
+    <button class="sb-profile" data-nav="view-account" onclick="goToAccount()" id="sidebarProfileBtn">
+      <span class="sb-profile-avatar" id="sidebarProfileAvatar">—</span>
+      <span class="sb-profile-name" id="sidebarProfileName">حسابي</span>
     </button>
   </nav>
 <div class="app">
@@ -643,30 +676,6 @@
       </div>
     </div>
 
-    <div class="path-card glass">
-      <span class="path-label" data-i18n="pathLabel">المسار الدراسي</span>
-      <div class="path-track">
-        <div class="path-line"></div>
-        <div class="path-line-fill" id="pathFill"></div>
-
-        <button class="path-node done" data-step="1">
-          <span class="path-dot">✓</span>
-          <span class="path-node-label" data-i18n="pathSection">القسم</span>
-          <span class="path-node-value" id="pathValueSection">—</span>
-        </button>
-        <button class="path-node done" data-step="2">
-          <span class="path-dot">✓</span>
-          <span class="path-node-label" data-i18n="pathUni">الجامعة</span>
-          <span class="path-node-value" id="pathValueUni">—</span>
-        </button>
-        <button class="path-node current" data-step="3">
-          <span class="path-dot">3</span>
-          <span class="path-node-label" data-i18n="pathStage">المرحلة</span>
-          <span class="path-node-value" id="pathValueStage">—</span>
-        </button>
-      </div>
-    </div>
-
     <div class="tiles">
       <button class="tile glass" onclick="goToBankSelect()">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
@@ -694,12 +703,25 @@
       </button>
     </div>
 
-    <button class="continue-card glass" id="continueCard" style="width:100%; cursor:pointer; display:none;">
-      <div class="continue-ring" style="--p:64;"></div>
+    <button class="continue-card glass" id="continueCourseCard" style="width:100%; cursor:pointer; display:none; margin-bottom:12px;">
+      <div class="continue-ring" id="continueCourseRing" style="--p:0;"></div>
       <div class="continue-body">
-        <div class="continue-eyebrow" id="continueEyebrowText" data-i18n="continueEyebrow">آخر ملزمة</div>
-        <div class="continue-title" id="continueTitle"></div>
-        <div class="continue-meta" id="continueMeta"></div>
+        <div class="continue-eyebrow" data-i18n="continueCourseEyebrow">متابعة الكورس</div>
+        <div class="continue-title" id="continueCourseTitle"></div>
+        <div class="continue-meta" id="continueCourseMeta"></div>
+      </div>
+      <span class="btn">
+        <span data-i18n="continueBtn">متابعة</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>
+      </span>
+    </button>
+
+    <button class="continue-card glass" id="continueBookletCard" style="width:100%; cursor:pointer; display:none;">
+      <div class="continue-ring" style="--p:100;"></div>
+      <div class="continue-body">
+        <div class="continue-eyebrow" data-i18n="continueEyebrow">آخر ملزمة</div>
+        <div class="continue-title" id="continueBookletTitle"></div>
+        <div class="continue-meta" id="continueBookletMeta"></div>
       </div>
       <span class="btn">
         <span data-i18n="continueBtn">متابعة</span>
@@ -1170,56 +1192,17 @@
     </div>
 
     <div class="prof-header glass">
-      <button class="prof-header-avatar" id="accAvatar" onclick="document.getElementById('accPhotoInput').click()" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); overflow:hidden; cursor:pointer; border:none; position:relative;" aria-label="تغيير الصورة"></button>
-      <input type="file" id="accPhotoInput" accept="image/*" style="display:none;" onchange="uploadMyPhoto(this.files[0])" />
+      <div class="prof-header-avatar" id="accAvatar" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); overflow:hidden;"></div>
       <div>
         <div class="prof-header-name" id="accName">—</div>
         <div class="prof-header-title mono" id="accPhone"></div>
         <div class="prof-tags" id="accTags"></div>
-        <div class="item-meta" id="accCaptionDisplay" style="margin-top:6px; cursor:pointer;" onclick="toggleCaptionForm()"></div>
-        <div class="form-field" id="accCaptionForm" style="display:none; margin-top:8px; max-width:280px;">
-          <input id="accCaptionInput" type="text" maxlength="200" placeholder="اكتب كابشن قصير عن نفسك..." data-i18n-placeholder="captionPlaceholder" />
-          <button class="btn btn-ghost" style="margin-top:6px; padding:6px 14px; font-size:.75rem;" onclick="saveMyCaption()" data-i18n="save">حفظ</button>
-        </div>
       </div>
     </div>
-
-    <div class="section-block">
-      <div class="section-title" data-i18n="skills">المهارات</div>
-      <div class="glass" style="padding:14px 16px;">
-        <div id="mySkillsList" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
-        <div style="display:flex; gap:8px;">
-          <input id="newSkillInput" type="text" maxlength="40" placeholder="أضف مهارة (مثال: تشريح، إسعافات أولية)" onkeydown="if(event.key==='Enter'){event.preventDefault(); addMySkill();}" style="flex:1; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);" data-i18n-placeholder="addSkillPlaceholder" />
-          <button class="btn" style="padding:0 16px; font-size:.8rem;" onclick="addMySkill()" data-i18n="add">إضافة</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-block">
-      <div class="section-title" data-i18n="studyPath">المسار الدراسي</div>
-      <div class="item-list">
-        <div class="item-card glass">
-          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></div>
-          <div class="item-body">
-            <div class="item-title" data-i18n="sectionUniStage">القسم والجامعة والمرحلة</div>
-            <div class="item-meta" id="acPathSummary">جارٍ التحميل...</div>
-          </div>
-          <button class="btn btn-ghost item-action" onclick="toggleAcademicPathForm()" data-i18n="edit">تعديل</button>
-        </div>
-        <div class="glass" id="academicPathForm" style="display:none; padding:16px 18px;">
-          <div class="form-field"><select id="acSection" onchange="onAcSectionChange()"><option value="" data-i18n="selectSection">اختر القسم</option></select></div>
-          <div class="form-field"><select id="acUniversity" onchange="onAcUniversityChange()" disabled><option value="" data-i18n="selectUniversity">اختر الجامعة</option></select></div>
-          <div class="form-field"><select id="acGraduate" onchange="onAcGraduateChange()">
-            <option value="" data-i18n="studentOrGraduate">هل أنت طالب أم متخرج؟</option>
-            <option value="0" data-i18n="stillStudent">ما زلت طالباً</option>
-            <option value="1" data-i18n="graduated">متخرج</option>
-          </select></div>
-          <div class="form-field" id="acStageField" style="display:none;"><select id="acStage"><option value="" data-i18n="selectStage">اختر المرحلة</option></select></div>
-          <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="saveAcademicPath()" data-i18n="save">حفظ</button>
-          <div id="acPathMsg" style="font-size:.78rem; margin-top:8px; text-align:center; display:none;"></div>
-        </div>
-      </div>
-    </div>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; padding:11px; margin-bottom:8px;" onclick="goToAccountEdit()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span data-i18n="editProfile">تعديل الملف الشخصي</span>
+    </button>
 
     <div class="section-block">
       <div class="section-title" data-i18n="activation">التفعيل</div>
@@ -1278,6 +1261,67 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
       <span data-i18n="logout">تسجيل الخروج</span>
     </button>
+  </div>
+
+  <!-- ============ ACCOUNT EDIT VIEW ============ -->
+  <div class="view" id="view-account-edit">
+    <div class="quiz-top">
+      <button class="icon-btn" onclick="backFromAccountEdit()" aria-label="رجوع" data-i18n-aria="back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <div class="quiz-count" data-i18n="editProfile">تعديل الملف الشخصي</div>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="prof-header glass">
+      <button class="prof-header-avatar" id="accEditAvatar" onclick="document.getElementById('accPhotoInput').click()" style="background:linear-gradient(145deg, var(--accent), var(--accent-2)); overflow:hidden; cursor:pointer; border:none; position:relative;" aria-label="تغيير الصورة" data-i18n-aria="changePhoto"></button>
+      <input type="file" id="accPhotoInput" accept="image/*" style="display:none;" onchange="uploadMyPhoto(this.files[0])" />
+      <div>
+        <div class="prof-header-name" id="accEditName">—</div>
+        <div class="item-meta" id="accCaptionDisplay" style="margin-top:6px; cursor:pointer;" onclick="toggleCaptionForm()"></div>
+        <div class="form-field" id="accCaptionForm" style="display:none; margin-top:8px; max-width:280px;">
+          <input id="accCaptionInput" type="text" maxlength="200" placeholder="اكتب كابشن قصير عن نفسك..." data-i18n-placeholder="captionPlaceholder" />
+          <button class="btn btn-ghost" style="margin-top:6px; padding:6px 14px; font-size:.75rem;" onclick="saveMyCaption()" data-i18n="save">حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title" data-i18n="skills">المهارات</div>
+      <div class="glass" style="padding:14px 16px;">
+        <div id="mySkillsList" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input id="newSkillInput" type="text" maxlength="40" placeholder="أضف مهارة (مثال: تشريح، إسعافات أولية)" onkeydown="if(event.key==='Enter'){event.preventDefault(); addMySkill();}" style="flex:1; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);" data-i18n-placeholder="addSkillPlaceholder" />
+          <button class="btn" style="padding:0 16px; font-size:.8rem;" onclick="addMySkill()" data-i18n="add">إضافة</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title" data-i18n="studyPath">المسار الدراسي</div>
+      <div class="item-list">
+        <div class="item-card glass">
+          <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></div>
+          <div class="item-body">
+            <div class="item-title" data-i18n="sectionUniStage">القسم والجامعة والمرحلة</div>
+            <div class="item-meta" id="acPathSummary">جارٍ التحميل...</div>
+          </div>
+          <button class="btn btn-ghost item-action" onclick="toggleAcademicPathForm()" data-i18n="edit">تعديل</button>
+        </div>
+        <div class="glass" id="academicPathForm" style="display:none; padding:16px 18px;">
+          <div class="form-field"><select id="acSection" onchange="onAcSectionChange()"><option value="" data-i18n="selectSection">اختر القسم</option></select></div>
+          <div class="form-field"><select id="acUniversity" onchange="onAcUniversityChange()" disabled><option value="" data-i18n="selectUniversity">اختر الجامعة</option></select></div>
+          <div class="form-field"><select id="acGraduate" onchange="onAcGraduateChange()">
+            <option value="" data-i18n="studentOrGraduate">هل أنت طالب أم متخرج؟</option>
+            <option value="0" data-i18n="stillStudent">ما زلت طالباً</option>
+            <option value="1" data-i18n="graduated">متخرج</option>
+          </select></div>
+          <div class="form-field" id="acStageField" style="display:none;"><select id="acStage"><option value="" data-i18n="selectStage">اختر المرحلة</option></select></div>
+          <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="saveAcademicPath()" data-i18n="save">حفظ</button>
+          <div id="acPathMsg" style="font-size:.78rem; margin-top:8px; text-align:center; display:none;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="view" id="view-banned">
@@ -1436,6 +1480,7 @@
       pathLabel:'المسار الدراسي', pathSection:'القسم', pathUni:'الجامعة', pathStage:'المرحلة', pathSubject:'المادة',
       tileBank:'بنك الأسئلة', tileVideo:'أكاديمية الفيديو', tileProf:'قسم الدكاترة', tileStore:'المتجر', tileReview:'المراجعة', tileLeaderboard:'المتصدرين',
       continueEyebrow:'آخر ملزمة', continueBtn:'متابعة', navHome:'الرئيسية', navAccount:'حسابي', hi:'مرحباً،',
+      continueCourseEyebrow:'متابعة الكورس', lecturesOf:'محاضرة من',
       // -- common --
       back:'رجوع', save:'حفظ', cancel:'إلغاء', edit:'تعديل', add:'إضافة', open:'فتح', start:'ابدأ', confirm:'تأكيد', change:'تغيير',
       loading:'جارٍ التحميل...', noResults:'لا يوجد نتائج', or:'أو',
@@ -1477,6 +1522,8 @@
       currentPasswordPlaceholder:'كلمة المرور الحالية (اتركه فارغاً إن لم تحدد واحدة من قبل)',
       newPasswordPlaceholder:'كلمة المرور الجديدة (8 أحرف على الأقل)', savePassword:'حفظ كلمة المرور',
       twoFactor:'التحقق بخطوتين', setup:'إعداد', myActivity:'نشاطي', logout:'تسجيل الخروج', captionPlaceholder:'اكتب كابشن قصير عن نفسك...',
+      editProfile:'تعديل الملف الشخصي', changePhoto:'تغيير الصورة', addCaptionPrompt:'اضغط لإضافة كابشن...',
+      toggleSidebar:'طي/فتح القائمة',
       // -- toasts / statuses --
       selectSubjectFirst:'اختر المادة أولاً', noFileYet:'لا يوجد ملف مرفوع بعد لهذه الملزمة',
       photoUpdated:'تم تحديث الصورة ✓', photoUploadFailed:'تعذّر رفع الصورة',
@@ -1501,6 +1548,7 @@
       pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject',
       tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', tileReview:'Review', tileLeaderboard:'Leaderboard',
       continueEyebrow:'Last booklet', continueBtn:'Continue', navHome:'Home', navAccount:'My Account', hi:'Hi,',
+      continueCourseEyebrow:'Continue course', lecturesOf:'lectures of',
       back:'Back', save:'Save', cancel:'Cancel', edit:'Edit', add:'Add', open:'Open', start:'Start', confirm:'Confirm', change:'Change',
       loading:'Loading...', noResults:'No results', or:'or',
       selectSection:'Select college', selectUniversity:'Select university', selectStage:'Select stage', selectSubject:'Select subject',
@@ -1532,6 +1580,8 @@
       currentPasswordPlaceholder:"Current password (leave empty if you haven't set one)",
       newPasswordPlaceholder:'New password (at least 8 characters)', savePassword:'Save password',
       twoFactor:'Two-factor authentication', setup:'Set up', myActivity:'My activity', logout:'Log out', captionPlaceholder:'Write a short caption about yourself...',
+      editProfile:'Edit profile', changePhoto:'Change photo', addCaptionPrompt:'Tap to add a caption...',
+      toggleSidebar:'Toggle sidebar',
       selectSubjectFirst:'Select a subject first', noFileYet:'No file uploaded yet for this booklet',
       photoUpdated:'Photo updated ✓', photoUploadFailed:'Could not upload the photo',
       saved:'Saved ✓', saveFailed:'Could not save', addSkillFailed:'Could not add the skill', deleteFailed:'Could not delete',
@@ -1555,6 +1605,7 @@
       pathLabel:'ڕێڕەوی خوێندن', pathSection:'بەش', pathUni:'زانکۆ', pathStage:'قۆناغ', pathSubject:'بابەت',
       tileBank:'کۆگای پرسیار', tileVideo:'ئەکادیمیای ڤیدیۆ', tileProf:'بەشی مامۆستایان', tileStore:'فرۆشگا', tileReview:'پێداچوونەوە', tileLeaderboard:'پێشەنگەکان',
       continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون', navHome:'سەرەکی', navAccount:'هەژماری من', hi:'سڵاو،',
+      continueCourseEyebrow:'بەردەوامبوون لە کۆرس', lecturesOf:'وانە لە',
       back:'گەڕانەوە', save:'پاشەکەوتکردن', cancel:'هەڵوەشاندنەوە', edit:'دەستکاری', add:'زیادکردن', open:'کردنەوە', start:'دەستپێکردن', confirm:'دڵنیابوونەوە', change:'گۆڕین',
       loading:'بارکردن...', noResults:'هیچ ئەنجامێک نییە', or:'یان',
       selectSection:'بەش هەڵبژێرە', selectUniversity:'زانکۆ هەڵبژێرە', selectStage:'قۆناغ هەڵبژێرە', selectSubject:'بابەت هەڵبژێرە',
@@ -1586,6 +1637,8 @@
       currentPasswordPlaceholder:'وشەی نهێنی ئێستا (بەتاڵی بهێڵەرەوە ئەگەر پێشتر دانەناوە)',
       newPasswordPlaceholder:'وشەی نهێنی نوێ (لانیکەم ٨ پیت)', savePassword:'وشەی نهێنی پاشەکەوت بکە',
       twoFactor:'پشتڕاستکردنەوەی دوو هەنگاو', setup:'ڕێکخستن', myActivity:'چالاکیم', logout:'دەرچوون', captionPlaceholder:'کورتەیەک لەبارەی خۆت بنووسە...',
+      editProfile:'دەستکاریکردنی پرۆفایل', changePhoto:'گۆڕینی وێنە', addCaptionPrompt:'کلیک بکە بۆ زیادکردنی کورتە...',
+      toggleSidebar:'لار کردنی لیستە',
       selectSubjectFirst:'یەکەم جار بابەت هەڵبژێرە', noFileYet:'هیچ فایلێک بارنەکراوە بۆ ئەم مەلزەمەیە',
       photoUpdated:'وێنە نوێکرایەوە ✓', photoUploadFailed:'نەتوانرا وێنەکە باربکرێت',
       saved:'پاشەکەوت کرا ✓', saveFailed:'نەتوانرا پاشەکەوت بکرێت', addSkillFailed:'نەتوانرا شارەزاییەکە زیاد بکرێت', deleteFailed:'نەتوانرا بسڕدرێتەوە',
@@ -1651,21 +1704,6 @@
     applyLanguage(currentUser.language || 'ar');
   }
 
-  // ---------- Living path ----------
-  const pathFill = document.getElementById('pathFill');
-  const pathNodes = document.querySelectorAll('.path-node');
-  function setPathStep(step){
-    const pct = ((step - 1) / (pathNodes.length - 1)) * 100;
-    pathFill.style.width = pct + '%';
-    pathNodes.forEach(n => {
-      const s = parseInt(n.dataset.step);
-      n.classList.toggle('done', s < step);
-      n.classList.toggle('current', s === step);
-      n.querySelector('.path-dot').textContent = s < step ? '✓' : s;
-    });
-  }
-  pathNodes.forEach(n => n.addEventListener('click', () => setPathStep(parseInt(n.dataset.step))));
-  setPathStep(3);
 
   // ---------- View switching ----------
   function hideAllViews(){
@@ -1683,7 +1721,7 @@
   const navGroupOf = {
     'view-course': 'view-academy', 'view-professor': 'view-professors',
     'view-cart': 'view-store', 'view-checkout': 'view-store',
-    'view-student-profile': 'view-leaderboard',
+    'view-student-profile': 'view-leaderboard', 'view-account-edit': 'view-account',
   };
   function updateNavActiveState(id){
     const navId = navGroupOf[id] || id;
@@ -1727,8 +1765,34 @@
     showView('view-home');
     stopTimer();
     applyUserPreferences();
+    renderSidebarProfile();
     loadHomeStats();
     refreshNotifBadge();
+  }
+
+  // The sidebar's account row — real avatar/name when logged in, an honest
+  // "My Account" label with no avatar image when not (offline preview / not
+  // yet authenticated). Not a data-i18n target since the real name must
+  // survive a later language switch (see applyLanguage()'s known pitfall).
+  function renderSidebarProfile(){
+    const nameEl = document.getElementById('sidebarProfileName');
+    const avatarEl = document.getElementById('sidebarProfileAvatar');
+    if (!nameEl || !avatarEl) return;
+    if (currentUser){
+      nameEl.textContent = currentUser.full_name || t('navAccount');
+      avatarEl.innerHTML = currentUser.photo_url
+        ? `<img src="${API_BASE_URL}${currentUser.photo_url}" alt="${currentUser.full_name}" />`
+        : (currentUser.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
+    } else {
+      nameEl.textContent = t('navAccount');
+      avatarEl.textContent = '—';
+    }
+  }
+
+  // Desktop-only: toggles the sidebar between the full labeled rail and a
+  // narrow icon-only strip. Pure UI state, not persisted — resets on reload.
+  function toggleSidebar(){
+    document.body.classList.toggle('sidebar-collapsed');
   }
 
   // Real-backend path: replaces the fixed streak/answered-today/rank numbers
@@ -1745,32 +1809,38 @@
       document.getElementById('statAnsweredToday').textContent = s.answered_today;
       document.getElementById('statRank').textContent = s.rank ? ('#' + s.rank) : '—';
     } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
-    await loadPathCard();
     try {
       const c = await apiFetch('/auth/me/continue');
-      const card = document.getElementById('continueCard');
-      const eyebrow = document.getElementById('continueEyebrowText');
-      if (c && c.type === 'booklet'){
-        eyebrow.textContent = 'آخر ملزمة فتحتها';
-        document.getElementById('continueTitle').textContent = c.title;
-        document.getElementById('continueMeta').textContent = c.subject_name || '';
-        card.onclick = async () => { await goToProfessors(); if (c.professor_id) openProfessor(c.professor_id); };
-        card.style.display = 'flex';
-      } else if (c && c.type === 'lecture'){
-        eyebrow.textContent = 'آخر محاضرة فتحتها';
-        document.getElementById('continueTitle').textContent = c.title;
-        document.getElementById('continueMeta').textContent = c.course_title || '';
-        card.onclick = async () => {
+      const courseCard = document.getElementById('continueCourseCard');
+      if (c && c.course){
+        document.getElementById('continueCourseTitle').textContent = c.course.lecture_title;
+        document.getElementById('continueCourseMeta').textContent =
+          `${c.course.course_title} — ${c.course.done_count}/${c.course.total_count} ${t('lecturesOf')}`;
+        document.getElementById('continueCourseRing').style.setProperty('--p', c.course.pct);
+        courseCard.onclick = async () => {
           await tryLoadApiCourses();
-          openCourse(c.course_id);
-          const idx = currentCourse ? currentCourse.lectures.findIndex(l => l.id === c.id) : -1;
+          openCourse(c.course.course_id);
+          const idx = currentCourse ? currentCourse.lectures.findIndex(l => l.id === c.course.lecture_id) : -1;
           if (idx !== -1) selectLecture(idx);
         };
-        card.style.display = 'flex';
+        courseCard.style.display = 'flex';
       } else {
-        card.style.display = 'none';
+        courseCard.style.display = 'none';
       }
-    } catch (e) { document.getElementById('continueCard').style.display = 'none'; }
+
+      const bookletCard = document.getElementById('continueBookletCard');
+      if (c && c.booklet){
+        document.getElementById('continueBookletTitle').textContent = c.booklet.title;
+        document.getElementById('continueBookletMeta').textContent = c.booklet.subject_name || '';
+        bookletCard.onclick = async () => { await goToProfessors(); if (c.booklet.professor_id) openProfessor(c.booklet.professor_id); };
+        bookletCard.style.display = 'flex';
+      } else {
+        bookletCard.style.display = 'none';
+      }
+    } catch (e) {
+      document.getElementById('continueCourseCard').style.display = 'none';
+      document.getElementById('continueBookletCard').style.display = 'none';
+    }
   }
 
   // ---------- Timer ----------
@@ -2644,9 +2714,6 @@
   function goToAccount(){
     showView('view-account');
     renderAccountHeader();
-    loadMySkills();
-    renderAcademicPathSummary();
-    document.getElementById('academicPathForm').style.display = 'none';
     loadActivations();
     loadActiveSession();
     document.getElementById('passwordMeta').textContent = currentUser?.has_password
@@ -2655,17 +2722,37 @@
     loadMyHistory();
   }
 
+  function goToAccountEdit(){
+    showView('view-account-edit');
+    renderAccountHeader();
+    loadMySkills();
+    renderAcademicPathSummary();
+    document.getElementById('academicPathForm').style.display = 'none';
+  }
+  function backFromAccountEdit(){
+    showView('view-account');
+  }
+
   // The account header used to be a hardcoded person ("عمر الساعدي", a fake
-  // phone and fixed college tags) shown to whoever was signed in.
+  // phone and fixed college tags) shown to whoever was signed in. Populates
+  // both view-account's read-only summary and view-account-edit's editable
+  // copy, since either might be the one currently on screen.
   async function renderAccountHeader(){
     const u = currentUser;
     if (!u) return;
-    document.getElementById('accName').textContent = u.full_name || '—';
-    const avatar = document.getElementById('accAvatar');
-    avatar.innerHTML = u.photo_url
+    const nameEl = document.getElementById('accName');
+    if (nameEl) nameEl.textContent = u.full_name || '—';
+    const editNameEl = document.getElementById('accEditName');
+    if (editNameEl) editNameEl.textContent = u.full_name || '—';
+    const avatarHtml = u.photo_url
       ? `<img src="${API_BASE_URL}${u.photo_url}" alt="${u.full_name}" style="width:100%; height:100%; object-fit:cover;" />`
       : (u.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
-    document.getElementById('accPhone').textContent = u.phone || u.email || '';
+    const avatarEl = document.getElementById('accAvatar');
+    if (avatarEl) avatarEl.innerHTML = avatarHtml;
+    const editAvatarEl = document.getElementById('accEditAvatar');
+    if (editAvatarEl) editAvatarEl.innerHTML = avatarHtml;
+    const phoneEl = document.getElementById('accPhone');
+    if (phoneEl) phoneEl.textContent = u.phone || u.email || '';
     const tags = [];
     try {
       const tree = await loadCatalogTreeForProfile();
@@ -2674,13 +2761,15 @@
       const stage = uni?.stages.find(x => x.id === u.stage_id);
       if (section) tags.push(section.name);
       if (uni) tags.push(uni.name);
-      if (u.is_graduate) tags.push('متخرج');
+      if (u.is_graduate) tags.push(t('graduated'));
       else if (stage) tags.push(stage.name);
     } catch (e) { /* catalogue unreachable — show whatever we already have */ }
-    document.getElementById('accTags').innerHTML =
-      tags.map(t => `<span class="prof-tag">${t}</span>`).join('');
-    document.getElementById('accCaptionDisplay').textContent = u.caption || 'اضغط لإضافة كابشن...';
-    document.getElementById('accCaptionForm').style.display = 'none';
+    const tagsEl = document.getElementById('accTags');
+    if (tagsEl) tagsEl.innerHTML = tags.map(tg => `<span class="prof-tag">${tg}</span>`).join('');
+    const captionEl = document.getElementById('accCaptionDisplay');
+    if (captionEl) captionEl.textContent = u.caption || t('addCaptionPrompt');
+    const captionFormEl = document.getElementById('accCaptionForm');
+    if (captionFormEl) captionFormEl.style.display = 'none';
   }
 
   async function uploadMyPhoto(file){
@@ -3160,20 +3249,6 @@
     if (catalogTreeCache) return catalogTreeCache;
     try { catalogTreeCache = await apiFetch('/api/catalog/tree'); } catch (e) { catalogTreeCache = []; }
     return catalogTreeCache;
-  }
-
-  // Replaces the study-path card's fixed "طب بشري / جامعة بغداد / الثانية"
-  // placeholders with the student's real section/university/stage, set via
-  // the complete-profile gate.
-  async function loadPathCard(){
-    if (!currentUser?.section_id || !currentUser?.university_id) return;
-    const tree = await loadCatalogTreeForProfile();
-    const section = tree.find(s => s.id === currentUser.section_id);
-    const uni = section?.universities.find(u => u.id === currentUser.university_id);
-    const stage = uni?.stages.find(st => st.id === currentUser.stage_id);
-    document.getElementById('pathValueSection').textContent = section?.name || '—';
-    document.getElementById('pathValueUni').textContent = uni?.name || '—';
-    document.getElementById('pathValueStage').textContent = currentUser.is_graduate ? 'متخرج' : (stage?.name || '—');
   }
 
   async function showCompleteProfileView(){

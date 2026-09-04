@@ -410,37 +410,58 @@ def record_recent_view(
 
 @router.get("/me/continue")
 def get_continue_card(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    """The single most recent thing this student actually opened — real
-    per-student data, not the old "latest booklet uploaded platform-wide"
-    placeholder that had nothing to do with what the student was doing."""
-    view = (
+    """The home screen's real "pick up where I left off" data — the last
+    course this student actually opened (with real progress through its
+    lectures) and, separately, the last booklet they opened. Both are shown
+    together when available, since a student can genuinely be partway
+    through a course AND mid-read on an unrelated booklet at the same time."""
+    last_lecture_view = (
         db.query(models.RecentView)
-        .filter(models.RecentView.user_id == user.id)
+        .filter(models.RecentView.user_id == user.id, models.RecentView.content_type == "lecture")
         .order_by(models.RecentView.viewed_at.desc())
         .first()
     )
-    if not view:
-        return None
+    last_booklet_view = (
+        db.query(models.RecentView)
+        .filter(models.RecentView.user_id == user.id, models.RecentView.content_type == "booklet")
+        .order_by(models.RecentView.viewed_at.desc())
+        .first()
+    )
 
-    if view.content_type == "booklet":
-        b = db.get(models.Booklet, view.content_id)
-        if not b:
-            return None
-        professor = db.get(models.ProfessorProfile, b.professor_id)
-        return {
-            "type": "booklet", "id": b.id, "title": b.title,
-            "subject_name": professor.subject.name if professor else "",
-            "professor_id": professor.id if professor else None,
-            "file_url": b.file_url or None,
-        }
-    else:
-        l = db.get(models.Lecture, view.content_id)
-        if not l or not l.course:
-            return None
-        return {
-            "type": "lecture", "id": l.id, "title": l.title,
-            "course_id": l.course_id, "course_title": l.course.title,
-        }
+    course_out = None
+    if last_lecture_view:
+        lec = db.get(models.Lecture, last_lecture_view.content_id)
+        if lec and lec.course:
+            course_lectures = db.query(models.Lecture).filter(models.Lecture.course_id == lec.course_id).all()
+            done_ids = {
+                r[0] for r in db.query(models.LectureProgress.lecture_id)
+                .filter(
+                    models.LectureProgress.user_id == user.id,
+                    models.LectureProgress.lecture_id.in_([l.id for l in course_lectures]),
+                ).all()
+            }
+            total = len(course_lectures)
+            done = len(done_ids)
+            course_out = {
+                "course_id": lec.course_id, "course_title": lec.course.title,
+                "lecture_id": lec.id, "lecture_title": lec.title,
+                "done_count": done, "total_count": total,
+                "pct": round(100 * done / total) if total else 0,
+            }
+
+    booklet_out = None
+    if last_booklet_view:
+        b = db.get(models.Booklet, last_booklet_view.content_id)
+        if b:
+            professor = db.get(models.ProfessorProfile, b.professor_id)
+            booklet_out = {
+                "id": b.id, "title": b.title,
+                "subject_name": professor.subject.name if professor else "",
+                "professor_id": professor.id if professor else None,
+                "file_url": b.file_url or None,
+            }
+
+    return {"course": course_out, "booklet": booklet_out}
 
 
 @router.get("/me/stats", response_model=schemas.StudentStatsOut)
