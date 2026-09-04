@@ -240,11 +240,16 @@
   .btn-ghost:hover{background:var(--track); border-color:var(--track-strong);}
 
   /* ---------- Views ---------- */
+  /* The outgoing view used to stay display:block (via a .view-leaving fade-out
+     class) for ~220ms alongside the incoming view so both were in normal
+     document flow at once — two full screens stacked in the layout for a
+     quarter second on every single navigation. That's what read as "lag":
+     a real layout jump/reflow, not just a slow-looking animation. Switching
+     the outgoing view off instantly and only animating the incoming one in
+     removes the double-layout entirely. */
   .view{display:none;}
-  .view.active{display:block; animation:fadeIn .28s ease;}
-  .view.view-leaving{display:block; animation:fadeOut .22s ease forwards;}
-  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
-  @keyframes fadeOut{from{opacity:1; transform:none;} to{opacity:0; transform:translateY(-6px);}}
+  .view.active{display:block; animation:fadeIn .18s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
 
   /* ---------- Quiz view ---------- */
   .quiz-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
@@ -542,9 +547,19 @@
 
   @media (max-width:720px){
     .tiles{grid-template-columns:repeat(2,1fr);}
-    .path-node-value{max-width:64px;}
     .brand-name{display:none;}
     .hero-greeting{font-size:1.25rem;}
+  }
+
+  /* ---------- Tablet (iPad portrait etc, 721-1023px) ---------- */
+  /* Between the mobile and desktop breakpoints: still no sidebar (needs the
+     desktop width to make sense as a persistent rail), but there's enough
+     room that single-column lists waste space — let the row-style cards
+     use it via a real 2-column grid instead. */
+  @media (min-width:721px) and (max-width:1023px){
+    .prof-list, .course-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+    .app{max-width:100%; padding-inline:28px;}
+    .player-card{max-width:640px; margin-inline:auto;}
   }
 
   /* ---------- Desktop shell (≥1024px) ---------- */
@@ -557,6 +572,8 @@
     .bottom-nav{display:none;}
     .app{max-width:1180px; margin:0; padding:28px 40px 40px;}
     body.auth-mode .app{max-width:960px; margin:0 auto;}
+    body.auth-mode .sidebar{display:none;}
+    body.auth-mode .shell{grid-template-columns:1fr;}
 
     /* Views that read better narrow stay narrow even with the extra room */
     #view-quiz .q-card, #view-exam .q-card, #view-checkout .glass, #view-account > .glass,
@@ -643,9 +660,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span id="notifBadge" style="display:none; position:absolute; top:2px; left:2px; background:var(--danger); color:#fff; font-size:.6rem; font-weight:700; min-width:15px; height:15px; border-radius:8px; align-items:center; justify-content:center; padding:0 3px;"></span>
       </button>
-      <button class="icon-btn" onclick="goToAccount()" aria-label="حسابي">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4.5-6 7-6s5.5 2 7 6"/></svg>
-      </button>
     </div>
   </div>
 
@@ -675,6 +689,11 @@
         </div>
       </div>
     </div>
+
+    <button class="glass" id="homePathCard" style="display:none; width:100%; text-align:start; padding:16px 18px; margin-bottom:16px; cursor:pointer;" onclick="goToAccountEdit()">
+      <div class="item-meta" style="margin-bottom:6px;" data-i18n="pathLabel">المسار الدراسي</div>
+      <div id="homePathTags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </button>
 
     <div class="tiles">
       <button class="tile glass" onclick="goToBankSelect()">
@@ -1730,11 +1749,7 @@
   function showView(id){
     const incoming = document.getElementById(id);
     const outgoing = document.getElementById(currentViewId);
-    if (outgoing && outgoing !== incoming){
-      outgoing.classList.remove('active');
-      outgoing.classList.add('view-leaving');
-      setTimeout(() => outgoing.classList.remove('view-leaving'), 260);
-    }
+    if (outgoing && outgoing !== incoming) outgoing.classList.remove('active');
     document.body.classList.remove('auth-mode');
     incoming.classList.add('active');
     currentViewId = id;
@@ -1798,6 +1813,28 @@
   // Real-backend path: replaces the fixed streak/answered-today/rank numbers
   // with the student's actual stats. Falls back to the static demo values
   // (left untouched in the HTML) when logged out or unreachable.
+  // Read-only summary of the student's real section/university/stage on
+  // the home screen — editing it lives in the profile-edit screen, this is
+  // just an honest at-a-glance display, not a duplicate editable widget.
+  async function renderHomePathCard(){
+    const card = document.getElementById('homePathCard');
+    if (!currentUser?.section_id || !currentUser?.university_id){ card.style.display = 'none'; return; }
+    try {
+      const tree = await loadCatalogTreeForProfile();
+      const section = tree.find(s => s.id === currentUser.section_id);
+      const uni = section?.universities.find(u => u.id === currentUser.university_id);
+      const stage = uni?.stages.find(st => st.id === currentUser.stage_id);
+      const tags = [];
+      if (section) tags.push(section.name);
+      if (uni) tags.push(uni.name);
+      if (currentUser.is_graduate) tags.push(t('graduated'));
+      else if (stage) tags.push(stage.name);
+      if (!tags.length){ card.style.display = 'none'; return; }
+      document.getElementById('homePathTags').innerHTML = tags.map(tg => `<span class="prof-tag">${tg}</span>`).join('');
+      card.style.display = 'block';
+    } catch (e) { card.style.display = 'none'; }
+  }
+
   async function loadHomeStats(){
     if (!authToken) return;
     if (currentUser?.full_name){
@@ -1809,6 +1846,7 @@
       document.getElementById('statAnsweredToday').textContent = s.answered_today;
       document.getElementById('statRank').textContent = s.rank ? ('#' + s.rank) : '—';
     } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
+    await renderHomePathCard();
     try {
       const c = await apiFetch('/auth/me/continue');
       const courseCard = document.getElementById('continueCourseCard');
