@@ -274,7 +274,10 @@ class ProductAdminOut(ProductOut):
 
 class OrderItemIn(BaseModel):
     product_id: str
-    qty: int = 1
+    # Bounded on purpose: an unbounded int let a negative qty produce a
+    # negative order total (which fed straight into the admin revenue KPI),
+    # and a huge one would loop that many times issuing activation codes.
+    qty: int = Field(1, ge=1, le=50)
 
 
 class OrderIn(BaseModel):

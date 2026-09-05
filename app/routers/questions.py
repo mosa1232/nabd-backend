@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api", tags=["questions"])
 @router.get("/subjects/{subject_id}/questions", response_model=list[schemas.QuestionOut])
 def list_questions(
     subject_id: str,
-    limit: int = 20,
+    limit: int = Query(20, ge=1, le=100),
     offset: int = 0,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
@@ -108,27 +108,51 @@ def list_saved_questions(db: Session = Depends(get_db), user: models.User = Depe
 
 
 @router.get("/me/mistakes")
-def list_mistakes(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+def list_mistakes(limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """The most recent wrong answer per question — the "أخطائي" review tab.
     Unlike the live quiz, this reveals the correct answer and rationale
     since the student already committed to (and got graded on) their pick."""
+    # Capped and batched: this used to pull every wrong answer the student
+    # had ever given, then fire a per-question db.get() (plus a lazy choices
+    # load and another get() for the picked choice) — thousands of queries
+    # in one request for a heavy user.
     wrong = (
         db.query(models.StudentAnswer)
         .filter(models.StudentAnswer.user_id == user.id, models.StudentAnswer.is_correct.is_(False))
         .order_by(models.StudentAnswer.answered_at.desc())
+        .limit(500)
         .all()
     )
+    latest_per_question: list[models.StudentAnswer] = []
     seen: set[str] = set()
-    out = []
     for a in wrong:
         if a.question_id in seen:
             continue
         seen.add(a.question_id)
-        q = db.get(models.Question, a.question_id)
+        latest_per_question.append(a)
+    latest_per_question = latest_per_question[:limit]
+    if not latest_per_question:
+        return []
+
+    questions = {
+        q.id: q for q in db.query(models.Question)
+        .options(joinedload(models.Question.choices))
+        .filter(models.Question.id.in_([a.question_id for a in latest_per_question]))
+        .all()
+    }
+    choices = {
+        c.id: c for c in db.query(models.Choice)
+        .filter(models.Choice.id.in_([a.choice_id for a in latest_per_question]))
+        .all()
+    }
+
+    out = []
+    for a in latest_per_question:
+        q = questions.get(a.question_id)
         if not q:
             continue
         correct = next((c for c in q.choices if c.is_correct), None)
-        your_choice = db.get(models.Choice, a.choice_id)
+        your_choice = choices.get(a.choice_id)
         out.append({
             "question_id": q.id,
             "eyebrow": q.eyebrow,

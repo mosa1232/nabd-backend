@@ -1,13 +1,11 @@
-import secrets
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import models, ranking, schemas
 from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user
@@ -16,7 +14,7 @@ from ..security import (
     generate_totp_secret, hash_password, start_new_session, totp_provisioning_uri,
     verify_password, verify_totp,
 )
-from .admin import MAX_UPLOAD_BYTES, UPLOAD_DIR
+from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, UPLOAD_DIR, safe_upload_name
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -38,7 +36,20 @@ def _domain_allowed(email: str) -> bool:
     return any(email.lower().endswith("@" + d.lower()) for d in allowed)
 
 
-def _no_admin_exists(db: Session) -> bool:
+def _should_bootstrap_admin(db: Session, email: str) -> bool:
+    """Whether this sign-in should be promoted to admin.
+
+    This used to be "any account, as long as the platform has no admin yet",
+    on every sign-up path including the public POST /auth/register. Because
+    the production database is wiped on each redeploy, that left a window
+    after every deploy where the very first stranger to hit /auth/register
+    silently received a full admin account. Promotion now additionally
+    requires the email to match BOOTSTRAP_ADMIN_EMAIL, so an empty database
+    is no longer a free admin seat.
+    """
+    expected = (settings.bootstrap_admin_email or "").strip().lower()
+    if not expected or email.strip().lower() != expected:
+        return False
     return db.query(models.User).filter(models.User.role == models.Role.admin).first() is None
 
 
@@ -73,15 +84,15 @@ def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models
         if not user.google_sub:
             user.google_sub = sub
             db.commit()
-        # Bootstrap: if the platform somehow has zero admins (e.g. someone
-        # signed up as a student before any admin existed), the next person
-        # to sign in — even on an existing account — becomes admin, so
-        # there's never a dead end with no way into the admin dashboard.
-        if user.role != models.Role.admin and _no_admin_exists(db):
+        # Bootstrap: the one configured BOOTSTRAP_ADMIN_EMAIL becomes admin
+        # on sign-in while the platform still has no admin, so there's never
+        # a dead end with no way into the admin dashboard — without handing
+        # the role to whoever happens to sign in first.
+        if user.role != models.Role.admin and _should_bootstrap_admin(db, email):
             user.role = models.Role.admin
             db.commit()
         return user
-    role = models.Role.admin if _no_admin_exists(db) else models.Role.student
+    role = models.Role.admin if _should_bootstrap_admin(db, email) else models.Role.student
     user = models.User(email=email, full_name=name, google_sub=sub, role=role)
     db.add(user)
     db.commit()
@@ -239,7 +250,7 @@ def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
 
     # Same bootstrap rule as Google/dev-login: if there's no admin on the
     # platform yet, this new account becomes one, regardless of sign-up path.
-    role = models.Role.admin if _no_admin_exists(db) else models.Role.student
+    role = models.Role.admin if _should_bootstrap_admin(db, email) else models.Role.student
     user = models.User(email=email, full_name=full_name, role=role, password_hash=hash_password(body.password))
     db.add(user)
     db.commit()
@@ -371,8 +382,7 @@ async def upload_my_photo(
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
-    safe_name = Path(file.filename or "photo").name
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
     user.photo_url = f"/media-files/{stored_name}"
     db.commit()
@@ -475,38 +485,12 @@ def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_curr
         models.StudentAnswer.answered_at >= today_start,
     ).count()
 
-    answer_dates = db.query(models.StudentAnswer.answered_at).filter(
-        models.StudentAnswer.user_id == user.id
-    ).all()
-    days_with_answers = {row[0].date() for row in answer_dates}
-    cursor = datetime.utcnow().date()
-    if cursor not in days_with_answers:
-        cursor -= timedelta(days=1)  # streak isn't broken until today ends unanswered
-    streak_days = 0
-    while cursor in days_with_answers:
-        streak_days += 1
-        cursor -= timedelta(days=1)
-
-    students_q = db.query(models.User).filter(models.User.role == models.Role.student)
-    if user.university_id:
-        students_q = students_q.filter(models.User.university_id == user.university_id)
-    students = students_q.all()
-
-    correct_by_user: dict[str, int] = {}
-    peer_answers = db.query(models.StudentAnswer).filter(
-        models.StudentAnswer.user_id.in_([s.id for s in students])
-    ).all()
-    for a in peer_answers:
-        if a.is_correct:
-            correct_by_user[a.user_id] = correct_by_user.get(a.user_id, 0) + 1
-
-    ranked = sorted(students, key=lambda s: (-correct_by_user.get(s.id, 0), s.id))
-    rank = next((i + 1 for i, s in enumerate(ranked) if s.id == user.id), None)
+    ranked = ranking.ranked_pairs(db, ranking.peer_ids(db, user))
 
     return schemas.StudentStatsOut(
         answered_today=answered_today,
-        streak_days=streak_days,
-        rank=rank,
+        streak_days=ranking.streak_days(db, user.id),
+        rank=ranking.rank_of(ranked, user.id),
         total_ranked=len(ranked),
     )
 
@@ -545,29 +529,24 @@ def my_performance(db: Session = Depends(get_db), user: models.User = Depends(ge
 
 
 @router.get("/leaderboard")
-def leaderboard(limit: int = 20, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+def leaderboard(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Top students by correct-answer count, scoped to the caller's own
     university when they have one (same peer group used in /me/stats)."""
-    students_q = db.query(models.User).filter(models.User.role == models.Role.student)
-    if user.university_id:
-        students_q = students_q.filter(models.User.university_id == user.university_id)
-    students = students_q.all()
-
-    correct_by_user: dict[str, int] = {}
-    answers = db.query(models.StudentAnswer).filter(
-        models.StudentAnswer.user_id.in_([s.id for s in students])
-    ).all()
-    for a in answers:
-        if a.is_correct:
-            correct_by_user[a.user_id] = correct_by_user.get(a.user_id, 0) + 1
-
-    ranked = sorted(students, key=lambda s: (-correct_by_user.get(s.id, 0), s.id))
+    ranked = ranking.ranked_pairs(db, ranking.peer_ids(db, user))[:limit]
+    # Only the page being shown is hydrated into User rows, instead of
+    # loading every student on the platform to render 20 of them.
+    top = {
+        u.id: u for u in db.query(models.User)
+        .filter(models.User.id.in_([uid for uid, _ in ranked])).all()
+    }
     return [
         {
-            "rank": i + 1, "user_id": s.id, "full_name": s.full_name, "photo_url": s.photo_url,
-            "correct_count": correct_by_user.get(s.id, 0), "is_you": s.id == user.id,
+            "rank": i + 1, "user_id": uid,
+            "full_name": top[uid].full_name if uid in top else "",
+            "photo_url": top[uid].photo_url if uid in top else None,
+            "correct_count": score, "is_you": uid == user.id,
         }
-        for i, s in enumerate(ranked[:limit])
+        for i, (uid, score) in enumerate(ranked)
     ]
 
 

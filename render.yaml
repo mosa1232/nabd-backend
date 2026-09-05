@@ -10,6 +10,9 @@ services:
         generateValue: true
       - key: DEBUG
         value: "false"
+      # Set to your own email so only you can claim admin on a fresh database.
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
       - key: DATABASE_URL
         value: "sqlite:///./nabd.db"
       - key: ALLOWED_UNIVERSITY_DOMAINS

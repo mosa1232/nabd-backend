@@ -1,7 +1,7 @@
 import secrets
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -9,6 +9,7 @@ from .. import models, schemas
 from ..database import get_db
 from ..deps import require_role
 from ..security import hash_password
+from .store import issue_codes_for_paid_order
 
 VALID_ROLES = {r.value for r in models.Role}
 
@@ -16,6 +17,26 @@ UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB — plenty for booklets/slide images in this prototype
 MAX_VIDEO_BYTES = 150 * 1024 * 1024  # 150MB — real lecture videos need more room than a PDF/photo
+
+# Uploads are served back from /media-files on this same origin, so an
+# unrestricted upload is a stored-XSS primitive: a .html (or .svg, which can
+# carry <script>) uploaded as a "profile photo" would be served as real
+# markup on the app's own origin and could read any logged-in user's token.
+# Only these extensions are ever written to disk, and anything else is
+# rejected outright rather than silently renamed.
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+DOC_EXTS = {".pdf"}
+VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v"}
+
+
+def safe_upload_name(filename: str | None, allowed_exts: set[str], fallback_stem: str) -> str:
+    """Validates the extension and returns a randomized, traversal-safe name."""
+    name = Path(filename or fallback_stem).name
+    ext = Path(name).suffix.lower()
+    if ext not in allowed_exts:
+        raise HTTPException(400, f"نوع الملف غير مسموح — المسموح: {', '.join(sorted(allowed_exts))}")
+    return f"{secrets.token_hex(8)}_{fallback_stem}{ext}"
+
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
 
@@ -29,7 +50,12 @@ def overview(db: Session = Depends(get_db)):
     pending_bans = db.query(models.BanRecord).filter(
         models.BanRecord.status == models.BanStatus.active
     ).count()
-    total_orders = db.query(func.coalesce(func.sum(models.Order.total), 0)).scalar()
+    # Only money actually collected counts as revenue — a pending (unpaid)
+    # order isn't income, and counting it made the KPI trivially inflatable
+    # by anyone placing orders they never pay for.
+    total_orders = db.query(func.coalesce(func.sum(models.Order.total), 0)).filter(
+        models.Order.status.in_([models.OrderStatus.paid, models.OrderStatus.fulfilled])
+    ).scalar()
     return {
         "total_students": total_students,
         "active_activations": active_activations,
@@ -178,7 +204,7 @@ def reset_2fa(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/logs")
-def list_logs(limit: int = 50, db: Session = Depends(get_db)):
+def list_logs(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db)):
     logs = (
         db.query(models.ActivityLog)
         .order_by(models.ActivityLog.created_at.desc())
@@ -463,7 +489,7 @@ def delete_question_admin(question_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/weak-topics")
-def weak_topics(limit: int = 5, db: Session = Depends(get_db)):
+def weak_topics(limit: int = Query(5, ge=1, le=50), db: Session = Depends(get_db)):
     """Powers the "أكثر نقاط الضعف شيوعاً" chart — real accuracy per topic
     (Question.eyebrow, falling back to the subject name) across every
     student's answers, instead of the old hardcoded bars."""
@@ -540,8 +566,8 @@ async def upload_media(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
 
-    safe_name = Path(file.filename or "file").name
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    stored_name = safe_upload_name(file.filename, IMAGE_EXTS | DOC_EXTS | VIDEO_EXTS, "file")
+    safe_name = stored_name
     (UPLOAD_DIR / stored_name).write_bytes(contents)
 
     m = models.MediaFile(
@@ -651,7 +677,14 @@ def update_order_status(order_id: str, status: str, db: Session = Depends(get_db
         raise HTTPException(404, "الطلب غير موجود")
     order.status = status
     db.commit()
-    return {"ok": True}
+
+    # Marking an order paid/fulfilled is what actually unlocks what it bought
+    # — this is the only place activation codes get issued, so an unpaid
+    # order can never grant access on its own.
+    granted: list[str] = []
+    if status in (models.OrderStatus.paid.value, models.OrderStatus.fulfilled.value):
+        granted = issue_codes_for_paid_order(db, order)
+    return {"ok": True, "granted_activation_codes": granted}
 
 
 # ===================================================== ADMIN: notifications

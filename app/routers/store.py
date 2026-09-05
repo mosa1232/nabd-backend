@@ -62,14 +62,29 @@ def create_order(
     )
     order.items = order_items
     db.add(order)
+    db.commit()
+    db.refresh(order)
 
-    # This prototype has no real payment-gateway callback, so — same as the
-    # rest of the checkout flow — a placed order is treated as good to go:
-    # activation-code products issue a real, already-activated code right away.
-    granted_codes: list[str] = []
-    for item in body.items:
-        product = products[item.product_id]
-        if not product.is_activation_code:
+    # No activation codes are granted here. There's no payment-gateway
+    # callback yet, so a freshly placed order is exactly that — unpaid.
+    # Codes are issued by issue_codes_for_paid_order() once an admin marks
+    # the order paid/fulfilled; until then a student can place all the
+    # orders they like without unlocking anything.
+    return schemas.OrderOut.model_validate(order, from_attributes=True)
+
+
+def issue_codes_for_paid_order(db: Session, order: models.Order) -> list[str]:
+    """Issues the activation codes an order paid for. Idempotent: an order
+    that already produced codes never produces more, so flipping its status
+    back and forth in the admin panel can't mint free VIP access."""
+    already = db.query(models.ActivationCode).filter(models.ActivationCode.order_id == order.id).first()
+    if already:
+        return []
+
+    granted: list[str] = []
+    for item in order.items:
+        product = db.get(models.Product, item.product_id)
+        if not product or not product.is_activation_code:
             continue
         for _ in range(item.qty):
             code_str = f"NBD-{secrets.token_hex(3).upper()}"
@@ -77,14 +92,11 @@ def create_order(
                 code=code_str,
                 subject_id=product.grants_subject_id,
                 status=models.CodeStatus.active,
-                activated_by_user_id=user.id,
+                activated_by_user_id=order.user_id,
                 activated_at=datetime.utcnow(),
                 expires_at=datetime.utcnow() + timedelta(days=CODE_VALIDITY_DAYS),
+                order_id=order.id,
             ))
-            granted_codes.append(code_str)
-
+            granted.append(code_str)
     db.commit()
-    db.refresh(order)
-    result = schemas.OrderOut.model_validate(order, from_attributes=True)
-    result.granted_activation_codes = granted_codes
-    return result
+    return granted

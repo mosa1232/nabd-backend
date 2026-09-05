@@ -1,20 +1,22 @@
-import secrets
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
-from .admin import MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UPLOAD_DIR
+from .admin import (
+    DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UPLOAD_DIR,
+    VIDEO_EXTS, safe_upload_name,
+)
 
 router = APIRouter(prefix="/api/professors", tags=["professors"])
 
 
-def _to_out(p: models.ProfessorProfile, db: Session) -> schemas.ProfessorOut:
-    booklets = db.query(models.Booklet).filter(models.Booklet.professor_id == p.id).all()
-    exams = db.query(models.Exam).filter(models.Exam.professor_id == p.id).all()
+def _to_out(
+    p: models.ProfessorProfile,
+    booklets: list[models.Booklet],
+    exams: list[models.Exam],
+) -> schemas.ProfessorOut:
     return schemas.ProfessorOut(
         id=p.id,
         title=p.title,
@@ -28,18 +30,45 @@ def _to_out(p: models.ProfessorProfile, db: Session) -> schemas.ProfessorOut:
     )
 
 
+def _profile_query(db: Session):
+    """Eager-loads everything _to_out touches. Without this, serializing a
+    professor fires four extra lazy loads (user, subject, stage, university)
+    on top of the booklet/exam queries — ~6 round trips per professor."""
+    return db.query(models.ProfessorProfile).options(
+        joinedload(models.ProfessorProfile.user),
+        joinedload(models.ProfessorProfile.subject)
+        .joinedload(models.Subject.stage)
+        .joinedload(models.Stage.university),
+    )
+
+
 @router.get("", response_model=list[schemas.ProfessorOut])
 def list_professors(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profs = db.query(models.ProfessorProfile).all()
-    return [_to_out(p, db) for p in profs]
+    profs = _profile_query(db).all()
+    prof_ids = [p.id for p in profs]
+
+    # Two grouped queries for the whole page instead of two per professor.
+    booklets_by_prof: dict[str, list[models.Booklet]] = {}
+    for b in db.query(models.Booklet).filter(models.Booklet.professor_id.in_(prof_ids)).all():
+        booklets_by_prof.setdefault(b.professor_id, []).append(b)
+    exams_by_prof: dict[str, list[models.Exam]] = {}
+    for e in db.query(models.Exam).filter(models.Exam.professor_id.in_(prof_ids)).all():
+        exams_by_prof.setdefault(e.professor_id, []).append(e)
+
+    return [
+        _to_out(p, booklets_by_prof.get(p.id, []), exams_by_prof.get(p.id, []))
+        for p in profs
+    ]
 
 
 @router.get("/{professor_id}", response_model=schemas.ProfessorOut)
 def get_professor(professor_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    p = db.get(models.ProfessorProfile, professor_id)
+    p = _profile_query(db).filter(models.ProfessorProfile.id == professor_id).first()
     if not p:
         raise HTTPException(404, "الدكتور غير موجود")
-    return _to_out(p, db)
+    booklets = db.query(models.Booklet).filter(models.Booklet.professor_id == p.id).all()
+    exams = db.query(models.Exam).filter(models.Exam.professor_id == p.id).all()
+    return _to_out(p, booklets, exams)
 
 
 @router.get("/booklets/latest")
@@ -85,7 +114,7 @@ def update_my_profile(
         profile.photo_url = body.photo_url
     db.commit()
     db.refresh(profile)
-    return _to_out(profile, db)
+    return get_professor(profile.id, db, user)
 
 
 @router.post("/me/photo")
@@ -98,8 +127,7 @@ async def upload_my_photo(
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
-    safe_name = Path(file.filename or "photo").name
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
     profile.photo_url = f"/media-files/{stored_name}"
     db.commit()
@@ -238,8 +266,7 @@ async def upload_booklet_file(
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
-    safe_name = Path(file.filename or "booklet").name
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
     b.file_url = f"/media-files/{stored_name}"
     db.commit()
@@ -392,8 +419,7 @@ async def upload_lecture_video(
     contents = await file.read()
     if len(contents) > MAX_VIDEO_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (150 ميغابايت)")
-    safe_name = Path(file.filename or "lecture").name
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+    stored_name = safe_upload_name(file.filename, VIDEO_EXTS, "lecture")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
     lec.video_url = f"/media-files/{stored_name}"
     db.commit()

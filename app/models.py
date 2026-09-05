@@ -263,6 +263,10 @@ class ActivationCode(Base):
     expires_at = Column(DateTime, nullable=True)
     reseller_id = Column(String, ForeignKey("users.id"), nullable=True)
     sold_at = Column(DateTime, nullable=True)
+    # Set when a code was issued by a store purchase — lets code issuance stay
+    # idempotent if an admin flips an order's status back and forth, and gives
+    # a real audit trail from a paid order to the code it produced.
+    order_id = Column(String, ForeignKey("orders.id"), nullable=True)
 
     subject = relationship("Subject")
 

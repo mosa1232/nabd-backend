@@ -1413,6 +1413,18 @@
   let authToken = null;   // kept in memory only, not localStorage — cleared on refresh
   let currentUser = null;
 
+  // Every value that reaches innerHTML from the API goes through this.
+  // Names, titles, captions and bios are attacker-controlled text (a student
+  // picks their own full_name; a professor picks booklet/course titles), and
+  // without escaping, "<img src=x onerror=...>" in any of them executed in
+  // every other user's browser — including an admin's, where it could read
+  // the in-memory auth token. Numbers/booleans pass through harmlessly.
+  function esc(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch]));
+  }
+
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
@@ -1425,6 +1437,16 @@
     if (!res.ok){
       let detail = '';
       try { detail = (await res.json())?.detail || ''; } catch (e) { /* no JSON body */ }
+      // A 401 means this session is gone — expired, or deactivated because
+      // the account signed in on another device (single-active-session).
+      // Every call site used to swallow that individually, leaving the user
+      // on a stale screen with no idea they'd been signed out.
+      if (res.status === 401 && authToken){
+        authToken = null;
+        currentUser = null;
+        showToast(detail || 'انتهت الجلسة — سجّل الدخول من جديد');
+        goToLogin();
+      }
       const err = new Error(detail || ('API ' + res.status));
       err.status = res.status;
       err.detail = detail;
@@ -1796,7 +1818,7 @@
     if (currentUser){
       nameEl.textContent = currentUser.full_name || t('navAccount');
       avatarEl.innerHTML = currentUser.photo_url
-        ? `<img src="${API_BASE_URL}${currentUser.photo_url}" alt="${currentUser.full_name}" />`
+        ? `<img src="${API_BASE_URL}${esc(currentUser.photo_url)}" alt="${esc(currentUser.full_name)}" />`
         : (currentUser.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
     } else {
       nameEl.textContent = t('navAccount');
@@ -1838,7 +1860,7 @@
   async function loadHomeStats(){
     if (!authToken) return;
     if (currentUser?.full_name){
-      document.getElementById('heroGreeting').textContent = `${t('hi')} ${currentUser.full_name.split(' ')[0]} 👋`;
+      document.getElementById('heroGreeting').textContent = `${t('hi')} ${esc(currentUser.full_name.split(' ')[0])} 👋`;
     }
     try {
       const s = await apiFetch('/auth/me/stats');
@@ -1853,7 +1875,7 @@
       if (c && c.course){
         document.getElementById('continueCourseTitle').textContent = c.course.lecture_title;
         document.getElementById('continueCourseMeta').textContent =
-          `${c.course.course_title} — ${c.course.done_count}/${c.course.total_count} ${t('lecturesOf')}`;
+          `${esc(c.course.course_title)} — ${c.course.done_count}/${c.course.total_count} ${t('lecturesOf')}`;
         document.getElementById('continueCourseRing').style.setProperty('--p', c.course.pct);
         courseCard.onclick = async () => {
           await tryLoadApiCourses();
@@ -1943,7 +1965,7 @@
     showView('view-bank-select');
     if (!bsCatalogTree) bsCatalogTree = await loadCatalogTreeForProfile();
     document.getElementById('bsSection').innerHTML = `<option value="">${t('selectSection')}</option>` +
-      bsCatalogTree.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      bsCatalogTree.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     ['bsUniversity', 'bsStage', 'bsSubject'].forEach(id => {
       document.getElementById(id).innerHTML = `<option value="">${{bsUniversity:t('selectUniversity'), bsStage:t('selectStage'), bsSubject:t('selectSubject')}[id]}</option>`;
       document.getElementById(id).disabled = true;
@@ -1956,7 +1978,7 @@
     const uniSel = document.getElementById('bsUniversity');
     uniSel.disabled = !section;
     uniSel.innerHTML = `<option value="">${t('selectUniversity')}</option>` +
-      (section ? section.universities.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
+      (section ? section.universities.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('') : '');
     onBsUniversityChange();
   }
   function onBsUniversityChange(){
@@ -1965,7 +1987,7 @@
     const stageSel = document.getElementById('bsStage');
     stageSel.disabled = !uni;
     stageSel.innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}">${st.name}</option>`).join('') : '');
+      (uni ? uni.stages.map(st => `<option value="${st.id}">${esc(st.name)}</option>`).join('') : '');
     onBsStageChange();
   }
   function onBsStageChange(){
@@ -1975,7 +1997,7 @@
     const subjSel = document.getElementById('bsSubject');
     subjSel.disabled = !stage;
     subjSel.innerHTML = `<option value="">${t('selectSubject')}</option>` +
-      (stage ? stage.subjects.map(sub => `<option value="${sub.id}">${sub.name}</option>`).join('') : '');
+      (stage ? stage.subjects.map(sub => `<option value="${sub.id}">${esc(sub.name)}</option>`).join('') : '');
   }
   function startBankQuizFromSelection(){
     const subjSel = document.getElementById('bsSubject');
@@ -2008,7 +2030,7 @@
     q.choices.forEach((choice, idx) => {
       const b = document.createElement('button');
       b.className = 'option';
-      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx] || (idx+1)}</span><span>${choice.text}</span>`;
+      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx] || (idx+1)}</span><span>${esc(choice.text)}</span>`;
       b.addEventListener('click', () => selectApiOption(q.id, choice.id, idx));
       optWrap.appendChild(b);
     });
@@ -2114,10 +2136,10 @@
     const list = filter === 'all' ? all : all.filter(p => p.subject === filter);
     document.getElementById('profList').innerHTML = list.map(p => `
       <button class="prof-card glass" onclick="openProfessor('${p.id}')">
-        <div class="prof-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2)); overflow:hidden;">${p.photoUrl ? `<img src="${API_BASE_URL}${p.photoUrl}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover;" />` : initials(p.name)}</div>
+        <div class="prof-avatar" style="background:linear-gradient(145deg, ${esc(p.color)}, var(--accent-2)); overflow:hidden;">${p.photoUrl ? `<img src="${API_BASE_URL}${esc(p.photoUrl)}" alt="${esc(p.name)}" style="width:100%; height:100%; object-fit:cover;" />` : initials(p.name)}</div>
         <div class="prof-info">
-          <div class="prof-name">${p.name}</div>
-          <div class="prof-meta">${p.title} · ${p.subject}${p.uni ? ' · ' + p.uni : ''}</div>
+          <div class="prof-name">${esc(p.name)}</div>
+          <div class="prof-meta">${esc(p.title)} · ${esc(p.subject)}${p.uni ? ' · ' + p.uni : ''}</div>
           <div class="prof-stats">
             <span>${pdfIcon}${p.booklets} ملزمة</span>
             <span>${examIcon}${p.exams} امتحان</span>
@@ -2132,18 +2154,18 @@
     const p = activeProfessorsList().find(x => String(x.id) === String(id));
     if (!p) return;
     const avatarInner = p.photoUrl
-      ? `<img src="${API_BASE_URL}${p.photoUrl}" alt="${p.name}" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" />`
+      ? `<img src="${API_BASE_URL}${esc(p.photoUrl)}" alt="${esc(p.name)}" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" />`
       : initials(p.name);
     document.getElementById('profHeader').innerHTML = `
-      <div class="prof-header-avatar" style="background:linear-gradient(145deg, ${p.color}, var(--accent-2)); overflow:hidden;">${avatarInner}</div>
+      <div class="prof-header-avatar" style="background:linear-gradient(145deg, ${esc(p.color)}, var(--accent-2)); overflow:hidden;">${avatarInner}</div>
       <div>
-        <div class="prof-header-name">${p.name}</div>
-        <div class="prof-header-title">${p.title} · ${p.subject}</div>
+        <div class="prof-header-name">${esc(p.name)}</div>
+        <div class="prof-header-title">${esc(p.title)} · ${esc(p.subject)}</div>
         <div class="prof-tags">
-          ${p.uni ? `<span class="prof-tag">${p.uni}</span>` : ''}
+          ${p.uni ? `<span class="prof-tag">${esc(p.uni)}</span>` : ''}
           ${p.followers != null ? `<span class="prof-tag">${p.followers.toLocaleString('en-US')} طالب يتابعه</span>` : ''}
         </div>
-        ${p.bio ? `<div class="item-meta" style="margin-top:8px; max-width:340px;">${p.bio}</div>` : ''}
+        ${p.bio ? `<div class="item-meta" style="margin-top:8px; max-width:340px;">${esc(p.bio)}</div>` : ''}
       </div>
     `;
     const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({id: b.id, t: b.title, p: b.pages, fileUrl: b.file_url || null})) : (bookletsBySubject[p.subject] || []);
@@ -2152,17 +2174,17 @@
       <div class="item-card glass">
         <div class="item-icon pdf">${pdfIcon}</div>
         <div class="item-body">
-          <div class="item-title">${b.t}</div>
+          <div class="item-title">${esc(b.t)}</div>
           <div class="item-meta">${b.p} صفحة · PDF</div>
         </div>
-        ${b.fileUrl ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${b.fileUrl}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">${t('open')}</a>` : `<button class="btn btn-ghost item-action" onclick="showToast(t('noFileYet'))" style="opacity:.6;">${t('open')}</button>`}
+        ${b.fileUrl ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${esc(b.fileUrl)}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">${t('open')}</a>` : `<button class="btn btn-ghost item-action" onclick="showToast(t('noFileYet'))" style="opacity:.6;">${t('open')}</button>`}
       </div>
     `).join('') || `<div class="empty-row">${t('noBookletsYet')}</div>`;
     document.getElementById('examsList').innerHTML = exams.map(e => `
       <div class="item-card glass">
         <div class="item-icon exam">${examIcon}</div>
         <div class="item-body">
-          <div class="item-title">${e.t}</div>
+          <div class="item-title">${esc(e.t)}</div>
           <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة</div>
         </div>
         ${e.id ? `<button class="btn item-action" onclick="startExam('${e.id}')">${t('start')}</button>` : ''}
@@ -2249,7 +2271,7 @@
           <span class="product-badge ${p.type === 'physical' ? 'physical' : 'digital'}">${PRODUCT_TYPE_BADGE[p.type] || p.type}</span>
           ${productIcons[PRODUCT_TYPE_ICON[p.type] || 'key']}
         </div>
-        <div class="product-name">${p.name}</div>
+        <div class="product-name">${esc(p.name)}</div>
         <div class="product-price mono">${fmtPrice(p.price)}</div>
         <button class="btn product-add" onclick="addToCart('${p.id}')">أضف للسلة</button>
       </div>
@@ -2299,7 +2321,7 @@
         <div class="cart-item glass">
           <div class="cart-item-icon">${productIcons[PRODUCT_TYPE_ICON[p.type] || 'key']}</div>
           <div class="cart-item-body">
-            <div class="cart-item-name">${p.name}</div>
+            <div class="cart-item-name">${esc(p.name)}</div>
             <div class="cart-item-price mono">${fmtPrice(p.price)}</div>
           </div>
           <div class="qty-stepper">
@@ -2543,12 +2565,12 @@
       const stats = courseStats(c);
       return `
       <button class="course-card glass" onclick="openCourse('${c.id}')">
-        <div class="course-thumb" style="background:linear-gradient(145deg, ${c.color}, var(--accent-2))">
+        <div class="course-thumb" style="background:linear-gradient(145deg, ${esc(c.color)}, var(--accent-2))">
           <svg viewBox="0 0 24 24" fill="#fff" stroke="none"><path d="M8 5v14l11-7Z"/></svg>
         </div>
         <div class="course-info">
-          <div class="course-title">${c.title}</div>
-          <div class="course-instructor">${c.instructor}</div>
+          <div class="course-title">${esc(c.title)}</div>
+          <div class="course-instructor">${esc(c.instructor)}</div>
           <div class="course-meta"><span>${c.lectures.length} محاضرة</span><span>·</span><span>${fmtDurationLong(stats.totalSeconds)}</span></div>
           <div class="course-progress-track"><div class="course-progress-fill" style="width:${stats.pct}%"></div></div>
         </div>
@@ -2589,7 +2611,7 @@
     document.getElementById('courseTopTitle').textContent = currentCourse.title;
     document.getElementById('courseTitleText').textContent = currentCourse.title;
     const stats = courseStats(currentCourse);
-    document.getElementById('courseMetaText').textContent = `${currentCourse.instructor} · ${currentCourse.lectures.length} محاضرة · ${fmtDurationLong(stats.totalSeconds)}`;
+    document.getElementById('courseMetaText').textContent = `${esc(currentCourse.instructor)} · ${currentCourse.lectures.length} محاضرة · ${fmtDurationLong(stats.totalSeconds)}`;
   }
 
   function renderCoursePlayer(){
@@ -2597,7 +2619,7 @@
     if (lec.id) recordRecentView('lecture', lec.id);
     const video = document.getElementById('playerVideoEl');
     const placeholder = document.getElementById('playerNoVideo');
-    document.getElementById('playerScreen').style.background = `linear-gradient(160deg, ${currentCourse.color}, var(--accent-2))`;
+    document.getElementById('playerScreen').style.background = `linear-gradient(160deg, ${esc(currentCourse.color)}, var(--accent-2))`;
     document.getElementById('playerLectureTitle').textContent = lec.title;
     document.getElementById('playerSpeedPill').textContent = 'x' + speedOptions[playbackSpeedIdx];
     document.getElementById('playerCenterBtn').style.display = lec.videoUrl ? '' : 'none';
@@ -2696,8 +2718,8 @@
       <button class="item-card lecture-item glass ${isCurrent ? 'current' : ''} ${l.done ? 'done' : ''}" onclick="selectLecture(${idx})">
         <span class="lecture-num">${l.done ? '✓' : idx+1}</span>
         <span class="item-body">
-          <span class="item-title">${l.title}</span>
-          <span class="item-meta mono">${l.dur}</span>
+          <span class="item-title">${esc(l.title)}</span>
+          <span class="item-meta mono">${esc(l.dur)}</span>
         </span>
         <span class="lecture-play">${isPlaying ? pauseGlyph : playGlyph}</span>
       </button>`;
@@ -2723,17 +2745,17 @@
       <div class="item-card glass">
         <div class="item-icon pdf">${pdfIcon}</div>
         <div class="item-body">
-          <div class="item-title">${b.title}</div>
+          <div class="item-title">${esc(b.title)}</div>
           <div class="item-meta">${b.pages} صفحة · PDF</div>
         </div>
-        ${b.file_url ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${b.file_url}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">${t('open')}</a>` : `<button class="btn btn-ghost item-action" onclick="showToast(t('noFileYet'))" style="opacity:.6;">${t('open')}</button>`}
+        ${b.file_url ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${esc(b.file_url)}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">${t('open')}</a>` : `<button class="btn btn-ghost item-action" onclick="showToast(t('noFileYet'))" style="opacity:.6;">${t('open')}</button>`}
       </div>
     `).join('') || `<div class="empty-row">${t('noBookletsForCourse')}</div>`;
     quizzesEl.innerHTML = materials.exams.map(e => `
       <div class="item-card glass">
         <div class="item-icon exam">${examIcon}</div>
         <div class="item-body">
-          <div class="item-title">${e.title}</div>
+          <div class="item-title">${esc(e.title)}</div>
           <div class="item-meta">${e.question_count} سؤال · ${e.duration_minutes} دقيقة</div>
         </div>
         <button class="btn item-action" onclick="startExam('${e.id}')">${t('start')}</button>
@@ -2783,7 +2805,7 @@
     const editNameEl = document.getElementById('accEditName');
     if (editNameEl) editNameEl.textContent = u.full_name || '—';
     const avatarHtml = u.photo_url
-      ? `<img src="${API_BASE_URL}${u.photo_url}" alt="${u.full_name}" style="width:100%; height:100%; object-fit:cover;" />`
+      ? `<img src="${API_BASE_URL}${esc(u.photo_url)}" alt="${esc(u.full_name)}" style="width:100%; height:100%; object-fit:cover;" />`
       : (u.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
     const avatarEl = document.getElementById('accAvatar');
     if (avatarEl) avatarEl.innerHTML = avatarHtml;
@@ -2849,7 +2871,7 @@
       const skills = await apiFetch('/auth/me/skills');
       list.innerHTML = skills.map(s => `
         <span class="prof-tag" style="display:inline-flex; align-items:center; gap:6px;">
-          ${s.text}
+          ${esc(s.text)}
           <span onclick="removeMySkill('${s.id}')" style="cursor:pointer; font-weight:900;">×</span>
         </span>
       `).join('') || '<span class="item-meta">ما أضفت أي مهارة بعد</span>';
@@ -2900,7 +2922,7 @@
     const tree = await loadCatalogTreeForProfile();
     const u = currentUser;
     document.getElementById('acSection').innerHTML = `<option value="">${t('selectSection')}</option>` +
-      tree.map(s => `<option value="${s.id}" ${s.id === u.section_id ? 'selected' : ''}>${s.name}</option>`).join('');
+      tree.map(s => `<option value="${s.id}" ${s.id === u.section_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
     onAcSectionChange(u.university_id, u.stage_id);
     document.getElementById('acGraduate').value = u.is_graduate === true ? '1' : (u.is_graduate === false ? '0' : '');
     onAcGraduateChange();
@@ -2914,7 +2936,7 @@
     const uniSel = document.getElementById('acUniversity');
     uniSel.disabled = !section;
     uniSel.innerHTML = `<option value="">${t('selectUniversity')}</option>` +
-      (section ? section.universities.map(u => `<option value="${u.id}" ${u.id === preselectUniId ? 'selected' : ''}>${u.name}</option>`).join('') : '');
+      (section ? section.universities.map(u => `<option value="${u.id}" ${u.id === preselectUniId ? 'selected' : ''}>${esc(u.name)}</option>`).join('') : '');
     onAcUniversityChange(preselectStageId);
   }
   function onAcUniversityChange(preselectStageId){
@@ -2924,7 +2946,7 @@
     const stageSel = document.getElementById('acStage');
     stageSel.disabled = !uni;
     stageSel.innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${st.name}</option>`).join('') : '');
+      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${esc(st.name)}</option>`).join('') : '');
   }
   function onAcGraduateChange(){
     const isGraduate = document.getElementById('acGraduate').value === '1';
@@ -2983,7 +3005,7 @@
       const mins = Math.max(0, Math.round((Date.now() - new Date(s.created_at + 'Z')) / 60000));
       const since = mins < 60 ? `منذ ${mins} دقيقة` : mins < 1440 ? `منذ ${Math.round(mins/60)} ساعة` : `منذ ${Math.round(mins/1440)} يوم`;
       document.getElementById('activeSessionMeta').textContent =
-        `${s.device_label} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
+        `${esc(s.device_label)} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
     } catch (e) { /* backend unreachable — keep the static demo text */ }
   }
 
@@ -3022,7 +3044,7 @@
       const data = await apiFetch('/auth/2fa/setup', {method: 'POST'});
       document.getElementById('totpSetupArea').innerHTML = `
         <div class="item-meta" style="margin-top:10px;">افتح تطبيق مصادقة مثل Google Authenticator، واختر "إدخال المفتاح يدوياً"، ثم أدخل هذا المفتاح:</div>
-        <div class="mono" style="direction:ltr; text-align:center; font-size:.95rem; font-weight:700; padding:10px; margin:8px 0; background:var(--track); border-radius:12px; letter-spacing:2px;">${data.secret}</div>
+        <div class="mono" style="direction:ltr; text-align:center; font-size:.95rem; font-weight:700; padding:10px; margin:8px 0; background:var(--track); border-radius:12px; letter-spacing:2px;">${esc(data.secret)}</div>
         <div class="form-field"><input id="totpEnableCode" type="text" inputmode="numeric" placeholder="أدخل الرمز المكوّن من 6 أرقام" /></div>
         <button class="btn" style="width:100%; justify-content:center;" onclick="confirmTotpEnableStudent()">تفعيل</button>
         <div id="totpFormMsg" style="display:none; font-size:.78rem; margin-top:8px; text-align:center;"></div>
@@ -3074,8 +3096,8 @@
         <div class="item-card glass">
           <div class="item-icon ${e.type === 'exam' ? 'exam' : 'pdf'}">${HISTORY_ICON[e.type] || ''}</div>
           <div class="item-body">
-            <div class="item-title">${e.title}</div>
-            <div class="item-meta">${HISTORY_LABEL[e.type] || ''} · ${e.detail} · ${fmtDate(e.at)}</div>
+            <div class="item-title">${esc(e.title)}</div>
+            <div class="item-meta">${HISTORY_LABEL[e.type] || ''} · ${esc(e.detail)} · ${fmtDate(e.at)}</div>
           </div>
         </div>
       `).join('') || '<div class="empty-row">ما اكو نشاط مسجّل بعد</div>';
@@ -3133,8 +3155,8 @@
       <div class="continue-card glass" style="cursor:default;">
         <div class="continue-ring" style="--p:${pct};"></div>
         <div class="continue-body">
-          <div class="continue-eyebrow">${a.subject_name}</div>
-          <div class="continue-title mono">${a.code_masked}</div>
+          <div class="continue-eyebrow">${esc(a.subject_name)}</div>
+          <div class="continue-title mono">${esc(a.code_masked)}</div>
           <div class="continue-meta">${daysLeft != null ? t('expiresIn') + ' ' + daysLeft + ' ' + t('days') : ''}</div>
         </div>
       </div>`;
@@ -3298,7 +3320,7 @@
     document.getElementById('cpStageField').style.display = 'none';
     const tree = await loadCatalogTreeForProfile();
     document.getElementById('cpSection').innerHTML = `<option value="">${t('selectCollege')}</option>` +
-      tree.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      tree.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     document.getElementById('cpUniversity').innerHTML = `<option value="">${t('selectUniversity')}</option>`;
     document.getElementById('cpUniversity').disabled = true;
     document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>`;
@@ -3310,7 +3332,7 @@
     const uniSel = document.getElementById('cpUniversity');
     uniSel.disabled = !section;
     uniSel.innerHTML = `<option value="">${t('selectUniversity')}</option>` +
-      (section ? section.universities.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
+      (section ? section.universities.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('') : '');
     onCpUniversityChange();
   }
 
@@ -3319,7 +3341,7 @@
     const section = tree.find(s => s.id === document.getElementById('cpSection').value);
     const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
     document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}">${st.name}</option>`).join('') : '');
+      (uni ? uni.stages.map(st => `<option value="${st.id}">${esc(st.name)}</option>`).join('') : '');
   }
 
   function onCpGraduateChange(){
@@ -3446,13 +3468,13 @@
         area.innerHTML = `
           <div class="glass" style="padding:16px 18px;">
             <div style="font-weight:700; margin-bottom:6px;">طعنك قيد المراجعة</div>
-            <div style="font-size:.82rem; color:var(--ink-soft);">"${s.appeal_message}"</div>
+            <div style="font-size:.82rem; color:var(--ink-soft);">"${esc(s.appeal_message)}"</div>
           </div>`;
       } else if (s.status === 'active' && s.appeal_message){
         area.innerHTML = `
           <div class="glass" style="padding:16px 18px; margin-bottom:12px;">
             <div style="font-weight:700; color:var(--danger); margin-bottom:6px;">تم رفض الطعن السابق</div>
-            <div style="font-size:.82rem; color:var(--ink-soft);">"${s.appeal_message}"</div>
+            <div style="font-size:.82rem; color:var(--ink-soft);">"${esc(s.appeal_message)}"</div>
           </div>
           ${appealFormHtml()}`;
       } else {
@@ -3512,8 +3534,8 @@
       list.innerHTML = notifs.map(n => `
         <div class="item-card glass" style="align-items:flex-start; cursor:pointer; ${n.read ? '' : 'border-inline-start:3px solid var(--accent);'}" onclick="markNotifRead('${n.id}', this)">
           <div class="item-body">
-            <div class="item-title">${n.title}</div>
-            <div class="item-meta">${n.body}</div>
+            <div class="item-title">${esc(n.title)}</div>
+            <div class="item-meta">${esc(n.body)}</div>
             <div class="item-meta" style="opacity:.6;">${fmtDate(n.created_at)}</div>
           </div>
         </div>
@@ -3560,10 +3582,10 @@
       list.innerHTML = rows.map(r => `
         <div class="item-card glass" style="align-items:flex-start;">
           <div class="item-body">
-            <div class="item-title">${r.text}</div>
-            <div class="item-meta" style="color:var(--danger);">${t('yourAnswer')}: ${r.your_choice || '—'}</div>
-            <div class="item-meta" style="color:var(--success);">${t('correctAnswer')}: ${r.correct_choice || '—'}</div>
-            ${r.rationale ? `<div class="item-meta">${r.rationale}</div>` : ''}
+            <div class="item-title">${esc(r.text)}</div>
+            <div class="item-meta" style="color:var(--danger);">${t('yourAnswer')}: ${esc(r.your_choice || '—')}</div>
+            <div class="item-meta" style="color:var(--success);">${t('correctAnswer')}: ${esc(r.correct_choice || '—')}</div>
+            ${r.rationale ? `<div class="item-meta">${esc(r.rationale)}</div>` : ''}
           </div>
         </div>
       `).join('') || `<div class="empty-row">${t('noMistakesYet')}</div>`;
@@ -3580,8 +3602,8 @@
       list.innerHTML = rows.map(q => `
         <div class="item-card glass" style="align-items:flex-start;">
           <div class="item-body">
-            <div class="item-title">${q.text}</div>
-            <div class="item-meta">${q.eyebrow || ''}</div>
+            <div class="item-title">${esc(q.text)}</div>
+            <div class="item-meta">${esc(q.eyebrow || '')}</div>
           </div>
           <button class="btn btn-ghost item-action" onclick="unsaveQuestion('${q.id}', this)">${t('remove')}</button>
         </div>
@@ -3622,9 +3644,9 @@
       const rows = await apiFetch('/auth/leaderboard');
       list.innerHTML = rows.map(r => `
         <div class="item-card glass" style="cursor:pointer; ${r.is_you ? 'border:1.5px solid var(--accent);' : ''}" onclick="openStudentProfile('${r.user_id}')">
-          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${r.photo_url ? `<img src="${API_BASE_URL}${r.photo_url}" style="width:100%; height:100%; object-fit:cover;" />` : '#' + r.rank}</div>
+          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${r.photo_url ? `<img src="${API_BASE_URL}${esc(r.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />` : '#' + r.rank}</div>
           <div class="item-body">
-            <div class="item-title">${r.full_name}${r.is_you ? ' (أنت)' : ''}</div>
+            <div class="item-title">${esc(r.full_name)}${r.is_you ? ' (أنت)' : ''}</div>
             <div class="item-meta">#${r.rank} · ${r.correct_count} إجابة صحيحة</div>
           </div>
         </div>
@@ -3656,10 +3678,10 @@
       const rows = await apiFetch('/api/students/search?q=' + encodeURIComponent(q));
       resultsEl.innerHTML = rows.map(s => `
         <div class="item-card glass" style="cursor:pointer;" onclick="openStudentProfile('${s.id}')">
-          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${s.photo_url ? `<img src="${API_BASE_URL}${s.photo_url}" style="width:100%; height:100%; object-fit:cover;" />` : (s.full_name||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')}</div>
+          <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${s.photo_url ? `<img src="${API_BASE_URL}${esc(s.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />` : (s.full_name||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('')}</div>
           <div class="item-body">
-            <div class="item-title">${s.full_name}</div>
-            ${s.caption ? `<div class="item-meta">${s.caption}</div>` : ''}
+            <div class="item-title">${esc(s.full_name)}</div>
+            ${s.caption ? `<div class="item-meta">${esc(s.caption)}</div>` : ''}
           </div>
         </div>
       `).join('') || '<div class="empty-row">ما اكو نتائج</div>';
@@ -3679,7 +3701,7 @@
     try {
       const p = await apiFetch('/api/students/' + id + '/profile');
       document.getElementById('spAvatar').innerHTML = p.photo_url
-        ? `<img src="${API_BASE_URL}${p.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
+        ? `<img src="${API_BASE_URL}${esc(p.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />`
         : (p.full_name || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
       document.getElementById('spName').textContent = p.full_name;
       document.getElementById('spCaption').textContent = p.caption || '';
@@ -3704,7 +3726,7 @@
       list.innerHTML = rows.map(r => `
         <div class="item-card glass">
           <div class="item-body">
-            <div class="item-title">${r.subject_name}</div>
+            <div class="item-title">${esc(r.subject_name)}</div>
             <div class="item-meta">${r.correct} صحيحة من ${r.answered}</div>
           </div>
           <div class="item-icon" style="background:${r.accuracy_pct >= 60 ? 'var(--success)' : 'var(--danger)'}; color:#fff; font-weight:700;">${r.accuracy_pct}%</div>
@@ -3763,7 +3785,7 @@
     it.choices.forEach((choice, idx) => {
       const b = document.createElement('button');
       b.className = 'option' + (it.your_choice_id === choice.id ? ' selected' : '');
-      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx] || (idx + 1)}</span><span>${choice.text}</span>`;
+      b.innerHTML = `<span class="option-mark">${['أ','ب','ج','د'][idx] || (idx + 1)}</span><span>${esc(choice.text)}</span>`;
       b.addEventListener('click', () => selectExamOption(choice.id));
       wrap.appendChild(b);
     });
@@ -3819,11 +3841,11 @@
       <div class="item-card glass" style="align-items:flex-start;">
         <div class="item-icon" style="background:${it.is_correct ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${i + 1}</div>
         <div class="item-body">
-          <div class="item-title">${it.text}</div>
+          <div class="item-title">${esc(it.text)}</div>
           <div class="item-meta" style="color:${it.is_correct ? 'var(--success)' : 'var(--danger)'};">
             ${it.is_correct ? 'إجابة صحيحة' : 'إجابة خاطئة'}
           </div>
-          ${it.rationale ? `<div class="item-meta">${it.rationale}</div>` : ''}
+          ${it.rationale ? `<div class="item-meta">${esc(it.rationale)}</div>` : ''}
         </div>
       </div>
     `).join('');

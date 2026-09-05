@@ -795,6 +795,18 @@
   let currentRole = 'admin';
   let liveMode = false; // true once a real dev-login/OAuth session exists
 
+  // Every value that reaches innerHTML from the API goes through this.
+  // Names, titles, captions and bios are attacker-controlled text (a student
+  // picks their own full_name; a professor picks booklet/course titles), and
+  // without escaping, "<img src=x onerror=...>" in any of them executed in
+  // every other user's browser — including an admin's, where it could read
+  // the in-memory auth token. Numbers/booleans pass through harmlessly.
+  function esc(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[ch]));
+  }
+
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
@@ -807,6 +819,13 @@
     if (!res.ok){
       let detail = '';
       try { detail = (await res.json())?.detail || ''; } catch (e) { /* no JSON body */ }
+      // Session gone (expired, or signed in elsewhere) — drop back to the
+      // login screen once, centrally, instead of every screen silently
+      // failing to load and looking merely "empty".
+      if (res.status === 401 && authToken){
+        showToast(detail || 'انتهت الجلسة — سجّل الدخول من جديد', 'error');
+        doLogout();
+      }
       const err = new Error(detail || ('API ' + res.status));
       err.status = res.status;
       err.detail = detail;
@@ -834,13 +853,13 @@
     genericModalFieldsSpec = fields; // [{id, label, type:'text'|'password'|'number'|'select', value, placeholder, options:[{value,label}]}]
     genericModalOnSubmit = onSubmit;
     document.getElementById('genericModalFields').innerHTML = fields.map(f => {
-      const labelHtml = `<label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">${f.label}</label>`;
+      const labelHtml = `<label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">${esc(f.label)}</label>`;
       if (f.type === 'select'){
-        const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${o.label}</option>`).join('');
+        const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
         return `<div class="form-field">${labelHtml}<select id="gm_${f.id}">${opts}</select></div>`;
       }
       const val = f.value != null ? String(f.value).replace(/"/g, '&quot;') : '';
-      return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="${f.type || 'text'}" value="${val}" placeholder="${f.placeholder || ''}" /></div>`;
+      return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="${f.type || 'text'}" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}" /></div>`;
     }).join('');
     document.getElementById('genericModalMsg').style.display = 'none';
     document.getElementById('genericModalOverlay').style.display = 'flex';
@@ -1255,7 +1274,7 @@
     document.getElementById('kpiRevenue').textContent = fmtIQD(kpi.revenue_total);
     document.getElementById('kpiBans').textContent = kpi.pending_bans;
     document.getElementById('overviewActivity').innerHTML = activity.map(a => `
-      <div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${a.action}</span><span class="activity-time">${fmtDate(a.created_at)}</span></div>
+      <div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(a.action)}</span><span class="activity-time">${fmtDate(a.created_at)}</span></div>
     `).join('') || '<div class="empty-row">لا يوجد نشاط بعد</div>';
   }
 
@@ -1286,6 +1305,10 @@
     document.querySelectorAll('#accountFilters .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.role === role));
     renderAccountsTable();
   }
+  function accountName(userId){
+    return (allAccounts.find(a => String(a.id) === String(userId)) || {}).full_name || '';
+  }
+
   function renderAccountsTable(){
     const q = (document.getElementById('accountSearch')?.value || '').trim().toLowerCase();
     let list = accountFilter === 'all' ? allAccounts : allAccounts.filter(a => a.role === accountFilter);
@@ -1293,20 +1316,20 @@
     const editBtn = a => `<button class="icon-btn" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
     const banBtn = a => a.is_banned
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="unbanUserAccount('${a.id}')">رفع الحظر</button>`
-      : `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="promptBanUser('${a.id}', '${a.full_name}')">حظر</button>`;
+      : `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="promptBanUser('${a.id}')">حظر</button>`;
     const totpBtn = a => a.totp_enabled
-      ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" title="يلغي التحقق بخطوتين عن هذا الحساب" onclick="promptReset2FA('${a.id}', '${a.full_name}')">إعادة تعيين 2FA</button>`
+      ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" title="يلغي التحقق بخطوتين عن هذا الحساب" onclick="promptReset2FA('${a.id}')">إعادة تعيين 2FA</button>`
       : '';
     document.getElementById('accountsBody').innerHTML = list.map(a => `
       <tr>
-        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${a.full_name}</div><div class="cell-sub mono">${a.email}</div></div></div></td>
+        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${esc(a.full_name)}</div><div class="cell-sub mono">${esc(a.email)}</div></div></div></td>
         <td>${roleBadge(a.role)}</td>
         <td>جامعة بغداد</td>
         <td>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
         <td style="text-align:end;">${a.role === 'reseller'
           ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
-              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}', '${a.full_name}')">توليد أكواد</button>
-              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${a.id}', '${a.full_name}')">أخذ كود</button>
+              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}')">توليد أكواد</button>
+              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${a.id}')">أخذ كود</button>
               ${totpBtn(a)}
               ${editBtn(a)}
             </div>`
@@ -1317,7 +1340,8 @@
     `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد نتائج</td></tr>`;
   }
 
-  async function promptReset2FA(userId, name){
+  async function promptReset2FA(userId){
+    const name = accountName(userId);
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     if (!await confirmModal(`سيتم إيقاف التحقق بخطوتين عن حساب ${name} — يستخدم هذا عند فقدان الطالب/الدكتور لهاتفه أو تطبيق المصادقة. متابعة؟`)) return;
     try {
@@ -1336,6 +1360,7 @@
     document.getElementById('notifSingleWrap').style.display = target === 'single' ? 'block' : 'none';
   }
   let notifSearchTimer = null;
+  let notifSearchResults = [];
   function searchNotifStudents(){
     notifSelectedStudentId = null;
     document.getElementById('notifSelectedStudent').style.display = 'none';
@@ -1347,16 +1372,18 @@
       if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
       try {
         const results = await apiFetch('/api/students/search?q=' + encodeURIComponent(q));
+        notifSearchResults = results;
         box.innerHTML = results.map(s => `
-          <div style="padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--glass-border);" onclick="pickNotifStudent('${s.id}', '${s.full_name.replace(/'/g,"\\'")}')">
-            ${s.full_name}
+          <div style="padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--glass-border);" onclick="pickNotifStudent('${s.id}')">
+            ${esc(s.full_name)}
           </div>
         `).join('') || '<div style="padding:10px 12px; color:var(--ink-faint);">لا يوجد نتائج</div>';
         box.style.display = 'block';
       } catch (e) { showToast(e.detail || 'تعذّر البحث', 'error'); }
     }, 300);
   }
-  function pickNotifStudent(id, name){
+  function pickNotifStudent(id){
+    const name = (notifSearchResults.find(s => s.id === id) || {}).full_name || '';
     notifSelectedStudentId = id;
     document.getElementById('notifStudentResults').style.display = 'none';
     document.getElementById('notifStudentSearch').value = '';
@@ -1391,14 +1418,15 @@
       document.getElementById('notifHistoryList').innerHTML = list.map(n => `
         <div class="activity-row">
           <span class="activity-dot"></span>
-          <span class="activity-text">${n.title}${n.broadcast ? ' <span class="badge badge-active" style="margin-right:6px;">للجميع</span>' : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
+          <span class="activity-text">${esc(n.title)}${n.broadcast ? ' <span class="badge badge-active" style="margin-right:6px;">للجميع</span>' : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
           <span class="activity-time">${fmtDate(n.created_at)}</span>
         </div>
       `).join('') || '<div class="empty-row">لا يوجد إشعارات مُرسلة بعد</div>';
     } catch (e) { showToast(e.detail || 'تعذّر تحميل الإشعارات', 'error'); }
   }
 
-  function promptBanUser(userId, name){
+  function promptBanUser(userId){
+    const name = accountName(userId);
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal(`حظر ${name}`, [
       {id: 'reason', label: 'سبب الحظر', type: 'text', placeholder: 'مثال: غش بالامتحان'},
@@ -1417,7 +1445,8 @@
     } catch (e) { showToast(e.detail || 'تعذّر رفع الحظر', 'error'); }
   }
 
-  function promptGenerateCodes(resellerId, name){
+  function promptGenerateCodes(resellerId){
+    const name = accountName(resellerId);
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     openGenericModal(`توليد أكواد لـ ${name}`, [
       {id: 'count', label: 'كم كود تريدين تولّدين؟', type: 'number', value: 10},
@@ -1429,7 +1458,8 @@
     });
   }
 
-  async function openResellerCodesModal(resellerId, name){
+  async function openResellerCodesModal(resellerId){
+    const name = accountName(resellerId);
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     document.getElementById('resellerCodesTitle').textContent = `أكواد ${name}`;
     const listEl = document.getElementById('resellerCodesList');
@@ -1446,10 +1476,10 @@
           ${idle.map(c => `
             <div class="item-card glass" style="align-items:center;">
               <div class="item-body">
-                <div class="item-title mono">${c.code}</div>
-                <div class="item-meta">${c.subject_name}</div>
+                <div class="item-title mono">${esc(c.code)}</div>
+                <div class="item-meta">${esc(c.subject_name)}</div>
               </div>
-              <button class="btn btn-ghost item-action" onclick="copyResellerCode('${c.code}', this)">نسخ</button>
+              <button class="btn btn-ghost item-action" onclick="copyResellerCode('${esc(c.code)}', this)">نسخ</button>
             </div>
           `).join('')}
         ` : '<div class="empty-row">لا توجد أكواد متاحة (غير مباعة) حالياً — ولّدي أكواد جديدة أولاً</div>'}
@@ -1458,15 +1488,15 @@
           ${other.map(c => `
             <div class="item-card glass" style="align-items:center; opacity:.7;">
               <div class="item-body">
-                <div class="item-title mono">${c.code}</div>
-                <div class="item-meta">${c.subject_name} · ${statusLabel[c.status] || c.status}</div>
+                <div class="item-title mono">${esc(c.code)}</div>
+                <div class="item-meta">${esc(c.subject_name)} · ${statusLabel[c.status] || c.status}</div>
               </div>
             </div>
           `).join('')}
         ` : ''}
       `;
     } catch (e) {
-      listEl.innerHTML = `<div class="empty-row">${e.detail || 'تعذّر تحميل الأكواد'}</div>`;
+      listEl.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الأكواد')}</div>`;
     }
   }
 
@@ -1535,9 +1565,9 @@
       <div class="hier-row" style="padding-inline-start:${r.level*22 + 8}px;">
         <span class="hier-icon">${ICONS[typeIcon[r.type]]}</span>
         ${r.type === 'subject' && r.id
-          ? `<span class="hier-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;" onclick="openQuestionBank('${r.id}')">${r.name}</span>`
-          : `<span class="hier-name">${r.name}</span>`}
-        <span class="hier-meta">${r.meta}</span>
+          ? `<span class="hier-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;" onclick="openQuestionBank('${r.id}')">${esc(r.name)}</span>`
+          : `<span class="hier-name">${esc(r.name)}</span>`}
+        <span class="hier-meta">${esc(r.meta)}</span>
         ${r.id ? `
           <button class="icon-btn" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
           <button class="icon-btn" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
@@ -1613,7 +1643,7 @@
     if (!allCatalogRows.length){ try { allCatalogRows = await apiFetch('/api/admin/catalog'); } catch (e) {} }
     const subjects = allCatalogRows.filter(r => r.type === 'subject');
     const select = document.getElementById('qbSubjectSelect');
-    select.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    select.innerHTML = subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     if (currentQuestionBankSubject && subjects.some(s => s.id === currentQuestionBankSubject)){
       select.value = currentQuestionBankSubject;
     } else if (subjects.length){
@@ -1641,7 +1671,7 @@
       listEl.innerHTML = currentQuestions.map(q => `
         <div class="item-card glass" style="align-items:flex-start;">
           <div class="item-body">
-            <div class="item-title">${q.text}</div>
+            <div class="item-title">${esc(q.text)}</div>
             <div class="item-meta">${q.choices.map(c => (c.is_correct ? '✓ ' : '• ') + c.text).join(' · ')}</div>
           </div>
           <div style="display:flex; gap:6px; flex:none;">
@@ -1750,9 +1780,9 @@
     students = await liveOrDemo('/api/admin/students', students);
     document.getElementById('studentsBody').innerHTML = students.map(s => `
       <tr>
-        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent-2)">${initialsOf(s.name)}</div><div class="cell-name">${s.name}</div></div></td>
-        <td>${s.university}</td>
-        <td>${s.stage}</td>
+        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent-2)">${initialsOf(s.name)}</div><div class="cell-name">${esc(s.name)}</div></div></td>
+        <td>${esc(s.university)}</td>
+        <td>${esc(s.stage)}</td>
         <td>${s.avg_score != null ? `<span class="badge ${s.avg_score>=60?'badge-active':'badge-idle'}">${s.avg_score}%</span>` : '—'}</td>
         <td>${s.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
       </tr>
@@ -1784,18 +1814,18 @@
 
     document.getElementById('bansActiveBody').innerHTML = active.map(b => `
       <tr>
-        <td><div class="cell-name">${b.user_name || '—'}</div></td>
-        <td><span class="badge badge-disabled">${b.reason}</span></td>
+        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
+        <td><span class="badge badge-disabled">${esc(b.reason)}</span></td>
         <td>${fmtDate(b.created_at)}</td>
-        <td><button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="liftBan('${b.user_id}')">رفع الحظر</button></td>
+        <td><button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="liftBan('${esc(b.user_id)}')">رفع الحظر</button></td>
       </tr>
     `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد حالات حظر نشطة</td></tr>`;
 
     document.getElementById('bansAppealsBody').innerHTML = appeals.map(b => `
       <tr>
-        <td><div class="cell-name">${b.user_name || '—'}</div></td>
-        <td><span class="badge badge-disabled">${b.reason}</span></td>
-        <td style="max-width:220px;">"${b.appeal_message || ''}"</td>
+        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
+        <td><span class="badge badge-disabled">${esc(b.reason)}</span></td>
+        <td style="max-width:220px;">"${esc(b.appeal_message || '')}"</td>
         <td><div style="display:flex; gap:6px;">
           <button class="btn" style="padding:6px 12px; font-size:.72rem;" onclick="resolveAppeal('${b.id}', true)">قبول</button>
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="resolveAppeal('${b.id}', false)">رفض</button>
@@ -1805,8 +1835,8 @@
 
     document.getElementById('bansHistoryBody').innerHTML = history.map(b => `
       <tr>
-        <td><div class="cell-name">${b.user_name || '—'}</div></td>
-        <td>${b.reason}</td>
+        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
+        <td>${esc(b.reason)}</td>
         <td><span class="badge badge-active">مرفوع</span></td>
         <td>${fmtDate(b.created_at)}</td>
       </tr>
@@ -1838,7 +1868,7 @@
     document.getElementById('mediaGrid').innerHTML = files.map(f => `
       <div class="file-card glass">
         <div class="file-thumb">${(f.content_type||'').includes('pdf') ? ICONS.pdf : ICONS.media}</div>
-        <div class="file-name">${f.filename}</div>
+        <div class="file-name">${esc(f.filename)}</div>
         <div class="file-meta">${((f.size_bytes||0)/1024).toFixed(0)} KB</div>
       </div>
     `).join('') || `<div class="empty-row">لا توجد ملفات</div>`;
@@ -1958,7 +1988,7 @@
       ];
     }
     document.getElementById('logsBody').innerHTML = logs.map(l => `
-      <tr><td class="mono">${fmtDate(l.created_at)}</td><td>${l.user_id || '—'}</td><td>${l.action}</td><td class="mono">${l.ip_address || '—'}</td></tr>
+      <tr><td class="mono">${fmtDate(l.created_at)}</td><td>${esc(l.user_id || '—')}</td><td>${esc(l.action)}</td><td class="mono">${esc(l.ip_address || '—')}</td></tr>
     `).join('');
   }
 
@@ -1998,9 +2028,9 @@
     document.getElementById('pProfileBio').value = d.professor.bio || '';
     const photoWrap = document.getElementById('pProfilePhotoWrap');
     photoWrap.innerHTML = d.professor.photo_url
-      ? `<img src="${API_BASE_URL}${d.professor.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
+      ? `<img src="${API_BASE_URL}${esc(d.professor.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />`
       : (d.professor.name || '').replace('د. ', '').split(' ').map(w => w[0]).slice(0, 2).join('');
-    document.getElementById('pWelcomeText').textContent = `مرحباً ${d.professor.name} — ${d.professor.title} في ${d.professor.subject}. من هنا تقدر ترفع ملازم جديدة، تبني امتحانات، وتتابع مستوى طلابك.`;
+    document.getElementById('pWelcomeText').textContent = `مرحباً ${esc(d.professor.name)} — ${esc(d.professor.title)} في ${esc(d.professor.subject)}. من هنا تقدر ترفع ملازم جديدة، تبني امتحانات، وتتابع مستوى طلابك.`;
   }
 
   async function saveMyProfessorProfile(){
@@ -2070,8 +2100,8 @@
     const d = await fetchProfDashboard();
     document.getElementById('pBookletsBody').innerHTML = d.booklets.map(b => `
       <tr>
-        <td><div class="cell-name">${b.title}</div></td><td>${b.pages}</td>
-        <td>${b.file_url ? `<a href="${API_BASE_URL}${b.file_url}" target="_blank" class="badge badge-active" style="text-decoration:none;">عرض الملف</a>` : '<span class="badge badge-disabled">لا يوجد ملف</span>'}</td>
+        <td><div class="cell-name">${esc(b.title)}</div></td><td>${b.pages}</td>
+        <td>${b.file_url ? `<a href="${API_BASE_URL}${esc(b.file_url)}" target="_blank" class="badge badge-active" style="text-decoration:none;">عرض الملف</a>` : '<span class="badge badge-disabled">لا يوجد ملف</span>'}</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="triggerBookletUpload('${b.id}')">${b.file_url ? 'تغيير الملف' : 'رفع ملف'}</button>
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditBooklet('${b.id}')">تعديل</button>
@@ -2084,7 +2114,7 @@
     const d = await fetchProfDashboard();
     document.getElementById('pExamsBody').innerHTML = d.exams.map(e => `
       <tr>
-        <td><div class="cell-name">${e.title}</div></td><td>${e.question_count}</td><td>${e.duration_minutes} د</td>
+        <td><div class="cell-name">${esc(e.title)}</div></td><td>${e.question_count}</td><td>${e.duration_minutes} د</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditExam('${e.id}')">تعديل</button>
           <button class="icon-btn" style="width:30px;height:30px;" onclick="deleteExam('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
@@ -2201,7 +2231,7 @@
   function renderCoursesTable(){
     document.getElementById('pCoursesBody').innerHTML = myCourses.map(c => `
       <tr>
-        <td><div class="cell-name">${c.title}</div></td>
+        <td><div class="cell-name">${esc(c.title)}</div></td>
         <td>${c.lectures.length}</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="showLectures('${c.id}')">المحاضرات</button>
@@ -2224,7 +2254,7 @@
     document.getElementById('pLecturesCourseTitle').textContent = 'محاضرات: ' + course.title;
     document.getElementById('pLecturesBody').innerHTML = course.lectures.map(l => `
       <tr>
-        <td><div class="cell-name">${l.title}</div></td>
+        <td><div class="cell-name">${esc(l.title)}</div></td>
         <td class="mono">${fmtLectureDuration(l.duration_seconds)}</td>
         <td>${l.video_url ? '<span class="badge badge-active">مرفوع</span>' : '<span class="badge badge-disabled">لا يوجد فيديو</span>'}</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
@@ -2338,7 +2368,7 @@
     students = await liveOrDemo('/api/professors/me/students', students);
     document.getElementById('pStudentsBody').innerHTML = students.map(s => `
       <tr>
-        <td><div class="cell-name">${s.name}</div></td>
+        <td><div class="cell-name">${esc(s.name)}</div></td>
         <td>${fmtDate(s.last_answered_at)}</td>
         <td>${s.answered_count}</td>
         <td><span class="badge ${s.avg_score>=60?'badge-active':'badge-idle'}">${s.avg_score}%</span></td>
@@ -2363,7 +2393,7 @@
     codes = await liveOrDemo('/api/reseller/codes', codes);
     const sold = codes.filter(c => c.sold_at);
     document.getElementById('resellerCodesBody').innerHTML = sold.map(c => `
-      <tr><td class="mono">${c.code}</td><td><span class="badge ${c.status==='active'?'badge-active':'badge-idle'}">${c.status==='active'?'مفعّل':'غير مفعّل'}</span></td><td>${fmtDate(c.sold_at)}</td></tr>
+      <tr><td class="mono">${esc(c.code)}</td><td><span class="badge ${c.status==='active'?'badge-active':'badge-idle'}">${c.status==='active'?'مفعّل':'غير مفعّل'}</span></td><td>${fmtDate(c.sold_at)}</td></tr>
     `).join('') || `<tr><td colspan="3" class="empty-row">لا توجد أكواد مباعة بعد</td></tr>`;
   }
 
@@ -2374,14 +2404,14 @@
       const statusLabel = {active: 'مفعّل', idle: 'متاح', expired: 'منتهي'};
       document.getElementById('rCodesFullBody').innerHTML = codes.map(c => `
         <tr>
-          <td class="mono">${c.code}</td>
-          <td>${c.subject_name}</td>
+          <td class="mono">${esc(c.code)}</td>
+          <td>${esc(c.subject_name)}</td>
           <td><span class="badge ${c.status==='idle'?'badge-idle':(c.status==='active'?'badge-active':'badge-disabled')}">${statusLabel[c.status] || c.status}</span></td>
           <td>${c.sold_at ? fmtDate(c.sold_at) : '—'}</td>
         </tr>
       `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد أكواد بعد — اضغط "أخذ كود"</td></tr>`;
     } catch (e) {
-      document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">${e.detail || 'تعذّر تحميل الأكواد'}</td></tr>`;
+      document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">${esc(e.detail || 'تعذّر تحميل الأكواد')}</td></tr>`;
     }
   }
 
@@ -2394,7 +2424,7 @@
         for (const uni of section.universities || []){
           for (const stage of uni.stages || []){
             for (const subj of stage.subjects || []){
-              subjectOptions.push({value: subj.id, label: `${subj.name} — ${uni.name} / ${stage.name}`});
+              subjectOptions.push({value: subj.id, label: `${esc(subj.name)} — ${esc(uni.name)} / ${esc(stage.name)}`});
             }
           }
         }
@@ -2434,8 +2464,8 @@
       const statusLabel = {pending: 'قيد الانتظار', paid: 'مدفوع', fulfilled: 'مكتمل', cancelled: 'ملغي'};
       document.getElementById('storeOrdersBody').innerHTML = orders.map(o => `
         <tr>
-          <td><div class="cell-name">${o.buyer_name}</div><div class="cell-sub mono">${o.buyer_email}</div></td>
-          <td>${o.items.map(i => `${i.product_name} ×${i.qty}`).join('، ') || '—'}</td>
+          <td><div class="cell-name">${esc(o.buyer_name)}</div><div class="cell-sub mono">${esc(o.buyer_email)}</div></td>
+          <td>${o.items.map(i => `${esc(i.product_name)} ×${i.qty}`).join('، ') || '—'}</td>
           <td class="mono">${fmtIQD(o.total)}</td>
           <td>${o.payment_method === 'cod' ? 'عند الاستلام' : 'زين كاش'}</td>
           <td>
@@ -2447,7 +2477,7 @@
         </tr>
       `).join('') || `<tr><td colspan="6" class="empty-row">لا توجد طلبات بعد</td></tr>`;
     } catch (e) {
-      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">${e.detail || 'تعذّر تحميل الطلبات'}</td></tr>`;
+      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">${esc(e.detail || 'تعذّر تحميل الطلبات')}</td></tr>`;
     }
     await loadStoreProducts();
   }
@@ -2457,7 +2487,7 @@
       storeProducts = await apiFetch('/api/admin/store/products');
       document.getElementById('storeProductsBody').innerHTML = storeProducts.map(p => `
         <tr>
-          <td>${p.name}</td>
+          <td>${esc(p.name)}</td>
           <td>${PRODUCT_TYPE_LABEL[p.type] || p.type}</td>
           <td class="mono">${fmtIQD(p.price)}</td>
           <td style="text-align:end;">
@@ -2469,7 +2499,7 @@
         </tr>
       `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد منتجات بعد</td></tr>`;
     } catch (e) {
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">${e.detail || 'تعذّر تحميل المنتجات'}</td></tr>`;
+      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">${esc(e.detail || 'تعذّر تحميل المنتجات')}</td></tr>`;
     }
   }
 
@@ -2497,7 +2527,7 @@
         for (const uni of section.universities || []){
           for (const stage of uni.stages || []){
             for (const subj of stage.subjects || []){
-              options.push({value: subj.id, label: `${subj.name} — ${uni.name} / ${stage.name}`});
+              options.push({value: subj.id, label: `${esc(subj.name)} — ${esc(uni.name)} / ${esc(stage.name)}`});
             }
           }
         }

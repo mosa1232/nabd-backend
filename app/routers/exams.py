@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -16,6 +16,33 @@ def _own_attempt(db: Session, attempt_id: str, user: models.User) -> models.Exam
     if not attempt or attempt.user_id != user.id:
         raise HTTPException(404, "المحاولة غير موجودة")
     return attempt
+
+
+def _deadline(db: Session, attempt: models.ExamAttempt) -> datetime | None:
+    exam = db.get(models.Exam, attempt.exam_id)
+    if not exam or not exam.duration_minutes:
+        return None
+    return attempt.started_at + timedelta(minutes=exam.duration_minutes)
+
+
+def _auto_finish_if_expired(db: Session, attempt: models.ExamAttempt) -> bool:
+    """The exam clock was previously enforced only by the frontend timer, so
+    a student could hold an attempt open indefinitely (or just call the
+    answer endpoint directly) and take an untimed exam. The server now owns
+    the deadline: once it passes, the attempt is scored and closed."""
+    if attempt.finished_at:
+        return True
+    deadline = _deadline(db, attempt)
+    if deadline is None or datetime.utcnow() <= deadline:
+        return False
+    items = db.query(models.ExamAttemptQuestion).filter(
+        models.ExamAttemptQuestion.attempt_id == attempt.id
+    ).all()
+    attempt.score = sum(1 for it in items if it.is_correct)
+    attempt.finished_at = deadline
+    db.commit()
+    db.refresh(attempt)
+    return True
 
 
 def _items_out(db: Session, attempt: models.ExamAttempt, reveal: bool) -> list[dict]:
@@ -87,6 +114,7 @@ def start_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = 
     return {
         "attempt_id": attempt.id,
         "exam_title": exam.title,
+        "expires_at": _deadline(db, attempt),
         "duration_minutes": exam.duration_minutes,
         "total": attempt.total,
         "started_at": attempt.started_at,
@@ -104,8 +132,8 @@ def answer_attempt_item(
     user: models.User = Depends(get_current_user),
 ):
     attempt = _own_attempt(db, attempt_id, user)
-    if attempt.finished_at:
-        raise HTTPException(400, "هذا الامتحان انتهى بالفعل")
+    if _auto_finish_if_expired(db, attempt):
+        raise HTTPException(400, "انتهى وقت الامتحان")
     item = db.get(models.ExamAttemptQuestion, item_id)
     if not item or item.attempt_id != attempt_id:
         raise HTTPException(404, "السؤال غير موجود بهذه المحاولة")
@@ -122,6 +150,7 @@ def answer_attempt_item(
 @router.post("/attempts/{attempt_id}/finish")
 def finish_attempt(attempt_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     attempt = _own_attempt(db, attempt_id, user)
+    _auto_finish_if_expired(db, attempt)
     if not attempt.finished_at:
         items = db.query(models.ExamAttemptQuestion).filter(models.ExamAttemptQuestion.attempt_id == attempt_id).all()
         attempt.score = sum(1 for it in items if it.is_correct)
@@ -134,6 +163,7 @@ def finish_attempt(attempt_id: str, db: Session = Depends(get_db), user: models.
 @router.get("/attempts/{attempt_id}/result")
 def attempt_result(attempt_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     attempt = _own_attempt(db, attempt_id, user)
+    _auto_finish_if_expired(db, attempt)
     return {
         "attempt_id": attempt.id,
         "score": attempt.score,

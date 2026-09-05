@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import models, ranking
 from ..database import get_db
 from ..deps import get_current_user
 
@@ -11,7 +9,7 @@ router = APIRouter(prefix="/api/students", tags=["students"])
 
 
 @router.get("/search")
-def search_students(q: str = "", limit: int = 20, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+def search_students(q: str = "", limit: int = Query(20, ge=1, le=50), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Powers the student-directory search — any logged-in account can look
     up a student by name and open their public profile card."""
     query = db.query(models.User).filter(models.User.role == models.Role.student)
@@ -25,19 +23,6 @@ def search_students(q: str = "", limit: int = 20, db: Session = Depends(get_db),
     ]
 
 
-def _streak_days(db: Session, user_id: str) -> int:
-    answer_dates = db.query(models.StudentAnswer.answered_at).filter(models.StudentAnswer.user_id == user_id).all()
-    days_with_answers = {row[0].date() for row in answer_dates}
-    cursor = datetime.utcnow().date()
-    if cursor not in days_with_answers:
-        cursor -= timedelta(days=1)
-    streak = 0
-    while cursor in days_with_answers:
-        streak += 1
-        cursor -= timedelta(days=1)
-    return streak
-
-
 @router.get("/{student_id}/profile")
 def get_student_profile(student_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """The public profile card shown when tapping a student from search or
@@ -47,22 +32,7 @@ def get_student_profile(student_id: str, db: Session = Depends(get_db), user: mo
     if not target or target.role != models.Role.student:
         raise HTTPException(404, "الطالب غير موجود")
 
-    peers_q = db.query(models.User).filter(models.User.role == models.Role.student)
-    if target.university_id:
-        peers_q = peers_q.filter(models.User.university_id == target.university_id)
-    peers = peers_q.all()
-
-    correct_by_user: dict[str, int] = {}
-    answers = db.query(models.StudentAnswer).filter(
-        models.StudentAnswer.user_id.in_([p.id for p in peers])
-    ).all()
-    for a in answers:
-        if a.is_correct:
-            correct_by_user[a.user_id] = correct_by_user.get(a.user_id, 0) + 1
-
-    ranked = sorted(peers, key=lambda s: (-correct_by_user.get(s.id, 0), s.id))
-    rank = next((i + 1 for i, s in enumerate(ranked) if s.id == target.id), None)
-
+    ranked = ranking.ranked_pairs(db, ranking.peer_ids(db, target))
     skills = db.query(models.UserSkill).filter(models.UserSkill.user_id == target.id).order_by(models.UserSkill.created_at).all()
 
     return {
@@ -71,8 +41,8 @@ def get_student_profile(student_id: str, db: Session = Depends(get_db), user: mo
         "caption": target.caption,
         "photo_url": target.photo_url,
         "skills": [s.text for s in skills],
-        "rank": rank,
+        "rank": ranking.rank_of(ranked, target.id),
         "total_ranked": len(ranked),
-        "streak_days": _streak_days(db, target.id),
-        "correct_count": correct_by_user.get(target.id, 0),
+        "streak_days": ranking.streak_days(db, target.id),
+        "correct_count": next((score for uid, score in ranked if uid == target.id), 0),
     }

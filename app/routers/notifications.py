@@ -1,6 +1,6 @@
 from sqlalchemy import or_
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -17,7 +17,7 @@ def _visible_query(db: Session, user: models.User):
 
 
 @router.get("")
-def list_notifications(limit: int = 30, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+def list_notifications(limit: int = Query(30, ge=1, le=100), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     notifs = _visible_query(db, user).order_by(models.Notification.created_at.desc()).limit(limit).all()
     read_ids = {
         r.notification_id
