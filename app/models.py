@@ -423,3 +423,21 @@ class NotificationRead(Base):
     notification_id = Column(String, ForeignKey("notifications.id"), nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     read_at = Column(DateTime, default=datetime.utcnow)
+
+class ClinicalPearl(Base):
+    """A short clinical case: a title anyone can see, and a body only a
+    signed-in student can.
+
+    The split matters. The landing page teases these to visitors who
+    haven't signed up, so `body` is never serialised for an
+    unauthenticated caller — it isn't sent and CSS-blurred on the client,
+    it simply isn't in the response. Blur alone is one devtools click away
+    from being no gate at all.
+    """
+    __tablename__ = "clinical_pearls"
+    id = Column(String, primary_key=True, default=gen_id)
+    tag = Column(String, default="")        # "طوارئ" / "تشخيص" / ... — a short label
+    title = Column(String, nullable=False)  # public
+    body = Column(Text, default="")         # signed-in only
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)

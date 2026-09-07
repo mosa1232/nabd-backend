@@ -403,3 +403,28 @@ class NotificationCreateIn(BaseModel):
     title: str
     body: str = ""
     user_id: Optional[str] = None  # null = broadcast to every student
+
+
+class ClinicalPearlIn(BaseModel):
+    title: str
+    tag: str = ""
+    body: str = ""
+
+
+class ClinicalPearlOut(BaseModel):
+    id: str
+    tag: str = ""
+    title: str
+    body: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ClinicalPearlPreviewOut(BaseModel):
+    """What an unauthenticated visitor gets: enough to see a case exists,
+    never its content. No `body` field at all — not an empty one."""
+    id: str
+    tag: str = ""
+    title: str
+
+    model_config = ConfigDict(from_attributes=True)

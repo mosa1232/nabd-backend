@@ -538,6 +538,25 @@
       </section>
 
       <!-- ===== ADMIN: Media ===== -->
+      <!-- ===== ADMIN: Clinical pearls ===== -->
+      <section class="dash-section" id="sec-pearls">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">لمحات سريرية</span>
+            <button class="btn" onclick="promptAddPearl()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة لمحة</button>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">
+            العنوان يظهر لأي زائر في الصفحة الرئيسية قبل تسجيل الدخول — التفاصيل لا تُرسل إطلاقاً إلا بعد الدخول.
+          </div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>التصنيف</th><th>العنوان</th><th>التفاصيل</th><th></th></tr></thead>
+              <tbody id="pearlsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="dash-section" id="sec-media">
         <div class="dash-card glass">
           <div class="dash-card-head">
@@ -1266,6 +1285,7 @@
       {id:'notifications', label:'الإشعارات', icon:'bell'},
       {id:'catalog', label:'المناهج', icon:'book'},
       {id:'questions', label:'بنك الأسئلة', icon:'pdf'},
+      {id:'pearls', label:'لمحات سريرية', icon:'book'},
       {id:'students', label:'الطلاب', icon:'student'},
       {id:'bans', label:'الحظر', icon:'ban'},
       {id:'store', label:'المتجر', icon:'key'},
@@ -1371,7 +1391,7 @@
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
     overview: loadOverview, accounts: loadAccounts, notifications: loadNotifHistory, catalog: loadCatalog, questions: loadQuestionBank,
-    students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
+    students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs, pearls: loadPearls,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
     'r-overview': loadResellerOverview, 'r-sales': loadResellerSales, 'r-codes': loadResellerCodes,
@@ -2574,6 +2594,65 @@
         <td><span class="badge ${s.avg_score>=60?'badge-active':'badge-idle'}">${s.avg_score}%</span></td>
       </tr>
     `).join('') || `<tr><td colspan="4" class="empty-row">لا يوجد طلاب نشطون بعد</td></tr>`;
+  }
+
+  // ===== ADMIN: clinical pearls =====
+  let allPearls = [];
+  async function loadPearls(){
+    allPearls = await liveOrDemo('/api/admin/pearls', [], []);
+    document.getElementById('pearlsBody').innerHTML = allPearls.map(p => `
+      <tr>
+        <td>${p.tag ? `<span class="badge badge-active">${esc(p.tag)}</span>` : '<span class="cell-sub">—</span>'}</td>
+        <td><div class="cell-name">${esc(p.title)}</div></td>
+        <td><div class="cell-sub" style="max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(p.body || '—')}</div></td>
+        <td style="text-align:end;">
+          <div style="display:flex; gap:6px; justify-content:flex-end;">
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptEditPearl('${p.id}')">تعديل</button>
+            <button class="icon-btn" aria-label="حذف اللمحة" style="width:30px;height:30px;" title="حذف" onclick="deletePearl('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          </div>
+        </td>
+      </tr>`).join('') || `<tr><td colspan="4" class="empty-row">لا توجد لمحات بعد — أضف واحدة وتظهر مباشرة للطلاب وفي الصفحة الرئيسية</td></tr>`;
+  }
+
+  const PEARL_FIELDS = (v = {}) => [
+    {id: 'tag', label: 'التصنيف (مثال: طوارئ، تشخيص، أطفال)', type: 'text', value: v.tag || ''},
+    {id: 'title', label: 'العنوان — يظهر للزائر قبل تسجيل الدخول', type: 'text', value: v.title || ''},
+    {id: 'body', label: 'التفاصيل والحل — لا تظهر إلا بعد تسجيل الدخول', type: 'text', value: v.body || ''},
+  ];
+
+  function promptAddPearl(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    openGenericModal('إضافة لمحة سريرية', PEARL_FIELDS(), async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/admin/pearls', {
+        method: 'POST',
+        body: JSON.stringify({title: v.title.trim(), tag: v.tag.trim(), body: v.body.trim()}),
+      });
+      loadPearls();
+    });
+  }
+
+  function promptEditPearl(id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    const current = allPearls.find(p => p.id === id);
+    if (!current) return;
+    openGenericModal('تعديل لمحة سريرية', PEARL_FIELDS(current), async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch('/api/admin/pearls/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({title: v.title.trim(), tag: v.tag.trim(), body: v.body.trim()}),
+      });
+      loadPearls();
+    });
+  }
+
+  async function deletePearl(id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!await confirmModal('حذف هذه اللمحة نهائياً؟')) return;
+    try {
+      await apiFetch('/api/admin/pearls/' + id, {method: 'DELETE'});
+      loadPearls();
+    } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   // ===== RESELLER sections =====

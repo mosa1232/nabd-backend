@@ -834,3 +834,57 @@ def send_notification(
     db.refresh(n)
     return {"id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at}
 
+# ================================================== ADMIN: clinical pearls
+# The student-facing reads live in routers/pearls.py — including the public
+# preview that never returns a body.
+@router.get("/pearls", response_model=list[schemas.ClinicalPearlOut])
+def list_pearls_admin(db: Session = Depends(get_db)):
+    return (
+        db.query(models.ClinicalPearl)
+        .order_by(models.ClinicalPearl.created_at.desc())
+        .all()
+    )
+
+
+@router.post("/pearls", response_model=schemas.ClinicalPearlOut)
+def create_pearl(
+    body: schemas.ClinicalPearlIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role("admin")),
+):
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(400, "العنوان مطلوب")
+    pearl = models.ClinicalPearl(
+        title=title, tag=body.tag.strip(), body=body.body.strip(), created_by=user.id,
+    )
+    db.add(pearl)
+    db.commit()
+    db.refresh(pearl)
+    return pearl
+
+
+@router.put("/pearls/{pearl_id}", response_model=schemas.ClinicalPearlOut)
+def update_pearl(pearl_id: str, body: schemas.ClinicalPearlIn, db: Session = Depends(get_db)):
+    pearl = db.get(models.ClinicalPearl, pearl_id)
+    if not pearl:
+        raise HTTPException(404, "اللمحة غير موجودة")
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(400, "العنوان مطلوب")
+    pearl.title = title
+    pearl.tag = body.tag.strip()
+    pearl.body = body.body.strip()
+    db.commit()
+    db.refresh(pearl)
+    return pearl
+
+
+@router.delete("/pearls/{pearl_id}")
+def delete_pearl(pearl_id: str, db: Session = Depends(get_db)):
+    pearl = db.get(models.ClinicalPearl, pearl_id)
+    if not pearl:
+        raise HTTPException(404, "اللمحة غير موجودة")
+    db.delete(pearl)
+    db.commit()
+    return {"ok": True}
