@@ -174,6 +174,15 @@ signed URL that expires after `S3_URL_EXPIRY_SECONDS` (default 1 hour).
 Range requests pass through, so video seeking works and the bytes never
 travel through this process.
 
+Check the credentials before deploying anything that depends on them:
+
+```
+python scripts/check_storage.py
+```
+
+It writes one test object, reads it back through a signed URL, confirms
+range requests work (that's what makes video seekable), and deletes it.
+
 The database always stores the backend-agnostic `/media-files/<name>`, so
 switching backends doesn't rewrite any rows — but files already uploaded to
 the old backend need copying across, since nothing migrates them for you.
