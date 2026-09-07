@@ -170,9 +170,9 @@ def _seed(db: Session) -> None:
             sold_at=(datetime.utcnow() - timedelta(days=i)) if sold else None,
         ))
 
-    # a couple of media files
-    db.add(models.MediaFile(filename="anatomy-slide-01.jpg", url="#", content_type="image/jpeg", size_bytes=482_000, uploaded_by=professors["أحمد الجبوري"].user_id))
-    db.add(models.MediaFile(filename="booklet-week1.pdf", url="#", content_type="application/pdf", size_bytes=1_240_000, uploaded_by=professors["أحمد الجبوري"].user_id))
+    # No seeded media rows: they pointed at url="#" with invented sizes, so
+    # the admin panel listed two files that had never been uploaded and
+    # could not be opened. Real rows come from POST /api/admin/media/upload.
 
     db.commit()
 

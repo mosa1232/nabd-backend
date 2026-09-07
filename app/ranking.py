@@ -8,7 +8,7 @@ screen load. They're aggregates now: the database does the counting.
 """
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import distinct, func
+from sqlalchemy import case, distinct, func
 from sqlalchemy.orm import Session
 
 from . import models
@@ -44,6 +44,29 @@ def correct_counts(db: Session, user_ids: list[str]) -> dict[str, int]:
         .all()
     )
     return {user_id: count for user_id, count in rows}
+
+
+def accuracy_pct(db: Session, user_id: str) -> int | None:
+    """Share of this student's answers that were correct, as a whole
+    percentage. None when they haven't answered anything yet — the caller
+    shows a dash rather than an invented 0%.
+
+    Per attempt, not per distinct question: a student who missed the same
+    question six times and finally got it should not read as 100%. (Ranking
+    still counts distinct questions — see correct_counts — because there the
+    risk is farming one easy question, not flattering the accuracy figure.)
+    """
+    total, correct = (
+        db.query(
+            func.count(models.StudentAnswer.id),
+            func.sum(case((models.StudentAnswer.is_correct.is_(True), 1), else_=0)),
+        )
+        .filter(models.StudentAnswer.user_id == user_id)
+        .one()
+    )
+    if not total:
+        return None
+    return round(100 * (correct or 0) / total)
 
 
 def ranked_pairs(db: Session, user_ids: list[str]) -> list[tuple[str, int]]:

@@ -302,6 +302,9 @@ class StudentStatsOut(BaseModel):
     streak_days: int
     rank: Optional[int] = None
     total_ranked: int
+    # None until the student has answered anything — the home ring shows a
+    # dash in that case rather than a made-up percentage.
+    accuracy_pct: Optional[int] = None
 
 
 class RedeemCodeIn(BaseModel):

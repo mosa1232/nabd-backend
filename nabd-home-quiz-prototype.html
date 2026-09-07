@@ -669,23 +669,23 @@
     <div class="hero glass">
       <div class="hero-top">
         <div>
-          <div class="hero-greeting" id="heroGreeting" data-i18n="greeting">مرحباً، عمر 👋</div>
-          <div class="hero-sub" data-i18n="greetingSub">استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل</div>
+          <div class="hero-greeting" id="heroGreeting" data-i18n="greeting">مرحباً 👋</div>
+          <div class="hero-sub" id="heroSub" data-i18n="greetingSub">تابع تقدّمك اليوم</div>
         </div>
-        <div class="stat-ring" style="--p:64"><span>64%</span></div>
+        <div class="stat-ring" id="heroAccuracyRing" style="--p:0" title="نسبة إجاباتك الصحيحة"><span id="heroAccuracyText">—</span></div>
       </div>
       <div class="hero-stats">
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2 4-1 5-1 8a4 4 0 0 0 8 0c0-1-1-2-1-2 1 3-1 4-2 4a2 2 0 0 1-2-2c0-2 3-3 1-8Z"/><path d="M8 14a4 4 0 0 0 4 8 5 5 0 0 0 5-5"/></svg>
-          <span data-i18n="streakLabel">سلسلة</span> <b id="statStreak">12</b>
+          <span data-i18n="streakLabel">سلسلة</span> <b id="statStreak">—</b>
         </div>
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          <span data-i18n="answeredLabel">أُجيب اليوم</span> <b id="statAnsweredToday">38</b>
+          <span data-i18n="answeredLabel">أُجيب اليوم</span> <b id="statAnsweredToday">—</b>
         </div>
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3H8a2 2 0 0 0-2 2v16l6-3 6 3V5a2 2 0 0 0-2-2Z"/></svg>
-          <span data-i18n="rankLabel">ترتيبك بالجامعة</span> <b id="statRank">#7</b>
+          <span data-i18n="rankLabel">ترتيبك بالجامعة</span> <b id="statRank">—</b>
         </div>
       </div>
     </div>
@@ -1120,7 +1120,7 @@
 
         <div class="auth-divider" data-i18n="or">أو</div>
 
-        <div class="form-field"><input id="authEmail" type="email" placeholder="البريد الإلكتروني" data-i18n-placeholder="email" /></div>
+        <div class="form-field"><input id="authEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني" data-i18n-placeholder="email" /></div>
         <div class="form-field" id="authNameField" style="display:none;"><input id="authName" type="text" placeholder="الاسم الكامل" data-i18n-placeholder="fullName" /></div>
         <div class="form-field" style="margin-bottom:8px;"><input id="authPassword" type="password" placeholder="كلمة المرور" data-i18n-placeholder="password" /></div>
         <div id="authFormMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
@@ -1242,7 +1242,7 @@
           <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
           <div class="item-body">
             <div class="item-title" data-i18n="currentDevice">الجهاز النشط الحالي</div>
-            <div class="item-meta" id="activeSessionMeta">iPhone 14 — بغداد · هذا الجهاز فقط مسموح له بالدخول حالياً</div>
+            <div class="item-meta" id="activeSessionMeta">جارٍ التحميل...</div>
           </div>
         </div>
         <div class="item-card glass">
@@ -1404,8 +1404,8 @@
 <script>
   // ---------- Backend integration ----------
   // Point this at your running FastAPI server (see /nabd-backend).
-  // When it's unreachable — e.g. previewing this file on its own — every
-  // call below falls back to the local demo data, so the UI still works.
+  // When it's unreachable, screens show an empty or error state — nothing
+  // here invents stand-in content to fill the gap.
   // Same-origin when served by the FastAPI backend itself (production);
   // falls back to localhost:8000 for local dev (frontend on :5500, backend on :8000).
   const API_BASE_URL = location.origin === 'http://localhost:5500' || location.origin === 'http://127.0.0.1:5500'
@@ -1516,7 +1516,7 @@
   const dict = {
     ar: {
       // -- home --
-      greeting:'مرحباً، عمر 👋', greetingSub:'استمر بنفس الوتيرة، تبقّى القليل على الامتحان الشامل',
+      greeting:'مرحباً 👋', greetingSub:'تابع تقدّمك اليوم',
       streakLabel:'سلسلة', answeredLabel:'أُجيب اليوم', rankLabel:'ترتيبك بالجامعة',
       pathLabel:'المسار الدراسي', pathSection:'القسم', pathUni:'الجامعة', pathStage:'المرحلة', pathSubject:'المادة',
       tileBank:'بنك الأسئلة', tileVideo:'أكاديمية الفيديو', tileProf:'قسم الدكاترة', tileStore:'المتجر', tileReview:'المراجعة', tileLeaderboard:'المتصدرين',
@@ -1576,6 +1576,8 @@
       noProfessorsYet:'لا يوجد دكاترة بعد', noBookletsYet:'لا توجد ملازم بعد', noExamsYet:'لا توجد امتحانات بعد',
       noBookletsForCourse:'لا توجد ملازم مرتبطة بهذا الكورس', noQuizzesForCourse:'لا توجد كويزات مرتبطة بهذا الكورس',
       noActivationsYet:'لا يوجد أكواد مفعّلة على حسابك بعد', noNotificationsYet:'لا توجد إشعارات بعد', noRankingsYet:'لا يوجد ترتيب بعد',
+      loginToSeeActivations:'سجّل الدخول لعرض أكوادك المفعّلة', activationsLoadFailed:'تعذّر تحميل أكوادك — تحقّق من الاتصال وحاول مرة أخرى',
+      googleUnavailable:'تعذّر الاتصال بالخادم — حاول مرة أخرى',
       noQuestionsForStage:'لا توجد أسئلة متاحة لمرحلتك بعد', noProductsInCategory:'لا توجد منتجات ضمن هذا التصنيف', noProductsAvailable:'لا توجد منتجات معروضة حالياً',
       noMatchingResults:'ما لكيت نتائج مطابقة', noCoursesYet:'لا توجد كورسات بعد',
       passwordSet:'كلمة مرور مضبوطة', noPasswordGoogleOnly:'لا توجد كلمة مرور — الدخول عبر Google فقط',
@@ -1584,7 +1586,7 @@
       remove:'إزالة', noSavedQuestionsYet:'ما حفظت أي سؤال بعد', savedLoadFailed:'تعذّر تحميل المحفوظات',
     },
     en: {
-      greeting:'Hi, Omar 👋', greetingSub:'Keep the pace — the mock exam is close',
+      greeting:'Hi 👋', greetingSub:'Keep up your progress today',
       streakLabel:'Streak', answeredLabel:'Answered today', rankLabel:'Your uni rank',
       pathLabel:'Study path', pathSection:'Section', pathUni:'University', pathStage:'Stage', pathSubject:'Subject',
       tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', tileReview:'Review', tileLeaderboard:'Leaderboard',
@@ -1633,6 +1635,8 @@
       noProfessorsYet:'No professors yet', noBookletsYet:'No booklets yet', noExamsYet:'No exams yet',
       noBookletsForCourse:'No booklets linked to this course', noQuizzesForCourse:'No quizzes linked to this course',
       noActivationsYet:'No activated codes on your account yet', noNotificationsYet:'No notifications yet', noRankingsYet:'No ranking yet',
+      loginToSeeActivations:'Sign in to see your activated codes', activationsLoadFailed:"Couldn't load your codes — check your connection and try again",
+      googleUnavailable:'Cannot reach the server — please try again',
       noQuestionsForStage:'No questions available for your stage yet', noProductsInCategory:'No products in this category', noProductsAvailable:'No products available right now',
       noMatchingResults:'No matching results', noCoursesYet:'No courses yet',
       passwordSet:'Password is set', noPasswordGoogleOnly:'No password set — Google sign-in only',
@@ -1641,7 +1645,7 @@
       remove:'Remove', noSavedQuestionsYet:"You haven't saved any question yet", savedLoadFailed:'Could not load saved questions',
     },
     ku: {
-      greeting:'سڵاو، عومەر 👋', greetingSub:'بەردەوام بە، تاقیکردنەوەی گشتی نزیکە',
+      greeting:'سڵاو 👋', greetingSub:'ئەمڕۆ بەردەوام بە لە پێشکەوتنت',
       streakLabel:'زنجیرە', answeredLabel:'ئەمڕۆ وەڵامدراوە', rankLabel:'پلەت لە زانکۆ',
       pathLabel:'ڕێڕەوی خوێندن', pathSection:'بەش', pathUni:'زانکۆ', pathStage:'قۆناغ', pathSubject:'بابەت',
       tileBank:'کۆگای پرسیار', tileVideo:'ئەکادیمیای ڤیدیۆ', tileProf:'بەشی مامۆستایان', tileStore:'فرۆشگا', tileReview:'پێداچوونەوە', tileLeaderboard:'پێشەنگەکان',
@@ -1690,6 +1694,8 @@
       noProfessorsYet:'هیچ مامۆستایەک نییە', noBookletsYet:'هیچ مەلزەمەیەک نییە', noExamsYet:'هیچ تاقیکردنەوەیەک نییە',
       noBookletsForCourse:'هیچ مەلزەمەیەک پەیوەندی بەم کۆرسەوە نییە', noQuizzesForCourse:'هیچ کویزێک پەیوەندی بەم کۆرسەوە نییە',
       noActivationsYet:'هیچ کۆدێکی چالاک لەسەر هەژمارەکەت نییە', noNotificationsYet:'هیچ ئاگادارکردنەوەیەک نییە', noRankingsYet:'هێشتا پلەبەندی نییە',
+      loginToSeeActivations:'بچۆ ژوورەوە بۆ بینینی کۆدە چالاککراوەکانت', activationsLoadFailed:'نەتوانرا کۆدەکانت باربکرێن — پەیوەندییەکەت بپشکنە و دووبارە هەوڵ بدە',
+      googleUnavailable:'ناتوانرێت پەیوەندی بە ڕاژەکارەوە بکرێت — تکایە دووبارە هەوڵ بدە',
       noQuestionsForStage:'هێشتا پرسیار بۆ قۆناغەکەت بەردەست نییە', noProductsInCategory:'هیچ بەرهەمێک لەم پۆلە نییە', noProductsAvailable:'هیچ بەرهەمێک ئێستا نمایش نەکراوە',
       noMatchingResults:'هیچ ئەنجامێکی گونجاو نەدۆزرایەوە', noCoursesYet:'هیچ کۆرسێک نییە',
       passwordSet:'وشەی نهێنی دانراوە', noPasswordGoogleOnly:'هیچ وشەی نهێنی نییە — تەنها چوونەژوورەوە بە Google',
@@ -1833,8 +1839,8 @@
   }
 
   // Real-backend path: replaces the fixed streak/answered-today/rank numbers
-  // with the student's actual stats. Falls back to the static demo values
-  // (left untouched in the HTML) when logged out or unreachable.
+  // with the student's actual stats. Leaves the dashes in place when
+  // logged out or unreachable, rather than showing invented numbers.
   // Read-only summary of the student's real section/university/stage on
   // the home screen — editing it lives in the profile-edit screen, this is
   // just an honest at-a-glance display, not a duplicate editable widget.
@@ -1867,7 +1873,12 @@
       document.getElementById('statStreak').textContent = s.streak_days;
       document.getElementById('statAnsweredToday').textContent = s.answered_today;
       document.getElementById('statRank').textContent = s.rank ? ('#' + s.rank) : '—';
-    } catch (e) { /* backend unreachable — keep whatever is currently shown */ }
+      // Real accuracy over the questions this student actually answered —
+      // this ring used to be a hardcoded 64% that nothing ever updated.
+      const acc = s.accuracy_pct;
+      document.getElementById('heroAccuracyRing').style.setProperty('--p', acc ?? 0);
+      document.getElementById('heroAccuracyText').textContent = acc == null ? '—' : acc + '%';
+    } catch (e) { /* leave the dashes in place rather than inventing numbers */ }
     await renderHomePathCard();
     try {
       const c = await apiFetch('/auth/me/continue');
@@ -2113,7 +2124,7 @@
         }));
         usingApiProfessors = true;
       }
-    } catch (e) { /* backend unreachable or no professors yet — keep local demo set */ }
+    } catch (e) { /* backend unreachable or no professors yet — the list stays empty */ }
   }
   function activeProfessorsList(){
     return usingApiProfessors ? apiProfessorsNormalized : professors;
@@ -2527,7 +2538,7 @@
   }
 
   // Real-backend path: fetch /api/courses once per session and normalize it
-  // into the same shape the local demo array uses. "done" comes straight
+  // into the shape the course views render. "done" comes straight
   // from the backend's real per-student LectureProgress rows, so it
   // survives a refresh instead of resetting every session.
   const courseColors = ['#4C5FE0', '#FF8A5B', '#7B6EF6', '#1FAE72'];
@@ -2547,7 +2558,7 @@
         }));
         usingApiCourses = true;
       }
-    } catch (e) { /* backend unreachable or no courses yet — keep local demo set */ }
+    } catch (e) { /* backend unreachable or no courses yet — the list stays empty */ }
   }
   function activeCoursesList(){
     return usingApiCourses ? apiCoursesNormalized : courses;
@@ -3006,7 +3017,7 @@
       const since = mins < 60 ? `منذ ${mins} دقيقة` : mins < 1440 ? `منذ ${Math.round(mins/60)} ساعة` : `منذ ${Math.round(mins/1440)} يوم`;
       document.getElementById('activeSessionMeta').textContent =
         `${esc(s.device_label)} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
-    } catch (e) { /* backend unreachable — keep the static demo text */ }
+    } catch (e) { document.getElementById('activeSessionMeta').textContent = '—'; }
   }
 
   function togglePasswordChangeForm(){
@@ -3137,17 +3148,6 @@
   }
 
   // ---------- Activation codes ----------
-  function demoActivationCardHtml(){
-    return `
-      <div class="continue-card glass" style="cursor:default;">
-        <div class="continue-ring" style="--p:79;"></div>
-        <div class="continue-body">
-          <div class="continue-eyebrow">كود التفعيل الحالي (توضيحي)</div>
-          <div class="continue-title mono">NBD-VIP-7X29</div>
-          <div class="continue-meta">ينتهي خلال 289 يوم — بدأ 12 يناير 2026</div>
-        </div>
-      </div>`;
-  }
   function activationCardHtml(a){
     const daysLeft = a.expires_at ? Math.max(0, Math.ceil((new Date(a.expires_at) - new Date()) / 86400000)) : null;
     const pct = daysLeft != null ? Math.round(Math.min(100, daysLeft / CODE_VALIDITY_DAYS * 100)) : 0;
@@ -3165,13 +3165,13 @@
 
   async function loadActivations(){
     const wrap = document.getElementById('activationCards');
-    if (!authToken){ wrap.innerHTML = demoActivationCardHtml(); return; }
+    if (!authToken){ wrap.innerHTML = `<div class="empty-row">${t('loginToSeeActivations')}</div>`; return; }
     try {
       const mine = await apiFetch('/api/activation/mine');
       wrap.innerHTML = mine.length
         ? mine.map(activationCardHtml).join('')
         : `<div class="empty-row">${t('noActivationsYet')}</div>`;
-    } catch (e) { wrap.innerHTML = demoActivationCardHtml(); }
+    } catch (e) { wrap.innerHTML = `<div class="empty-row">${t('activationsLoadFailed')}</div>`; }
   }
 
   async function redeemActivationCode(){
@@ -3229,13 +3229,11 @@
       return;
     }
 
-    // Demo fallback — no backend running, so simulate the round trip
-    // (used when previewing this file on its own).
-    setTimeout(() => {
-      btn.disabled = false;
-      label.textContent = 'المتابعة عبر Google';
-      goToOtpFromLogin();
-    }, 1100);
+    // No backend: say so. This used to fake the round trip and drop the
+    // visitor onto the OTP screen as if Google had actually signed them in.
+    btn.disabled = false;
+    label.textContent = t('continueWithGoogleBtn');
+    showToast(t('googleUnavailable'));
   }
 
   // ---------- Email + password sign-in / sign-up ----------

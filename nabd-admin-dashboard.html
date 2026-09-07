@@ -257,7 +257,7 @@
       <div class="login-sub">أدخل بريدك الإلكتروني وكلمة المرور</div>
 
       <form onsubmit="event.preventDefault(); submitPasswordLogin();">
-        <div class="form-field"><input id="loginEmail" type="email" placeholder="البريد الإلكتروني" autocomplete="username" /></div>
+        <div class="form-field"><input id="loginEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني" autocomplete="username" /></div>
         <div class="form-field" style="margin-bottom:8px;"><input id="loginPassword" type="password" placeholder="كلمة المرور" autocomplete="current-password" /></div>
         <div id="loginError" style="font-size:.78rem; color:var(--danger); margin-bottom:10px; display:none;"></div>
         <button type="submit" class="btn" style="width:100%; justify-content:center; padding:12px;">تسجيل الدخول</button>
@@ -367,7 +367,7 @@
         </div>
         <div class="ie-grid">
           <div class="dash-card glass">
-            <div class="dash-card-head"><span class="dash-card-title">نشاط الأسبوع (توضيحي)</span></div>
+            <div class="dash-card-head"><span class="dash-card-title">نشاط الأسبوع</span></div>
             <div class="bar-chart" id="weeklyBars"></div>
           </div>
           <div class="dash-card glass">
@@ -676,7 +676,7 @@
           <div class="kpi-card glass"><div class="kpi-label">أكواد مفعّلة</div><div class="kpi-value mono" id="rKpiActivated">—</div></div>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">المبيعات آخر 7 أيام (توضيحي)</span></div>
+          <div class="dash-card-head"><span class="dash-card-title">المبيعات آخر 7 أيام</span></div>
           <div class="bar-chart" id="resellerBars"></div>
         </div>
       </section>
@@ -1224,6 +1224,19 @@
     const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب'};
     return `<span class="badge badge-${role}">${map[role]||role}</span>`;
   }
+  // Weekday label for a YYYY-MM-DD string, so a real per-day series can
+  // label itself instead of assuming the week always starts on Saturday.
+  const WEEKDAY_AR = ['أحد','اثن','ثلا','أرب','خمس','جمع','سبت'];
+  function dayLabels(series){
+    return series.map(d => WEEKDAY_AR[new Date(d.date + 'T00:00:00').getDay()]);
+  }
+  function drawSeries(elId, series){
+    if (!series || !series.length){
+      document.getElementById(elId).innerHTML = '<div class="empty-row">لا يوجد نشاط في آخر 7 أيام</div>';
+      return;
+    }
+    drawBars(elId, series.map(d => d.count), dayLabels(series));
+  }
   function drawBars(elId, values, labels){
     const max = Math.max(...values, 1);
     document.getElementById(elId).innerHTML = values.map((v,i) => `
@@ -1250,25 +1263,21 @@
 
   // ===== ADMIN sections =====
   async function loadOverview(){
-    drawBars('weeklyBars', [40,55,48,70,62,80,58], ['سبت','أحد','اثن','ثلا','أرب','خمس','جمع']);
-    let kpi = {total_students: 12480, active_activations: 8340, revenue_total: 42500000, pending_bans: 6};
-    let activity = [
-      {action:'تسجيل دخول', user_id:null, created_at: new Date()},
-      {action:'رفع ملزمة', user_id:null, created_at: new Date(Date.now()-3600e3)},
-      {action:'تفعيل كود', user_id:null, created_at: new Date(Date.now()-7200e3)},
-    ];
+    let kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0, weekly_activity: []};
+    let activity = [];
     if (liveMode){
       try {
         kpi = await apiFetch('/api/admin/overview');
         activity = await apiFetch('/api/admin/logs?limit=6');
       } catch(e){
-        // Never leave the demo KPIs (12k students, 42m revenue) on screen
-        // while the badge claims these are real numbers.
         showToast(e.detail || 'تعذّر تحميل بيانات النظرة العامة', 'error');
-        kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0};
+        kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0, weekly_activity: []};
         activity = [];
       }
     }
+    // Real answers-per-day for the last week. This chart used to draw a
+    // fixed [40,55,48,70,62,80,58] and was labelled "(توضيحي)".
+    drawSeries('weeklyBars', kpi.weekly_activity);
     document.getElementById('kpiStudents').textContent = kpi.total_students.toLocaleString('en-US');
     document.getElementById('kpiActivations').textContent = kpi.active_activations.toLocaleString('en-US');
     document.getElementById('kpiRevenue').textContent = fmtIQD(kpi.revenue_total);
@@ -1313,7 +1322,7 @@
     const q = (document.getElementById('accountSearch')?.value || '').trim().toLowerCase();
     let list = accountFilter === 'all' ? allAccounts : allAccounts.filter(a => a.role === accountFilter);
     if (q) list = list.filter(a => a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
-    const editBtn = a => `<button class="icon-btn" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
+    const editBtn = a => `<button class="icon-btn" title="تعديل المستخدم" aria-label="تعديل المستخدم" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
     const banBtn = a => a.is_banned
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="unbanUserAccount('${a.id}')">رفع الحظر</button>`
       : `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="promptBanUser('${a.id}')">حظر</button>`;
@@ -1569,9 +1578,9 @@
           : `<span class="hier-name">${esc(r.name)}</span>`}
         <span class="hier-meta">${esc(r.meta)}</span>
         ${r.id ? `
-          <button class="icon-btn" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-          <button class="icon-btn" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
-        ${childOf[r.type] && r.id ? `<button class="icon-btn" style="width:24px;height:24px;" title="إضافة ${childOf[r.type] === 'university' ? 'جامعة' : childOf[r.type] === 'stage' ? 'مرحلة' : 'مادة'}" onclick="promptAddCatalogChild('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 5v14M5 12h14"/></svg></button>` : ''}
+          <button class="icon-btn" title="إعادة التسمية" aria-label="إعادة التسمية" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+          <button class="icon-btn" title="حذف العنصر" aria-label="حذف العنصر" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
+        ${childOf[r.type] && r.id ? `<button class="icon-btn" title="إضافة عنصر فرعي" aria-label="إضافة عنصر فرعي" style="width:24px;height:24px;" title="إضافة ${childOf[r.type] === 'university' ? 'جامعة' : childOf[r.type] === 'stage' ? 'مرحلة' : 'مادة'}" onclick="promptAddCatalogChild('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 5v14M5 12h14"/></svg></button>` : ''}
       </div>
     `).join('');
   }
@@ -1676,7 +1685,7 @@
           </div>
           <div style="display:flex; gap:6px; flex:none;">
             <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="openQuestionForm('${q.id}')">تعديل</button>
-            <button class="icon-btn" style="width:28px;height:28px;" onclick="deleteQuestionAdmin('${q.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+            <button class="icon-btn" title="حذف السؤال" aria-label="حذف السؤال" style="width:28px;height:28px;" onclick="deleteQuestionAdmin('${q.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
           </div>
         </div>
       `).join('') || '<div class="empty-row">لا توجد أسئلة لهذه المادة بعد</div>';
@@ -2105,7 +2114,7 @@
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="triggerBookletUpload('${b.id}')">${b.file_url ? 'تغيير الملف' : 'رفع ملف'}</button>
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditBooklet('${b.id}')">تعديل</button>
-          <button class="icon-btn" style="width:30px;height:30px;" onclick="deleteBooklet('${b.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <button class="icon-btn" title="حذف الملزمة" aria-label="حذف الملزمة" style="width:30px;height:30px;" onclick="deleteBooklet('${b.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
     `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد ملازم بعد</td></tr>`;
@@ -2117,7 +2126,7 @@
         <td><div class="cell-name">${esc(e.title)}</div></td><td>${e.question_count}</td><td>${e.duration_minutes} د</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditExam('${e.id}')">تعديل</button>
-          <button class="icon-btn" style="width:30px;height:30px;" onclick="deleteExam('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <button class="icon-btn" title="حذف الامتحان" aria-label="حذف الامتحان" style="width:30px;height:30px;" onclick="deleteExam('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
     `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد امتحانات بعد</td></tr>`;
@@ -2236,7 +2245,7 @@
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="showLectures('${c.id}')">المحاضرات</button>
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="promptEditCourse('${c.id}')">تعديل</button>
-          <button class="icon-btn" style="width:28px;height:28px;" onclick="deleteCourse('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <button class="icon-btn" title="حذف الكورس" aria-label="حذف الكورس" style="width:28px;height:28px;" onclick="deleteCourse('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
     `).join('') || `<tr><td colspan="3" class="empty-row">لا توجد كورسات بعد</td></tr>`;
@@ -2260,7 +2269,7 @@
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="triggerLectureUpload('${l.id}')">${l.video_url ? 'تغيير الفيديو' : 'رفع فيديو'}</button>
           <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="promptEditLecture('${l.id}')">تعديل</button>
-          <button class="icon-btn" style="width:28px;height:28px;" onclick="deleteLecture('${l.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <button class="icon-btn" title="حذف المحاضرة" aria-label="حذف المحاضرة" style="width:28px;height:28px;" onclick="deleteLecture('${l.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
     `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد محاضرات بعد</td></tr>`;
@@ -2378,9 +2387,10 @@
 
   // ===== RESELLER sections =====
   async function loadResellerOverview(){
-    drawBars('resellerBars', [2,4,1,5,3,6,2], ['سبت','أحد','اثن','ثلا','أرب','خمس','جمع']);
-    let s = {available:4, sold:8, activated:5};
-    s = await liveOrDemo('/api/reseller/summary', s, {available:0, sold:0, activated:0});
+    const blank = {available:0, sold:0, activated:0, weekly_sales:[]};
+    const s = await liveOrDemo('/api/reseller/summary', blank, blank);
+    // Real codes-sold-per-day. This chart used to draw a fixed [2,4,1,5,3,6,2].
+    drawSeries('resellerBars', s.weekly_sales);
     document.getElementById('rKpiAvailable').textContent = s.available;
     document.getElementById('rKpiSold').textContent = s.sold;
     document.getElementById('rKpiActivated').textContent = s.activated;
@@ -2492,8 +2502,8 @@
           <td class="mono">${fmtIQD(p.price)}</td>
           <td style="text-align:end;">
             <div style="display:flex; gap:6px; justify-content:flex-end;">
-              <button class="icon-btn" style="width:30px;height:30px;" title="تعديل" onclick="promptEditProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-              <button class="icon-btn" style="width:30px;height:30px;" title="حذف" onclick="deleteProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+              <button class="icon-btn" title="تعديل المنتج" aria-label="تعديل المنتج" style="width:30px;height:30px;" title="تعديل" onclick="promptEditProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <button class="icon-btn" title="حذف المنتج" aria-label="حذف المنتج" style="width:30px;height:30px;" title="حذف" onclick="deleteProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
             </div>
           </td>
         </tr>

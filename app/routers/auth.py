@@ -14,7 +14,7 @@ from ..security import (
     generate_totp_secret, hash_password, start_new_session, totp_provisioning_uri,
     verify_password, verify_totp,
 )
-from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, UPLOAD_DIR, safe_upload_name
+from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, UPLOAD_DIR, delete_stored_upload, safe_upload_name
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -384,6 +384,7 @@ async def upload_my_photo(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
+    delete_stored_upload(user.photo_url)  # don't strand the photo being replaced
     user.photo_url = f"/media-files/{stored_name}"
     db.commit()
     db.refresh(user)
@@ -492,6 +493,7 @@ def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_curr
         streak_days=ranking.streak_days(db, user.id),
         rank=ranking.rank_of(ranked, user.id),
         total_ranked=len(ranked),
+        accuracy_pct=ranking.accuracy_pct(db, user.id),
     )
 
 

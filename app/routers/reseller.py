@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user
+from .admin import _daily_counts
 
 router = APIRouter(prefix="/api/reseller", tags=["reseller"])
 
@@ -25,6 +26,14 @@ def summary(db: Session = Depends(get_db), user: models.User = Depends(get_curre
         "available": len(codes) - len(sold),
         "sold": len(sold),
         "activated": len(activated),
+        # Real per-day sales for this reseller — the dashboard chart was a
+        # hardcoded array labelled "(توضيحي)" before.
+        "weekly_sales": _daily_counts(
+            db,
+            models.ActivationCode,
+            models.ActivationCode.sold_at,
+            extra_filter=models.ActivationCode.reseller_id == user.id,
+        ),
     }
 
 

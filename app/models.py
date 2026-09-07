@@ -409,6 +409,12 @@ class Notification(Base):
     body = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    # What this announcement is about, when it announces a piece of content
+    # ("booklet" | "exam" | "course"). Both null for an admin-written notice.
+    # Deleting the content deletes its announcement, so students never tap
+    # through to something that no longer exists.
+    content_type = Column(String, nullable=True)
+    content_id = Column(String, nullable=True)
 
 
 class NotificationRead(Base):

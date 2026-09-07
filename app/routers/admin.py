@@ -1,4 +1,5 @@
 import secrets
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
@@ -38,6 +39,28 @@ def safe_upload_name(filename: str | None, allowed_exts: set[str], fallback_stem
     return f"{secrets.token_hex(8)}_{fallback_stem}{ext}"
 
 
+def delete_stored_upload(media_url: str | None) -> None:
+    """Removes the file behind a /media-files/... URL.
+
+    Deleting a booklet or replacing a lecture video used to only drop the
+    database row, so every upload ever made stayed on disk forever — a
+    150MB video per replaced lecture. Silently ignores anything that isn't
+    a plain filename directly under the upload dir, so a tampered URL can
+    never point the unlink somewhere else.
+    """
+    if not media_url or not media_url.startswith("/media-files/"):
+        return
+    name = Path(media_url[len("/media-files/"):]).name
+    if not name:
+        return
+    target = UPLOAD_DIR / name
+    try:
+        if target.resolve().parent == UPLOAD_DIR.resolve() and target.is_file():
+            target.unlink()
+    except OSError:
+        pass  # a missing or locked file must never block the delete itself
+
+
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
 
 
@@ -61,7 +84,33 @@ def overview(db: Session = Depends(get_db)):
         "active_activations": active_activations,
         "pending_bans": pending_bans,
         "revenue_total": int(total_orders or 0),
+        "weekly_activity": _daily_counts(
+            db, models.StudentAnswer, models.StudentAnswer.answered_at
+        ),
     }
+
+
+def _daily_counts(db: Session, model, date_column, days: int = 7, extra_filter=None) -> list[dict]:
+    """Row counts per day for the last `days` days, oldest first, with empty
+    days filled in as 0. The dashboard charts used to be hardcoded arrays
+    labelled "(توضيحي)"; this is what backs them for real.
+    """
+    today = datetime.utcnow().date()
+    start = today - timedelta(days=days - 1)
+    day = func.date(date_column).label("day")
+    q = db.query(day, func.count()).filter(date_column >= datetime.combine(start, time.min))
+    if extra_filter is not None:
+        q = q.filter(extra_filter)
+    counts = {}
+    for value, n in q.group_by(day).all():
+        if value is None:
+            continue
+        key = value if isinstance(value, date) else datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+        counts[key] = n
+    return [
+        {"date": (start + timedelta(days=i)).isoformat(), "count": counts.get(start + timedelta(days=i), 0)}
+        for i in range(days)
+    ]
 
 
 @router.get("/users", response_model=list[schemas.UserOut])

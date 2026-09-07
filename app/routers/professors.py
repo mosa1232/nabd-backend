@@ -6,7 +6,7 @@ from ..database import get_db
 from ..deps import get_current_user
 from .admin import (
     DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UPLOAD_DIR,
-    VIDEO_EXTS, safe_upload_name,
+    VIDEO_EXTS, delete_stored_upload, safe_upload_name,
 )
 
 router = APIRouter(prefix="/api/professors", tags=["professors"])
@@ -129,6 +129,7 @@ async def upload_my_photo(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
+    delete_stored_upload(profile.photo_url)  # don't strand the photo being replaced
     profile.photo_url = f"/media-files/{stored_name}"
     db.commit()
     return {"photo_url": profile.photo_url}
@@ -203,7 +204,14 @@ def my_students(db: Session = Depends(get_db), user: models.User = Depends(get_c
 _NEW_ADJ = {"ملزمة": "جديدة", "امتحان": "جديد", "كورس": "جديد"}
 
 
-def _notify_new_content(db: Session, profile: models.ProfessorProfile, kind: str, title: str) -> None:
+def _notify_new_content(
+    db: Session,
+    profile: models.ProfessorProfile,
+    kind: str,
+    title: str,
+    content_type: str | None = None,
+    content_id: str | None = None,
+) -> None:
     """Broadcasts a "new content" notice whenever a professor publishes a
     booklet, exam, or course — students otherwise have no way to know
     something new landed in a subject they follow."""
@@ -211,7 +219,31 @@ def _notify_new_content(db: Session, profile: models.ProfessorProfile, kind: str
     db.add(models.Notification(
         title=f"{kind} {adj}: {title}",
         body=f"أضاف {profile.user.full_name} {kind} {adj} في مادة {profile.subject.name}",
+        content_type=content_type,
+        content_id=content_id,
     ))
+
+
+def _drop_content_notifications(db: Session, content_type: str, content_ids: list[str]) -> None:
+    """Removes the "new content" announcements for content being deleted,
+    so the notifications list never points at something that's gone."""
+    if not content_ids:
+        return
+    stale = [
+        n.id for n in db.query(models.Notification.id)
+        .filter(
+            models.Notification.content_type == content_type,
+            models.Notification.content_id.in_(content_ids),
+        ).all()
+    ]
+    if not stale:
+        return
+    db.query(models.NotificationRead).filter(
+        models.NotificationRead.notification_id.in_(stale)
+    ).delete(synchronize_session=False)
+    db.query(models.Notification).filter(
+        models.Notification.id.in_(stale)
+    ).delete(synchronize_session=False)
 
 
 # ---------------------------------------------------------- booklet CRUD
@@ -220,7 +252,8 @@ def create_booklet(body: schemas.BookletIn, db: Session = Depends(get_db), user:
     profile = _get_own_profile(db, user)
     b = models.Booklet(professor_id=profile.id, title=body.title, pages=body.pages)
     db.add(b)
-    _notify_new_content(db, profile, "ملزمة", body.title)
+    db.flush()  # need the generated id to link the announcement to it
+    _notify_new_content(db, profile, "ملزمة", body.title, "booklet", b.id)
     db.commit()
     db.refresh(b)
     return b
@@ -245,6 +278,12 @@ def delete_booklet(booklet_id: str, db: Session = Depends(get_db), user: models.
     b = db.get(models.Booklet, booklet_id)
     if not b or b.professor_id != profile.id:
         raise HTTPException(404, "الملزمة غير موجودة")
+    delete_stored_upload(b.file_url)
+    _drop_content_notifications(db, "booklet", [b.id])
+    db.query(models.RecentView).filter(
+        models.RecentView.content_type == "booklet",
+        models.RecentView.content_id == b.id,
+    ).delete(synchronize_session=False)
     db.delete(b)
     db.commit()
     return {"ok": True}
@@ -268,6 +307,7 @@ async def upload_booklet_file(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
+    delete_stored_upload(b.file_url)  # replacing a file shouldn't strand the old one
     b.file_url = f"/media-files/{stored_name}"
     db.commit()
     db.refresh(b)
@@ -283,7 +323,8 @@ def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: model
         question_count=body.question_count, duration_minutes=body.duration_minutes,
     )
     db.add(e)
-    _notify_new_content(db, profile, "امتحان", body.title)
+    db.flush()  # need the generated id to link the announcement to it
+    _notify_new_content(db, profile, "امتحان", body.title, "exam", e.id)
     db.commit()
     db.refresh(e)
     return e
@@ -309,6 +350,7 @@ def delete_exam(exam_id: str, db: Session = Depends(get_db), user: models.User =
     e = db.get(models.Exam, exam_id)
     if not e or e.professor_id != profile.id:
         raise HTTPException(404, "الامتحان غير موجود")
+    _drop_content_notifications(db, "exam", [e.id])
     db.delete(e)
     db.commit()
     return {"ok": True}
@@ -336,7 +378,8 @@ def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: m
     profile = _get_own_profile(db, user)
     c = models.Course(subject_id=profile.subject_id, professor_id=profile.id, title=body.title)
     db.add(c)
-    _notify_new_content(db, profile, "كورس", body.title)
+    db.flush()  # need the generated id to link the announcement to it
+    _notify_new_content(db, profile, "كورس", body.title, "course", c.id)
     db.commit()
     db.refresh(c)
     return {"id": c.id, "title": c.title, "lectures": []}
@@ -359,6 +402,10 @@ def delete_course(course_id: str, db: Session = Depends(get_db), user: models.Us
     c = db.get(models.Course, course_id)
     if not c or c.professor_id != profile.id:
         raise HTTPException(404, "الكورس غير موجود")
+    for lec in c.lectures:
+        delete_stored_upload(lec.video_url)
+    _purge_lecture_traces(db, [lec.id for lec in c.lectures])
+    _drop_content_notifications(db, "course", [c.id])
     db.delete(c)  # Course.lectures cascades via the ORM relationship
     db.commit()
     return {"ok": True}
@@ -376,6 +423,25 @@ def create_lecture(course_id: str, body: schemas.LectureIn, db: Session = Depend
     db.commit()
     db.refresh(lec)
     return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": None}
+
+
+def _purge_lecture_traces(db: Session, lecture_ids: list[str]) -> None:
+    """Drops the per-student rows that point at lectures being deleted.
+
+    lecture_progress and recent_views reference a lecture by id but have no
+    FK cascade (and SQLite doesn't enforce FKs anyway), so deleting a lecture
+    used to leave rows behind that count toward a course's "done" total and
+    can never be cleared.
+    """
+    if not lecture_ids:
+        return
+    db.query(models.LectureProgress).filter(
+        models.LectureProgress.lecture_id.in_(lecture_ids)
+    ).delete(synchronize_session=False)
+    db.query(models.RecentView).filter(
+        models.RecentView.content_type == "lecture",
+        models.RecentView.content_id.in_(lecture_ids),
+    ).delete(synchronize_session=False)
 
 
 def _get_own_lecture(db: Session, profile: models.ProfessorProfile, lecture_id: str) -> models.Lecture:
@@ -399,6 +465,8 @@ def update_lecture(lecture_id: str, body: schemas.LectureIn, db: Session = Depen
 def delete_lecture(lecture_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     profile = _get_own_profile(db, user)
     lec = _get_own_lecture(db, profile, lecture_id)
+    delete_stored_upload(lec.video_url)
+    _purge_lecture_traces(db, [lec.id])
     db.delete(lec)
     db.commit()
     return {"ok": True}
@@ -421,6 +489,7 @@ async def upload_lecture_video(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (150 ميغابايت)")
     stored_name = safe_upload_name(file.filename, VIDEO_EXTS, "lecture")
     (UPLOAD_DIR / stored_name).write_bytes(contents)
+    delete_stored_upload(lec.video_url)  # replacing a video shouldn't strand the old one
     lec.video_url = f"/media-files/{stored_name}"
     db.commit()
     return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": lec.video_url}
