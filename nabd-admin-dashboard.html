@@ -199,6 +199,10 @@
   .hier-icon svg{width:13px; height:13px;}
   .hier-name{font-weight:700; flex:1;}
   .hier-meta{font-size:.72rem; color:var(--ink-faint);}
+  /* Compact but genuinely labelled — the whole point is that you can see
+     what this row adds without hovering for a tooltip. */
+  .hier-add{padding:5px 10px; font-size:.72rem; gap:5px; flex:none;}
+  .hier-add svg{width:12px; height:12px;}
 
   /* ---------- Media grid ---------- */
   .file-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
@@ -1344,7 +1348,7 @@
     const q = (document.getElementById('accountSearch')?.value || '').trim().toLowerCase();
     let list = accountFilter === 'all' ? allAccounts : allAccounts.filter(a => a.role === accountFilter);
     if (q) list = list.filter(a => a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
-    const editBtn = a => `<button class="icon-btn" title="تعديل المستخدم" aria-label="تعديل المستخدم" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
+    const editBtn = a => `<button class="icon-btn" aria-label="تعديل المستخدم" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
     const banBtn = a => a.is_banned
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="unbanUserAccount('${a.id}')">رفع الحظر</button>`
       : `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="promptBanUser('${a.id}')">حظر</button>`;
@@ -1580,31 +1584,36 @@
     });
   }
 
+  // "أضف مادة" lived behind a 24px "+" icon identical to the two icons next
+  // to it, with only a tooltip to say what it did — so adding a subject
+  // looked like a feature that didn't exist. Each row now spells out what it
+  // adds ("+ مادة", "+ مرحلة", "+ جامعة") in a labelled button.
+  const CATALOG_CHILD_NOUN = {section: 'جامعة', university: 'مرحلة', stage: 'مادة'};
+
   async function loadCatalog(){
-    let rows = [
-      {level:0, type:'section', name:'طب بشري', meta:'1 جامعة'},
-      {level:1, type:'university', name:'جامعة بغداد', meta:'1 مرحلة'},
-      {level:2, type:'stage', name:'المرحلة الثانية', meta:'4 مادة'},
-      {level:3, type:'subject', name:'التشريح', meta:'1 سؤال'},
-      {level:3, type:'subject', name:'الفسلجة', meta:'0 سؤال'},
-    ];
-    rows = await liveOrDemo('/api/admin/catalog', rows);
+    const rows = await liveOrDemo('/api/admin/catalog', [], []);
     allCatalogRows = rows;
     const typeIcon = {section:'book', university:'grid', stage:'log', subject:'pdf'};
-    const childOf = {section:'university', university:'stage', stage:'subject'};
-    document.getElementById('catalogTree').innerHTML = rows.map(r => `
+    const tree = document.getElementById('catalogTree');
+    if (!rows.length){
+      tree.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — ابدأ بـ "إضافة قسم" في الأعلى</div>`;
+      return;
+    }
+    tree.innerHTML = rows.map(r => {
+      const noun = CATALOG_CHILD_NOUN[r.type];
+      return `
       <div class="hier-row" style="padding-inline-start:${r.level*22 + 8}px;">
         <span class="hier-icon">${ICONS[typeIcon[r.type]]}</span>
         ${r.type === 'subject' && r.id
           ? `<span class="hier-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;" onclick="openQuestionBank('${r.id}')">${esc(r.name)}</span>`
           : `<span class="hier-name">${esc(r.name)}</span>`}
         <span class="hier-meta">${esc(r.meta)}</span>
+        ${noun && r.id ? `<button class="btn btn-ghost hier-add" onclick="promptAddCatalogChild('${r.type}', '${r.id}')" title="إضافة ${noun} داخل ${esc(r.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>${noun}</button>` : ''}
         ${r.id ? `
-          <button class="icon-btn" title="إعادة التسمية" aria-label="إعادة التسمية" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-          <button class="icon-btn" title="حذف العنصر" aria-label="حذف العنصر" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
-        ${childOf[r.type] && r.id ? `<button class="icon-btn" title="إضافة عنصر فرعي" aria-label="إضافة عنصر فرعي" style="width:24px;height:24px;" title="إضافة ${childOf[r.type] === 'university' ? 'جامعة' : childOf[r.type] === 'stage' ? 'مرحلة' : 'مادة'}" onclick="promptAddCatalogChild('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 5v14M5 12h14"/></svg></button>` : ''}
-      </div>
-    `).join('');
+          <button class="icon-btn" aria-label="تعديل الاسم" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+          <button class="icon-btn" aria-label="حذف" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
+      </div>`;
+    }).join('');
   }
 
   function promptAddSection(){
@@ -1628,7 +1637,10 @@
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     const config = CATALOG_CHILD_CONFIG[parentType];
     if (!config) return;
-    openGenericModal(config.label, [{id: 'name', label: config.label, type: 'text'}], async (v) => {
+    // Heading says the action ("إضافة مادة"); the field says what to type.
+    const parent = allCatalogRows.find(r => r.id === parentId);
+    const heading = `إضافة ${CATALOG_CHILD_NOUN[parentType]}` + (parent ? ` إلى ${parent.name}` : '');
+    openGenericModal(heading, [{id: 'name', label: config.label, type: 'text'}], async (v) => {
       if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
       const params = new URLSearchParams({name: v.name.trim(), [config.paramKey]: parentId});
       await apiFetch('/api/admin/catalog/' + config.endpoint + '?' + params.toString(), {method: 'POST'});
@@ -2524,8 +2536,8 @@
           <td class="mono">${fmtIQD(p.price)}</td>
           <td style="text-align:end;">
             <div style="display:flex; gap:6px; justify-content:flex-end;">
-              <button class="icon-btn" title="تعديل المنتج" aria-label="تعديل المنتج" style="width:30px;height:30px;" title="تعديل" onclick="promptEditProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-              <button class="icon-btn" title="حذف المنتج" aria-label="حذف المنتج" style="width:30px;height:30px;" title="حذف" onclick="deleteProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+              <button class="icon-btn" aria-label="تعديل المنتج" style="width:30px;height:30px;" title="تعديل" onclick="promptEditProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+              <button class="icon-btn" aria-label="حذف المنتج" style="width:30px;height:30px;" title="حذف" onclick="deleteProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
             </div>
           </td>
         </tr>

@@ -389,6 +389,10 @@ def delete_section(section_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "القسم غير موجود")
     if db.query(models.University).filter(models.University.section_id == section_id).count():
         raise HTTPException(400, "لا يمكن حذف القسم — يحتوي على جامعات. احذفيها أولاً")
+    # Students carry section/university/stage on their own row, so deleting a
+    # node out from under them left accounts pointing at nothing.
+    if db.query(models.User).filter(models.User.section_id == section_id).count():
+        raise HTTPException(400, "لا يمكن حذف القسم — هناك حسابات مسجّلة فيه. انقليها أولاً")
     db.delete(s)
     db.commit()
     return {"ok": True}
@@ -411,6 +415,8 @@ def delete_university(university_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "الجامعة غير موجودة")
     if db.query(models.Stage).filter(models.Stage.university_id == university_id).count():
         raise HTTPException(400, "لا يمكن حذف الجامعة — تحتوي على مراحل. احذفيها أولاً")
+    if db.query(models.User).filter(models.User.university_id == university_id).count():
+        raise HTTPException(400, "لا يمكن حذف الجامعة — هناك حسابات مسجّلة فيها. انقليها أولاً")
     db.delete(u)
     db.commit()
     return {"ok": True}
@@ -433,6 +439,8 @@ def delete_stage(stage_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "المرحلة غير موجودة")
     if db.query(models.Subject).filter(models.Subject.stage_id == stage_id).count():
         raise HTTPException(400, "لا يمكن حذف المرحلة — تحتوي على مواد. احذفيها أولاً")
+    if db.query(models.User).filter(models.User.stage_id == stage_id).count():
+        raise HTTPException(400, "لا يمكن حذف المرحلة — هناك حسابات مسجّلة فيها. انقليها أولاً")
     db.delete(st)
     db.commit()
     return {"ok": True}
@@ -462,6 +470,13 @@ def delete_subject(subject_id: str, db: Session = Depends(get_db)):
         blockers.append("كورسات")
     if db.query(models.Exam).filter(models.Exam.subject_id == subject_id).count():
         blockers.append("امتحانات")
+    # Both of these point at a subject too, and neither was checked: deleting
+    # the subject left activation codes granting access to nothing, and store
+    # products selling a subject that no longer exists.
+    if db.query(models.ActivationCode).filter(models.ActivationCode.subject_id == subject_id).count():
+        blockers.append("أكواد تفعيل")
+    if db.query(models.Product).filter(models.Product.grants_subject_id == subject_id).count():
+        blockers.append("منتجات في المتجر")
     if blockers:
         raise HTTPException(400, f"لا يمكن حذف المادة — مرتبطة بـ: {', '.join(blockers)}. عالجي هذي أولاً")
     db.delete(subj)
