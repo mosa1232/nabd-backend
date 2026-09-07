@@ -401,6 +401,31 @@
   .item-action{flex:none;}
   .empty-row{padding:18px; text-align:center; font-size:.82rem; color:var(--ink-faint);}
 
+  /* ---------- أقسام الصفحة الرئيسية الجديدة ----------
+     كلها بالرموز الموجودة أصلاً (--track, --accent, --glass-border) — بلا
+     أي لون جديد. */
+  .perf-row{display:flex; flex-direction:column; gap:6px; padding:9px 0;}
+  .perf-row + .perf-row{border-top:1px solid var(--glass-border);}
+  .perf-head{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .perf-name{font-weight:700; font-size:.84rem;}
+  .perf-pct{font-family:'IBM Plex Mono',monospace; direction:ltr; color:var(--accent); font-weight:600; font-size:.82rem;}
+  .perf-bar{height:6px; border-radius:999px; background:var(--track); overflow:hidden;}
+  .perf-fill{height:100%; border-radius:999px; background:var(--accent); transition:width .6s cubic-bezier(.2,.8,.3,1);}
+  .perf-count{font-size:.7rem; color:var(--ink-faint);}
+  /* رقم الترتيب داخل صف المتصدرين */
+  .rank-badge{
+    width:34px; height:34px; border-radius:11px; flex:none; display:grid; place-items:center;
+    background:var(--track); color:var(--accent);
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:.85rem;
+  }
+  .lb-you{border-color:var(--accent);}
+  .section-head-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+  .section-head-row .section-title{margin-bottom:0;}
+  .link-more{
+    background:none; border:0; cursor:pointer; font:inherit;
+    font-size:.75rem; font-weight:700; color:var(--accent); padding:2px 4px;
+  }
+
   /* ---------- Store ---------- */
   .cart-badge{position:absolute; top:-3px; inset-inline-end:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:999px; background:var(--danger); color:#fff; font-size:.62rem; font-weight:700; display:grid; place-items:center; line-height:1;}
   .product-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
@@ -778,7 +803,37 @@
       </span>
     </button>
 
-    <footer>معاينة تصميم — Kiur · منصة طلاب الطب</footer>
+    <!-- أخطاء تحتاج مراجعة — من /api/me/mistakes -->
+    <div class="section-block" id="homeMistakesBlock" style="display:none;">
+      <div class="section-head-row">
+        <div class="section-title" data-i18n="homeMistakesTitle">أخطاء تحتاج مراجعة</div>
+        <button class="link-more" onclick="goToReview()" data-i18n="viewAll">عرض الكل</button>
+      </div>
+      <div id="homeMistakesList"></div>
+    </div>
+
+    <!-- أدائك حسب المادة — من /auth/me/performance -->
+    <div class="section-block" id="homePerfBlock" style="display:none;">
+      <div class="section-title" data-i18n="homePerfTitle">أدائك حسب المادة</div>
+      <div class="glass" style="padding:12px 16px;" id="homePerfList"></div>
+    </div>
+
+    <!-- أحدث ملزمة نُشرت على المنصة — من /api/professors/booklets/latest -->
+    <div class="section-block" id="homeLatestBlock" style="display:none;">
+      <div class="section-title" data-i18n="homeLatestTitle">أحدث ما نُشر</div>
+      <div id="homeLatestList"></div>
+    </div>
+
+    <!-- أعلى ثلاثة بالجامعة — من /auth/leaderboard -->
+    <div class="section-block" id="homeLeaderBlock" style="display:none;">
+      <div class="section-head-row">
+        <div class="section-title" data-i18n="homeLeaderTitle">المتصدرون</div>
+        <button class="link-more" onclick="goToLeaderboard()" data-i18n="viewAll">عرض الكل</button>
+      </div>
+      <div id="homeLeaderList"></div>
+    </div>
+
+    <footer data-i18n="footerNote">Kiur — منصة تعليمية طبية لطلبة الجامعات العراقية</footer>
   </div>
 
   <!-- ============ QUIZ VIEW ============ -->
@@ -1601,6 +1656,9 @@
       toggleSidebar:'طي/فتح القائمة',
       // -- toasts / statuses --
       selectSubjectFirst:'اختر المادة أولاً', noFileYet:'لا يوجد ملف مرفوع بعد لهذه الملزمة',
+      homeMistakesTitle:'أخطاء تحتاج مراجعة', homePerfTitle:'أدائك حسب المادة',
+      homeLatestTitle:'أحدث ما نُشر', homeLeaderTitle:'المتصدرون', viewAll:'عرض الكل',
+      perfAnswered:'إجابة صحيحة', pages:'صفحة', you:'أنت', correctAnswers:'إجابة صحيحة',
       photoUpdated:'تم تحديث الصورة ✓', photoUploadFailed:'تعذّر رفع الصورة',
       saved:'تم الحفظ ✓', saveFailed:'تعذّر الحفظ', addSkillFailed:'تعذّر إضافة المهارة', deleteFailed:'تعذّر الحذف',
       pathUpdated:'تم تحديث المسار الدراسي ✓', setupStartFailed:'تعذّر بدء الإعداد',
@@ -1661,6 +1719,9 @@
       editProfile:'Edit profile', changePhoto:'Change photo', addCaptionPrompt:'Tap to add a caption...',
       toggleSidebar:'Toggle sidebar',
       selectSubjectFirst:'Select a subject first', noFileYet:'No file uploaded yet for this booklet',
+      homeMistakesTitle:'Mistakes to review', homePerfTitle:'Your accuracy by subject',
+      homeLatestTitle:'Just published', homeLeaderTitle:'Top students', viewAll:'View all',
+      perfAnswered:'correct', pages:'pages', you:'you', correctAnswers:'correct answers',
       photoUpdated:'Photo updated ✓', photoUploadFailed:'Could not upload the photo',
       saved:'Saved ✓', saveFailed:'Could not save', addSkillFailed:'Could not add the skill', deleteFailed:'Could not delete',
       pathUpdated:'Study path updated ✓', setupStartFailed:'Could not start setup',
@@ -1721,6 +1782,9 @@
       editProfile:'دەستکاریکردنی پرۆفایل', changePhoto:'گۆڕینی وێنە', addCaptionPrompt:'کلیک بکە بۆ زیادکردنی کورتە...',
       toggleSidebar:'لار کردنی لیستە',
       selectSubjectFirst:'یەکەم جار بابەت هەڵبژێرە', noFileYet:'هیچ فایلێک بارنەکراوە بۆ ئەم مەلزەمەیە',
+      homeMistakesTitle:'هەڵەکان بۆ پێداچوونەوە', homePerfTitle:'ئاستت بەپێی بابەت',
+      homeLatestTitle:'نوێترین بڵاوکراوە', homeLeaderTitle:'باشترینەکان', viewAll:'هەموویان ببینە',
+      perfAnswered:'وەڵامی ڕاست', pages:'لاپەڕە', you:'تۆ', correctAnswers:'وەڵامی ڕاست',
       photoUpdated:'وێنە نوێکرایەوە ✓', photoUploadFailed:'نەتوانرا وێنەکە باربکرێت',
       saved:'پاشەکەوت کرا ✓', saveFailed:'نەتوانرا پاشەکەوت بکرێت', addSkillFailed:'نەتوانرا شارەزاییەکە زیاد بکرێت', deleteFailed:'نەتوانرا بسڕدرێتەوە',
       pathUpdated:'ڕێڕەوی خوێندن نوێکرایەوە ✓', setupStartFailed:'نەتوانرا ڕێکخستن دەست پێ بکات',
@@ -1900,6 +1964,91 @@
     } catch (e) { card.style.display = 'none'; }
   }
 
+  // ---------- أقسام الرئيسية الإضافية ----------
+  // كل قسم يجلب بياناته بنفسه ويخفي نفسه إذا ما كان عنده محتوى حقيقي —
+  // لا شيء هنا يخترع رقماً أو صفاً ليملأ فراغاً.
+  function loadHomeExtras(){
+    if (!authToken) return;
+    renderHomeMistakes();
+    renderHomePerformance();
+    renderHomeLatest();
+    renderHomeLeaders();
+  }
+
+  function showBlock(id, show){
+    document.getElementById(id).style.display = show ? 'block' : 'none';
+  }
+
+  async function renderHomeMistakes(){
+    try {
+      const rows = await apiFetch('/api/me/mistakes?limit=3');
+      showBlock('homeMistakesBlock', rows.length > 0);
+      document.getElementById('homeMistakesList').innerHTML = rows.map(m => `
+        <button class="item-card glass" style="width:100%; text-align:start; margin-bottom:8px; cursor:pointer;" onclick="goToReview()">
+          <span class="item-icon" style="background:var(--danger-soft); color:var(--danger);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="9"/></svg>
+          </span>
+          <span class="item-body">
+            <span class="item-title" style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(m.text)}</span>
+            <span class="item-meta" style="display:block;">${esc(m.eyebrow || '')}</span>
+          </span>
+        </button>`).join('');
+    } catch (e) { showBlock('homeMistakesBlock', false); }
+  }
+
+  async function renderHomePerformance(){
+    try {
+      const rows = await apiFetch('/auth/me/performance');
+      showBlock('homePerfBlock', rows.length > 0);
+      document.getElementById('homePerfList').innerHTML = rows.map(r => `
+        <div class="perf-row">
+          <div class="perf-head">
+            <span class="perf-name">${esc(r.subject_name)}</span>
+            <span class="perf-pct">${r.accuracy_pct}%</span>
+          </div>
+          <div class="perf-bar"><div class="perf-fill" style="width:${r.accuracy_pct}%"></div></div>
+          <div class="perf-count">${r.correct}/${r.answered} ${t('perfAnswered')}</div>
+        </div>`).join('');
+    } catch (e) { showBlock('homePerfBlock', false); }
+  }
+
+  async function renderHomeLatest(){
+    try {
+      const b = await apiFetch('/api/professors/booklets/latest');
+      if (!b){ showBlock('homeLatestBlock', false); return; }
+      showBlock('homeLatestBlock', true);
+      const open = b.file_url
+        ? `<a class="btn btn-ghost item-action" href="${API_BASE_URL}${esc(b.file_url)}" target="_blank" rel="noopener" onclick="recordRecentView('booklet','${b.id}')">${t('open')}</a>`
+        : `<button class="btn btn-ghost item-action" onclick="showToast(t('noFileYet'))" style="opacity:.6;">${t('open')}</button>`;
+      document.getElementById('homeLatestList').innerHTML = `
+        <div class="item-card glass">
+          <span class="item-icon pdf">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>
+          </span>
+          <span class="item-body">
+            <span class="item-title" style="display:block;">${esc(b.title)}</span>
+            <span class="item-meta" style="display:block;">${esc(b.subject_name || '')} · ${b.pages} ${t('pages')}</span>
+          </span>
+          ${open}
+        </div>`;
+    } catch (e) { showBlock('homeLatestBlock', false); }
+  }
+
+  async function renderHomeLeaders(){
+    try {
+      const rows = await apiFetch('/auth/leaderboard?limit=3');
+      showBlock('homeLeaderBlock', rows.length > 0);
+      document.getElementById('homeLeaderList').innerHTML = rows.map(r => `
+        <div class="item-card glass ${r.is_you ? 'lb-you' : ''}" style="margin-bottom:8px;">
+          <span class="rank-badge">${r.rank}</span>
+          <span class="item-body">
+            <span class="item-title" style="display:block;">${esc(r.full_name)}${r.is_you ? ` <span class="item-meta" style="display:inline;">(${t('you')})</span>` : ''}</span>
+            <span class="item-meta" style="display:block;">${r.correct_count} ${t('correctAnswers')}</span>
+          </span>
+        </div>`).join('');
+    } catch (e) { showBlock('homeLeaderBlock', false); }
+  }
+
   async function loadHomeStats(){
     if (!authToken) return;
     if (currentUser?.full_name){
@@ -1917,6 +2066,7 @@
       document.getElementById('heroAccuracyText').textContent = acc == null ? '—' : acc + '%';
     } catch (e) { /* leave the dashes in place rather than inventing numbers */ }
     await renderHomePathCard();
+    loadHomeExtras();
     try {
       const c = await apiFetch('/auth/me/continue');
       const courseCard = document.getElementById('continueCourseCard');
