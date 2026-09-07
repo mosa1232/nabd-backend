@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -10,8 +10,9 @@ from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..security import (
-    create_2fa_pending_token, create_access_token, decode_2fa_pending_token,
-    generate_totp_secret, hash_password, start_new_session, totp_provisioning_uri,
+    clear_session_cookie, create_2fa_pending_token, create_access_token,
+    decode_2fa_pending_token, decode_access_token, generate_totp_secret,
+    hash_password, set_session_cookie, start_new_session, totp_provisioning_uri,
     verify_password, verify_totp,
 )
 from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, UPLOAD_DIR, delete_stored_upload, safe_upload_name
@@ -111,7 +112,9 @@ def _issue_session_and_redirect(db: Session, user: models.User, device_label: st
     session = start_new_session(db, user, device_label)
     token = create_access_token(user.id, session.id)
     # Hand the token to the SPA via a URL fragment (never logged by servers/proxies).
-    return RedirectResponse(f"{settings.frontend_url}#access_token={token}")
+    response = RedirectResponse(f"{settings.frontend_url}#access_token={token}")
+    set_session_cookie(response, token)
+    return response
 
 
 @router.get("/google/login")
@@ -140,7 +143,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/dev-login", include_in_schema=True)
-def dev_login(email: str, name: str = "طالب تجريبي", db: Session = Depends(get_db)):
+def dev_login(response: Response, email: str, name: str = "طالب تجريبي", db: Session = Depends(get_db)):
     """Local-only stand-in for the Google redirect flow — lets you exercise
     every other endpoint without real Google OAuth credentials. Disabled
     when DEBUG=false."""
@@ -149,11 +152,12 @@ def dev_login(email: str, name: str = "طالب تجريبي", db: Session = Dep
     user = _find_or_create_user(db, email, name, sub=f"dev:{email}")
     session = start_new_session(db, user, "جهاز تطوير")
     token = create_access_token(user.id, session.id)
+    set_session_cookie(response, token)
     return schemas.LoginResponse(access_token=token, user=user)
 
 
 @router.post("/login")
-def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
+def login(body: schemas.PasswordLoginIn, response: Response, db: Session = Depends(get_db)):
     """Email + password login for the admin/professor/reseller dashboard —
     a real alternative to Google OAuth and the dev-login stand-in."""
     user = db.query(models.User).filter(models.User.email == body.email.strip()).first()
@@ -173,11 +177,12 @@ def login(body: schemas.PasswordLoginIn, db: Session = Depends(get_db)):
 
     session = start_new_session(db, user, "متصفح")
     token = create_access_token(user.id, session.id)
+    set_session_cookie(response, token)
     return schemas.LoginResponse(access_token=token, user=user)
 
 
 @router.post("/2fa/verify", response_model=schemas.LoginResponse)
-def verify_2fa_login(body: schemas.TOTPVerifyIn, db: Session = Depends(get_db)):
+def verify_2fa_login(body: schemas.TOTPVerifyIn, response: Response, db: Session = Depends(get_db)):
     """Completes a login that /auth/login or the Google callback paused for
     a second factor — the only thing a pending_token is good for."""
     user_id = decode_2fa_pending_token(body.pending_token)
@@ -196,6 +201,7 @@ def verify_2fa_login(body: schemas.TOTPVerifyIn, db: Session = Depends(get_db)):
     _clear_failed_attempts(db, user)
     session = start_new_session(db, user, "متصفح")
     token = create_access_token(user.id, session.id)
+    set_session_cookie(response, token)
     return schemas.LoginResponse(access_token=token, user=user)
 
 
@@ -234,7 +240,7 @@ def disable_2fa(body: schemas.TOTPCodeIn, db: Session = Depends(get_db), user: m
 
 
 @router.post("/register", response_model=schemas.LoginResponse)
-def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
+def register(body: schemas.RegisterIn, response: Response, db: Session = Depends(get_db)):
     """Real email + password sign-up for students — the "أنشئي حساب" form,
     an alternative to Google for anyone who'd rather not use it."""
     email = body.email.strip()
@@ -258,6 +264,7 @@ def register(body: schemas.RegisterIn, db: Session = Depends(get_db)):
 
     session = start_new_session(db, user, "متصفح")
     token = create_access_token(user.id, session.id)
+    set_session_cookie(response, token)
     return schemas.LoginResponse(access_token=token, user=user)
 
 
@@ -630,11 +637,52 @@ def my_sessions(db: Session = Depends(get_db), user: models.User = Depends(get_c
     return sessions
 
 
+@router.post("/session/restore", response_model=schemas.LoginResponse)
+def restore_session(request: Request, response: Response, db: Session = Depends(get_db)):
+    """Signs the visitor back in from the httpOnly session cookie.
+
+    The access token itself is only ever held in memory by the SPA, so a
+    refresh used to drop it and dump the student back on the login screen.
+    This trades that token for a fresh one using the cookie, which scripts
+    can't read. It re-checks everything a normal request checks — the
+    server-side session is still active (so a login on another device has
+    already invalidated it), the user exists, and isn't banned.
+    """
+    token = request.cookies.get(settings.session_cookie_name)
+    if not token:
+        raise HTTPException(401, "لا توجد جلسة محفوظة")
+
+    payload = decode_access_token(token)
+    if not payload:
+        clear_session_cookie(response)
+        raise HTTPException(401, "انتهت صلاحية الجلسة")
+
+    session = db.get(models.UserSession, payload.get("sid"))
+    if not session or not session.is_active:
+        clear_session_cookie(response)
+        raise HTTPException(401, "تم تسجيل الدخول من جهاز آخر")
+
+    user = db.get(models.User, payload.get("sub"))
+    if not user:
+        clear_session_cookie(response)
+        raise HTTPException(401, "المستخدم غير موجود")
+    if user.is_banned:
+        clear_session_cookie(response)
+        raise HTTPException(403, "هذا الحساب محظور")
+
+    # Same session, fresh token — so an active user's cookie keeps sliding
+    # forward instead of expiring 14 days after their first ever login.
+    fresh = create_access_token(user.id, session.id)
+    set_session_cookie(response, fresh)
+    return schemas.LoginResponse(access_token=fresh, user=user)
+
+
 @router.post("/logout")
-def logout(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def logout(response: Response, user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.query(models.UserSession).filter(
         models.UserSession.user_id == user.id,
         models.UserSession.is_active == True,  # noqa: E712
     ).update({"is_active": False})
     db.commit()
+    clear_session_cookie(response)
     return {"ok": True}

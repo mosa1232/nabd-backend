@@ -1428,6 +1428,10 @@
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
+      // Lets the browser store the httpOnly session cookie on login and send
+      // it back to /auth/session/restore. Every other endpoint still
+      // authenticates with the Bearer header below.
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
@@ -3390,9 +3394,13 @@
     document.body.classList.add('auth-mode');
   }
   function backToLoginFromOtp(){
+    // This used to only clear the in-memory token: the server-side session
+    // stayed active, and (now) the session cookie would have signed the
+    // visitor straight back in on the next load.
+    if (authToken) apiFetch('/auth/logout', {method: 'POST'}).catch(() => {});
     authToken = null;
-    showView('view-login');
-    document.body.classList.add('auth-mode');
+    currentUser = null;
+    goToLogin();
   }
   function confirmOtp(){
     proceedAfterAuth();
@@ -3849,18 +3857,35 @@
     `).join('');
   }
 
-  // No visitor sees the dashboard (with its placeholder name/stats) before
-  // signing in for real — either they just landed back from Google's
-  // redirect with a token, or they haven't signed in yet and go to the
-  // login screen instead of the "view-home" that's active by default in the HTML.
-  if (authToken){
-    goToOtpFromLogin();
-    loadRealProfile();
-  } else if (pending2faToken){
-    goToTotpVerify(pending2faToken);
-  } else {
-    goToLogin();
+  // No visitor sees the dashboard before signing in for real — either they
+  // just landed back from Google's redirect with a token, or they have a
+  // still-valid session cookie from a previous visit, or they go to the
+  // login screen instead of the "view-home" that's active by default.
+  //
+  // The access token itself is deliberately never written to localStorage
+  // (a script — including any XSS — could read it there). The cookie behind
+  // this restore call is httpOnly and scoped to /auth/session, so only the
+  // browser can use it, and only to ask for a fresh token.
+  async function bootSession(){
+    if (authToken){
+      goToOtpFromLogin();
+      loadRealProfile();
+      return;
+    }
+    if (pending2faToken){
+      goToTotpVerify(pending2faToken);
+      return;
+    }
+    try {
+      const data = await apiFetch('/auth/session/restore', {method: 'POST'});
+      authToken = data.access_token;
+      currentUser = data.user;
+      proceedAfterAuth();
+    } catch (e) {
+      goToLogin();  // no cookie, expired, or signed out on another device
+    }
   }
+  bootSession();
 </script>
 </body>
 </html>

@@ -810,6 +810,10 @@
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
+      // Lets the browser store the httpOnly session cookie on login and send
+      // it back to /auth/session/restore. Every other endpoint still
+      // authenticates with the Bearer header below.
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
@@ -1107,9 +1111,27 @@
   }
 
   function doLogout(){
+    // End the session server-side too, and drop the cookie — otherwise the
+    // next page load would restore the session we just "logged out" of.
+    if (authToken) apiFetch('/auth/logout', {method: 'POST'}).catch(() => {});
     authToken = null; currentUser = null; liveMode = false;
     document.getElementById('shell').classList.remove('active');
     document.getElementById('view-login').style.display = 'flex';
+  }
+
+  // A refresh used to drop the in-memory token and bounce whoever was
+  // working back to the login form. The cookie behind this call is httpOnly
+  // and scoped to /auth/session, so scripts can't read it the way they could
+  // read a token parked in localStorage — it only lets the browser ask for
+  // a fresh token.
+  async function bootSession(){
+    try {
+      const data = await apiFetch('/auth/session/restore', {method: 'POST'});
+      authToken = data.access_token;
+      currentUser = data.user;
+      liveMode = true;
+      enterShell(roles[data.user.role] ? data.user.role : 'admin');
+    } catch (e) { /* no cookie, expired, or signed out elsewhere — stay on login */ }
   }
 
   function enterShell(role){
@@ -2599,6 +2621,9 @@
       loadStoreProducts();
     } catch (e) { showToast(e.detail || 'تعذّر حذف المنتج', 'error'); }
   }
+
+  // Last statement in the file, so every const it reads (roles, ...) exists.
+  bootSession();
 </script>
 </body>
 </html>

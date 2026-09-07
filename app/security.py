@@ -42,6 +42,37 @@ def create_access_token(user_id: str, session_id: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
+# The session cookie is deliberately scoped to /auth/session, so it is only
+# ever sent to the restore endpoint below — never to a real API route. That
+# means every other endpoint still requires the Authorization header, which
+# a cross-site page cannot set, so adding this cookie introduces no CSRF
+# surface. It is httpOnly, so page scripts (including any future XSS) can't
+# read it the way they could read a token parked in localStorage.
+SESSION_COOKIE_PATH = "/auth/session"
+
+
+def set_session_cookie(response, token: str) -> None:
+    response.set_cookie(
+        key=settings.session_cookie_name,
+        value=token,
+        max_age=settings.jwt_expires_minutes * 60,
+        httponly=True,
+        samesite="lax",
+        secure=not settings.debug,  # plain http on localhost during dev
+        path=SESSION_COOKIE_PATH,
+    )
+
+
+def clear_session_cookie(response) -> None:
+    response.delete_cookie(
+        key=settings.session_cookie_name,
+        httponly=True,
+        samesite="lax",
+        secure=not settings.debug,
+        path=SESSION_COOKIE_PATH,
+    )
+
+
 def decode_access_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])

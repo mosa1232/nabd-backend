@@ -27,8 +27,17 @@ app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.debug else settings.cors_origins_list,
-    allow_credentials=False,  # we use Bearer tokens, not cookies, so this is safe with "*"
+    # The session cookie needs allow_credentials=True, and the CORS spec
+    # forbids pairing that with "*" — browsers reject the combination. In
+    # production both SPAs are served by this same app, so same-origin
+    # requests never hit CORS at all; in dev the frontend is a separate
+    # origin, matched by regex so any localhost port keeps working.
+    **(
+        {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1)(:\d+)?"}
+        if settings.debug
+        else {"allow_origins": settings.cors_origins_list}
+    ),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
