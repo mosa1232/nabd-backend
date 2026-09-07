@@ -115,15 +115,43 @@ Wired to the real API when it's reachable and you're signed in:
 
 Still local demo data only (no backend endpoint yet):
 - Ban appeals/history tabs, Import & Export (admin)
-- Professor Panel's student list (needs a new scoped endpoint)
-- Activation code redemption flow itself (codes exist in the DB but nothing calls it yet)
 
-## 6. Production notes
+## 6. Deploying with a real database
 
-- Swap `DATABASE_URL` for Postgres: `postgresql+psycopg://user:pass@host/db`
+SQLite is fine locally, but on a host with an ephemeral disk (Render's free
+plan included) the file is wiped on **every deploy** — accounts, booklets,
+sold codes and student progress all disappear. Use Postgres in production.
+
+`render.yaml` already declares a free Postgres (`nabd-db`) and wires
+`DATABASE_URL` to it, so deploying the blueprint provisions both. To point at
+an existing database instead, set `DATABASE_URL` to the connection string
+exactly as the provider gives it — a `postgres://` URL is rewritten to
+`postgresql+psycopg://` automatically (see `app/database.py`).
+
+Environment variables that must be set:
+
+| Variable | Why |
+| --- | --- |
+| `JWT_SECRET` | The app refuses to start in production with the default. |
+| `BOOTSTRAP_ADMIN_EMAIL` | The only email that can claim admin on an empty database. Without it nobody can reach the dashboard. |
+| `DEBUG` | Must be `false`, or `/auth/dev-login` grants a session to any email with no password. |
+| `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`, `CORS_ORIGINS` | Your deployed URL, not localhost. |
+
+**First run on an empty database**, in order:
+1. Sign in with `BOOTSTRAP_ADMIN_EMAIL` — that account becomes admin.
+2. Catalog → build section → university → stage → subject. Nothing else can
+   be created until at least one subject exists.
+3. Accounts → add professors. Each one needs a subject; the account is
+   unusable without a teaching profile, so the form asks for it up front.
+
+Schema changes need no migration tool: `_patch_missing_columns()` in
+`app/main.py` ALTERs in any new model column on startup and backfills its
+default, on SQLite and PostgreSQL alike.
+
+## 7. Other production notes
+
 - Add Redis for catalog caching (mentioned in the SRS) — not required to run
-- Move `authToken` out of the in-memory JS variable into an httpOnly cookie
-  set by `/auth/google/callback` for a production build (the current
-  URL-fragment handoff is fine for a prototype but a browser refresh loses
-  the session, since nothing is persisted to storage)
-- Set `DEBUG=false` to disable `/auth/dev-login`
+- Uploads go to the local `uploads/` directory, which is also wiped on
+  redeploy — move them to object storage before relying on them
+- Forgot-password and email-change are deliberately unimplemented: both need
+  a real email service, and neither should be faked

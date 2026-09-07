@@ -1322,18 +1322,24 @@
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
 
-    allAccounts = await liveOrDemo('/api/admin/users', demoAccounts());
+    allAccounts = await liveOrDemo('/api/admin/users', [], []);
+    // Which professors actually have a teaching profile, and the real
+    // university names — the table used to print "جامعة بغداد" on every row
+    // regardless of who the account belonged to.
+    profSubjectByUser = {};
+    universityNameById = {};
+    if (liveMode){
+      try {
+        (await apiFetch('/api/admin/professors')).forEach(p => { profSubjectByUser[p.user_id] = p; });
+        (await apiFetch('/api/admin/catalog'))
+          .filter(r => r.type === 'university')
+          .forEach(r => { universityNameById[r.id] = r.name; });
+      } catch (e) { /* table still renders, just without these extras */ }
+    }
     renderAccountsTable();
   }
-  function demoAccounts(){
-    return [
-      {id:1, full_name:'مدير المنصة', email:'admin@nabd.app', role:'admin'},
-      {id:2, full_name:'د. أحمد الجبوري', email:'ahmed@uob.edu.iq', role:'professor'},
-      {id:3, full_name:'زهراء علي', email:'zahra@uob.edu.iq', role:'student'},
-      {id:4, full_name:'حسين كاظم', email:'hussein@uob.edu.iq', role:'student'},
-      {id:5, full_name:'مريم صالح', email:'maryam@uob.edu.iq', role:'student'},
-    ];
-  }
+  let profSubjectByUser = {};
+  let universityNameById = {};
   let accountFilter = 'all';
   function filterAccounts(role){
     accountFilter = role;
@@ -1358,8 +1364,8 @@
     document.getElementById('accountsBody').innerHTML = list.map(a => `
       <tr>
         <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${esc(a.full_name)}</div><div class="cell-sub mono">${esc(a.email)}</div></div></div></td>
-        <td>${roleBadge(a.role)}</td>
-        <td>جامعة بغداد</td>
+        <td>${roleBadge(a.role)}${a.role === 'professor' ? professorSubjectCell(a) : ''}</td>
+        <td>${esc(universityNameById[a.university_id] || '—')}</td>
         <td>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
         <td style="text-align:end;">${a.role === 'reseller'
           ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
@@ -1373,6 +1379,18 @@
           : `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${banBtn(a)}${totpBtn(a)}${editBtn(a)}</div>`}</td>
       </tr>
     `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد نتائج</td></tr>`;
+  }
+
+  // A professor with no profile can sign in but their whole dashboard 404s,
+  // so flag it right where the account is managed instead of leaving it to
+  // be discovered by the professor.
+  function professorSubjectCell(a){
+    const p = profSubjectByUser[a.id];
+    if (p && p.subject_name){
+      return `<div class="cell-sub">${esc(p.subject_name)}</div>`;
+    }
+    return `<button class="btn btn-ghost" style="padding:3px 8px; font-size:.66rem; margin-top:4px; color:var(--danger);"
+      title="لا يستطيع فتح لوحته حتى تُسند له مادة" onclick="promptAssignSubject('${a.id}')">⚠ بدون مادة — أسنِد</button>`;
   }
 
   async function promptReset2FA(userId){
@@ -1549,18 +1567,62 @@
     {value: 'admin', label: 'أدمن'},
   ];
 
-  function promptAddUser(){
+  // Every subject in the catalog, for the professor-subject pickers.
+  async function subjectOptions(){
+    const rows = await apiFetch('/api/admin/catalog');
+    return rows.filter(r => r.type === 'subject').map(r => ({value: r.id, label: r.name}));
+  }
+
+  async function promptAddUser(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    let subjects = [];
+    try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
       {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
       {id: 'role', label: 'الصلاحية', type: 'select', value: 'student', options: ROLE_OPTIONS},
+      // A professor without a subject can sign in but every screen of their
+      // dashboard 404s, so the subject is collected here rather than left
+      // as a step an admin has no way of knowing they still owe.
+      {id: 'subjectId', label: 'المادة (للدكتور فقط)', type: 'select', value: '',
+       options: [{value: '', label: 'لا ينطبق — ليس دكتوراً'}].concat(subjects)},
+      {id: 'title', label: 'اللقب العلمي (للدكتور فقط)', type: 'text', value: 'أستاذ مساعد'},
     ], async (v) => {
       if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
+      if (v.role === 'professor' && !v.subjectId){
+        throw {detail: subjects.length ? 'اختر المادة التي يدرّسها الدكتور' : 'أضف مادة في "المناهج" أولاً، ثم أنشئ حساب الدكتور'};
+      }
       await apiFetch('/api/admin/users', {
         method: 'POST',
-        body: JSON.stringify({full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, password: v.password || null}),
+        body: JSON.stringify({
+          full_name: v.fullName.trim(), email: v.email.trim(), role: v.role,
+          password: v.password || null,
+          subject_id: v.role === 'professor' ? v.subjectId : null,
+          title: v.role === 'professor' ? (v.title || '').trim() : null,
+        }),
+      });
+      loadAccounts();
+    });
+  }
+
+  // An account promoted to professor after the fact (or created before the
+  // subject was required) still has no teaching profile. This is how it gets
+  // one — surfaced from the accounts list.
+  async function promptAssignSubject(userId){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    let subjects = [];
+    try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
+    if (!subjects.length){ showToast('أضف مادة في "المناهج" أولاً', 'error'); return; }
+    const rows = await apiFetch('/api/admin/professors');
+    const row = rows.find(r => r.user_id === userId);
+    openGenericModal('مادة الدكتور' + (row ? ` — ${row.full_name}` : ''), [
+      {id: 'subjectId', label: 'المادة', type: 'select', value: (row && row.subject_id) || subjects[0].value, options: subjects},
+      {id: 'title', label: 'اللقب العلمي', type: 'text', value: (row && row.title) || 'أستاذ مساعد'},
+    ], async (v) => {
+      await apiFetch('/api/admin/professors/' + userId, {
+        method: 'PUT',
+        body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'}),
       });
       loadAccounts();
     });

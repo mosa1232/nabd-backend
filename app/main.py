@@ -68,6 +68,8 @@ def _patch_missing_columns():
     model's columns against what's actually in the DB and ALTERs in whatever
     is missing, so an upgrade is just "restart the server"."""
     inspector = inspect(engine)
+    dialect = engine.dialect
+    quote = dialect.identifier_preparer.quote
     with engine.begin() as conn:
         for table in Base.metadata.sorted_tables:
             if not inspector.has_table(table.name):
@@ -76,8 +78,17 @@ def _patch_missing_columns():
             for column in table.columns:
                 if column.name in existing:
                     continue
-                col_type = column.type.compile(engine.dialect)
-                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}'))
+                # PostgreSQL stores Enum columns as a named type that has to
+                # exist before a column can reference it. SQLite renders the
+                # same column as VARCHAR and create_type is a no-op there.
+                if hasattr(column.type, "create"):
+                    column.type.create(conn, checkfirst=True)
+                col_type = column.type.compile(dialect)
+                # Quote both identifiers: an unquoted column named e.g. "user"
+                # or "order" is a syntax error on PostgreSQL.
+                conn.execute(text(
+                    f'ALTER TABLE {quote(table.name)} ADD COLUMN {quote(column.name)} {col_type}'
+                ))
                 # A freshly-added column is NULL on every pre-existing row.
                 # Backfill it to the model's declared default (when it's a
                 # plain literal) so those rows match what a brand-new row
@@ -87,7 +98,10 @@ def _patch_missing_columns():
                 default = getattr(column, "default", None)
                 if default is not None and getattr(default, "is_scalar", False):
                     conn.execute(
-                        text(f'UPDATE {table.name} SET {column.name} = :val WHERE {column.name} IS NULL'),
+                        text(
+                            f'UPDATE {quote(table.name)} SET {quote(column.name)} = :val '
+                            f'WHERE {quote(column.name)} IS NULL'
+                        ),
                         {"val": default.arg},
                     )
 
@@ -97,7 +111,7 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
     _patch_missing_columns()
     # No demo data auto-seeded — this instance starts genuinely empty.
-    # The very first person to sign in becomes admin (see auth.py) so
+    # Whoever signs in with BOOTSTRAP_ADMIN_EMAIL becomes admin (see auth.py) so
     # there's still a way in without fake accounts. Run `python seed.py`
     # yourself if you ever want the demo dataset back for local testing.
 

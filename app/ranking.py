@@ -82,6 +82,11 @@ def rank_of(ranked: list[tuple[str, int]], user_id: str) -> int | None:
 def streak_days(db: Session, user_id: str) -> int:
     """Consecutive days up to today with at least one answer. Selects the
     distinct answer *dates* rather than pulling every timestamp."""
+    # func.date(), not CAST(... AS DATE). Both backends have a date()
+    # function, but SQLite's CAST AS DATE is a trap: with no real date type
+    # it applies numeric affinity and returns 2026 for '2026-08-31 07:02:32'.
+    # date() returns '2026-08-31' on SQLite and a real date on PostgreSQL,
+    # which is why the loop below still normalises both shapes.
     day = func.date(models.StudentAnswer.answered_at).label("day")
     rows = (
         db.query(day)

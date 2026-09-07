@@ -85,6 +85,16 @@ class UserCreateIn(BaseModel):
     full_name: str
     role: str
     password: Optional[str] = None
+    # Required when role == "professor": a professor with no teaching profile
+    # can sign in but every screen of their dashboard 404s, because the
+    # profile is what ties them to a subject.
+    subject_id: Optional[str] = None
+    title: Optional[str] = None
+
+
+class ProfessorAssignIn(BaseModel):
+    subject_id: str
+    title: str = "أستاذ مساعد"
 
 
 class UserUpdateIn(BaseModel):

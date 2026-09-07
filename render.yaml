@@ -13,8 +13,13 @@ services:
       # Set to your own email so only you can claim admin on a fresh database.
       - key: BOOTSTRAP_ADMIN_EMAIL
         sync: false
+      # Render's free disk is wiped on every deploy, so a SQLite file here
+      # would lose every account, booklet and sold code on each push. This
+      # points at the managed Postgres defined at the bottom of this file.
       - key: DATABASE_URL
-        value: "sqlite:///./nabd.db"
+        fromDatabase:
+          name: nabd-db
+          property: connectionString
       - key: ALLOWED_UNIVERSITY_DOMAINS
         value: ""
       # Set these in the Render dashboard after the first deploy, once you
@@ -29,3 +34,9 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+
+databases:
+  - name: nabd-db
+    plan: free
+    databaseName: nabd
+    user: nabd

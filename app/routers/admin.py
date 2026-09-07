@@ -97,7 +97,7 @@ def _daily_counts(db: Session, model, date_column, days: int = 7, extra_filter=N
     """
     today = datetime.utcnow().date()
     start = today - timedelta(days=days - 1)
-    day = func.date(date_column).label("day")
+    day = func.date(date_column).label("day")  # not CAST — see ranking.streak_days
     q = db.query(day, func.count()).filter(date_column >= datetime.combine(start, time.min))
     if extra_filter is not None:
         q = q.filter(extra_filter)
@@ -127,6 +127,14 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db)):
         raise HTTPException(400, "دور غير صالح")
     if db.query(models.User).filter(models.User.email == body.email.strip()).first():
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
+    # A professor is only usable once they have a teaching profile, so demand
+    # the subject up front rather than creating an account whose dashboard is
+    # 404 on every screen.
+    if body.role == models.Role.professor.value:
+        if not body.subject_id:
+            raise HTTPException(400, "اختر المادة التي يدرّسها الدكتور")
+        if not db.get(models.Subject, body.subject_id):
+            raise HTTPException(404, "المادة غير موجودة")
     user = models.User(
         email=body.email.strip(),
         full_name=body.full_name.strip(),
@@ -134,9 +142,68 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db)):
         password_hash=hash_password(body.password) if body.password else None,
     )
     db.add(user)
+    db.flush()
+    if body.role == models.Role.professor.value:
+        db.add(models.ProfessorProfile(
+            user_id=user.id,
+            subject_id=body.subject_id,
+            title=(body.title or "أستاذ مساعد").strip() or "أستاذ مساعد",
+        ))
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/professors")
+def list_professor_profiles(db: Session = Depends(get_db)):
+    """Which professor accounts have a teaching profile, and which don't —
+    an account created before this was required, or promoted to professor
+    later, has none and can't open its dashboard until one is assigned."""
+    profiles = {
+        p.user_id: p for p in db.query(models.ProfessorProfile).all()
+    }
+    out = []
+    for user in db.query(models.User).filter(models.User.role == models.Role.professor).all():
+        p = profiles.get(user.id)
+        out.append({
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "profile_id": p.id if p else None,
+            "subject_id": p.subject_id if p else None,
+            "subject_name": p.subject.name if p and p.subject else None,
+            "title": p.title if p else None,
+        })
+    return out
+
+
+@router.put("/professors/{user_id}")
+def assign_professor_profile(user_id: str, body: schemas.ProfessorAssignIn, db: Session = Depends(get_db)):
+    """Creates or re-points a professor's teaching profile. Without this
+    there was no way at all to give a professor a subject outside the seed
+    script, so every professor created from this panel was unusable."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    if user.role != models.Role.professor:
+        raise HTTPException(400, "هذا الحساب ليس حساب دكتور")
+    if not db.get(models.Subject, body.subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+
+    profile = db.query(models.ProfessorProfile).filter(
+        models.ProfessorProfile.user_id == user_id
+    ).first()
+    if profile:
+        profile.subject_id = body.subject_id
+        profile.title = body.title.strip() or profile.title
+    else:
+        profile = models.ProfessorProfile(
+            user_id=user_id, subject_id=body.subject_id, title=body.title.strip() or "أستاذ مساعد",
+        )
+        db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return {"profile_id": profile.id, "subject_id": profile.subject_id, "title": profile.title}
 
 
 @router.put("/users/{user_id}", response_model=schemas.UserOut)
