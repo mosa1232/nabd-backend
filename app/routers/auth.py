@@ -15,7 +15,8 @@ from ..security import (
     hash_password, set_session_cookie, start_new_session, totp_provisioning_uri,
     verify_password, verify_totp,
 )
-from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, UPLOAD_DIR, delete_stored_upload, safe_upload_name
+from ..storage import media_url, storage
+from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, delete_stored_upload, safe_upload_name
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -390,9 +391,9 @@ async def upload_my_photo(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
-    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    storage.save(stored_name, contents, file.content_type or "")
     delete_stored_upload(user.photo_url)  # don't strand the photo being replaced
-    user.photo_url = f"/media-files/{stored_name}"
+    user.photo_url = media_url(stored_name)
     db.commit()
     db.refresh(user)
     return user

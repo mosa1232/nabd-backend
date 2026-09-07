@@ -148,10 +148,38 @@ Schema changes need no migration tool: `_patch_missing_columns()` in
 `app/main.py` ALTERs in any new model column on startup and backfills its
 default, on SQLite and PostgreSQL alike.
 
-## 7. Other production notes
+## 7. File storage
+
+Uploads have the same ephemeral-disk problem the database had: with
+`STORAGE_BACKEND=local` the files live in `./uploads`, which is wiped on
+every deploy, so booklets and lecture videos vanish.
+
+Set `STORAGE_BACKEND=s3` and they go to any S3-compatible object store:
+
+| Provider | Endpoint | Note |
+| --- | --- | --- |
+| **Cloudflare R2** | `https://<account-id>.r2.cloudflarestorage.com` | Recommended — no egress charge, which is what lecture video actually costs. `S3_REGION=auto`. |
+| AWS S3 | leave `S3_ENDPOINT_URL` empty | Charges per GB served. |
+| Backblaze B2 | `https://s3.<region>.backblazeb2.com` | S3-compatible endpoint. |
+| Supabase Storage | `https://<project>.supabase.co/storage/v1/s3` | 1GB free. |
+
+Required: `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, plus
+`S3_ENDPOINT_URL` for anything that isn't AWS. The app refuses to start if
+`STORAGE_BACKEND=s3` and those are missing, rather than looking healthy
+until the first upload fails.
+
+**Keep the bucket private.** Booklets and lecture videos are paid content;
+with no `S3_PUBLIC_BASE_URL` set, `GET /media-files/<name>` redirects to a
+signed URL that expires after `S3_URL_EXPIRY_SECONDS` (default 1 hour).
+Range requests pass through, so video seeking works and the bytes never
+travel through this process.
+
+The database always stores the backend-agnostic `/media-files/<name>`, so
+switching backends doesn't rewrite any rows — but files already uploaded to
+the old backend need copying across, since nothing migrates them for you.
+
+## 8. Other production notes
 
 - Add Redis for catalog caching (mentioned in the SRS) — not required to run
-- Uploads go to the local `uploads/` directory, which is also wiped on
-  redeploy — move them to object storage before relying on them
 - Forgot-password and email-change are deliberately unimplemented: both need
   a real email service, and neither should be faked

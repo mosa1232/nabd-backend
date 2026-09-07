@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -14,7 +13,7 @@ from .routers import (
     activation, admin, auth, bans, catalog, courses, exams, import_export,
     notifications, professors, questions, reseller, store, students,
 )
-from .routers.admin import UPLOAD_DIR
+from .storage import name_from_url, storage
 
 settings = get_settings()
 FRONTEND_DIR = Path(__file__).resolve().parent.parent
@@ -57,7 +56,31 @@ app.include_router(exams.router)
 app.include_router(notifications.router)
 app.include_router(students.router)
 
-app.mount("/media-files", StaticFiles(directory=UPLOAD_DIR), name="media-files")
+@app.get("/media-files/{name}")
+def serve_media(name: str):
+    """Serves an uploaded file, whichever backend it lives on.
+
+    The database always stores `/media-files/<name>`, so a booklet uploaded
+    before the switch to object storage keeps working and a signed URL is
+    never persisted where it could go stale. With the local backend this
+    streams the file off disk; with S3 it redirects to a short-lived signed
+    URL, which is also what lets video range-requests go straight to the
+    object store instead of through this process.
+    """
+    safe = name_from_url(f"/media-files/{name}")
+    if not safe:
+        raise HTTPException(404, "الملف غير موجود")
+
+    path = storage.local_path(safe)
+    if path is not None:
+        return FileResponse(path)
+
+    url = storage.signed_url(safe)
+    if url and storage.exists(safe):
+        # 307 keeps the method and is not cached, so the next request gets a
+        # freshly signed URL rather than a stale one out of the browser cache.
+        return RedirectResponse(url, status_code=307)
+    raise HTTPException(404, "الملف غير موجود")
 
 
 def _patch_missing_columns():

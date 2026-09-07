@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
+from ..storage import media_url, storage
 from .admin import (
-    DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES, UPLOAD_DIR,
+    DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES,
     VIDEO_EXTS, delete_stored_upload, safe_upload_name,
 )
 
@@ -110,7 +111,10 @@ def update_my_profile(
     profile = _get_own_profile(db, user)
     profile.title = body.title.strip() or profile.title
     profile.bio = body.bio.strip()
-    if body.photo_url is not None:
+    if body.photo_url is not None and body.photo_url != profile.photo_url:
+        # Clearing or repointing the photo has to release the stored file
+        # too, the same way replacing it through /me/photo does.
+        delete_stored_upload(profile.photo_url)
         profile.photo_url = body.photo_url
     db.commit()
     db.refresh(profile)
@@ -128,9 +132,9 @@ async def upload_my_photo(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
-    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    storage.save(stored_name, contents, file.content_type or "")
     delete_stored_upload(profile.photo_url)  # don't strand the photo being replaced
-    profile.photo_url = f"/media-files/{stored_name}"
+    profile.photo_url = media_url(stored_name)
     db.commit()
     return {"photo_url": profile.photo_url}
 
@@ -306,9 +310,9 @@ async def upload_booklet_file(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
-    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    storage.save(stored_name, contents, file.content_type or "")
     delete_stored_upload(b.file_url)  # replacing a file shouldn't strand the old one
-    b.file_url = f"/media-files/{stored_name}"
+    b.file_url = media_url(stored_name)
     db.commit()
     db.refresh(b)
     return b
@@ -488,8 +492,8 @@ async def upload_lecture_video(
     if len(contents) > MAX_VIDEO_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (150 ميغابايت)")
     stored_name = safe_upload_name(file.filename, VIDEO_EXTS, "lecture")
-    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    storage.save(stored_name, contents, file.content_type or "")
     delete_stored_upload(lec.video_url)  # replacing a video shouldn't strand the old one
-    lec.video_url = f"/media-files/{stored_name}"
+    lec.video_url = media_url(stored_name)
     db.commit()
     return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": lec.video_url}

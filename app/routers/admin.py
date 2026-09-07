@@ -10,12 +10,11 @@ from .. import models, schemas
 from ..database import get_db
 from ..deps import require_role
 from ..security import hash_password
+from ..storage import media_url, name_from_url, storage
 from .store import issue_codes_for_paid_order
 
 VALID_ROLES = {r.value for r in models.Role}
 
-UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20MB — plenty for booklets/slide images in this prototype
 MAX_VIDEO_BYTES = 150 * 1024 * 1024  # 150MB — real lecture videos need more room than a PDF/photo
 
@@ -39,26 +38,17 @@ def safe_upload_name(filename: str | None, allowed_exts: set[str], fallback_stem
     return f"{secrets.token_hex(8)}_{fallback_stem}{ext}"
 
 
-def delete_stored_upload(media_url: str | None) -> None:
-    """Removes the file behind a /media-files/... URL.
+def delete_stored_upload(media_ref: str | None) -> None:
+    """Removes the file behind a /media-files/... reference.
 
     Deleting a booklet or replacing a lecture video used to only drop the
-    database row, so every upload ever made stayed on disk forever — a
-    150MB video per replaced lecture. Silently ignores anything that isn't
-    a plain filename directly under the upload dir, so a tampered URL can
-    never point the unlink somewhere else.
+    database row, so every upload ever made stayed in storage forever — a
+    150MB video per replaced lecture. Whether that file lives on disk or in
+    an object store is app/storage.py's problem, not this module's.
     """
-    if not media_url or not media_url.startswith("/media-files/"):
-        return
-    name = Path(media_url[len("/media-files/"):]).name
-    if not name:
-        return
-    target = UPLOAD_DIR / name
-    try:
-        if target.resolve().parent == UPLOAD_DIR.resolve() and target.is_file():
-            target.unlink()
-    except OSError:
-        pass  # a missing or locked file must never block the delete itself
+    name = name_from_url(media_ref)
+    if name:
+        storage.delete(name)
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
@@ -698,12 +688,11 @@ async def upload_media(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
 
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS | DOC_EXTS | VIDEO_EXTS, "file")
-    safe_name = stored_name
-    (UPLOAD_DIR / stored_name).write_bytes(contents)
+    storage.save(stored_name, contents, file.content_type or "")
 
     m = models.MediaFile(
-        filename=safe_name,
-        url=f"/media-files/{stored_name}",
+        filename=stored_name,
+        url=media_url(stored_name),
         content_type=file.content_type or "",
         size_bytes=len(contents),
         uploaded_by=user.id,

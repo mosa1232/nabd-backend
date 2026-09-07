@@ -42,6 +42,24 @@ class Settings(BaseSettings):
 
     session_cookie_name: str = "nabd_session"
 
+    # ---------------------------------------------------------- uploads
+    # "local" writes to ./uploads (fine for development, but that directory
+    # is wiped on every deploy on a host with an ephemeral disk). "s3" uses
+    # any S3-compatible object store — Cloudflare R2, AWS S3, Backblaze B2,
+    # Supabase Storage, MinIO — so files survive deploys. See app/storage.py.
+    storage_backend: str = "local"
+    s3_bucket: str = ""
+    s3_prefix: str = ""            # optional folder inside the bucket
+    s3_endpoint_url: str = ""      # required for anything that isn't AWS S3
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region: str = "auto"        # R2 uses "auto"; AWS wants a real region
+    # Set only when the bucket (or a CDN in front of it) is public. Left
+    # empty, files are handed out through short-lived signed URLs instead,
+    # which is the right default for paid booklets and lecture videos.
+    s3_public_base_url: str = ""
+    s3_url_expiry_seconds: int = 3600
+
     @property
     def allowed_domains_list(self) -> list[str]:
         return [d.strip() for d in self.allowed_university_domains.split(",") if d.strip()]
