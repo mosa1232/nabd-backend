@@ -92,6 +92,20 @@
   .role-btn-sub{font-size:.72rem; color:var(--ink-faint); margin-top:2px;}
   .login-divider{display:flex; align-items:center; gap:10px; margin:18px 0 6px; color:var(--ink-faint); font-size:.72rem;}
   .login-divider::before, .login-divider::after{content:''; flex:1; height:1px; background:var(--glass-border);}
+  /* نفس مكوّن زر Google بالضبط من تطبيق الطالب — بلا ألوان جوجل الرسمية،
+     حرف "G" بلون الثيم مثل هناك، حتى تبقى الواجهتان متطابقتين بصرياً. */
+  .google-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:13px; border-radius:999px; background:#fff; color:#1F1F1F; font-weight:700; font-size:.88rem;
+    border:1.5px solid var(--glass-border); transition:.2s; margin-top:6px; cursor:pointer; font-family:inherit;
+  }
+  html.dark .google-btn{background:#20263F; color:#fff;}
+  .google-btn:hover{box-shadow:0 10px 24px -10px rgba(0,0,0,.3); transform:translateY(-1px);}
+  .google-btn:disabled{opacity:.65; cursor:default; transform:none; box-shadow:none;}
+  .google-mark{
+    width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff;
+    display:grid; place-items:center; font-size:.7rem; font-weight:700; font-family:'IBM Plex Mono',monospace; flex:none;
+  }
   .form-field{margin-bottom:10px;}
   .form-field input, .form-field select{
     width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border);
@@ -258,7 +272,14 @@
         <span class="display" style="font-size:1.1rem; font-weight:700;">Kiur — لوحة التحكم</span>
       </div>
       <div class="login-title">تسجيل الدخول</div>
-      <div class="login-sub">أدخل بريدك الإلكتروني وكلمة المرور</div>
+      <div class="login-sub">للأدمن والدكتور والمندوب — بحساب Google أو بالبريد وكلمة المرور</div>
+
+      <button type="button" class="google-btn" id="adminGoogleBtn" onclick="startAdminGoogleSignIn()">
+        <span class="google-mark">G</span>
+        <span id="adminGoogleBtnLabel">الدخول عبر Google</span>
+      </button>
+
+      <div class="login-divider">أو بالبريد وكلمة المرور</div>
 
       <form onsubmit="event.preventDefault(); submitPasswordLogin();">
         <div class="form-field"><input id="loginEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني" autocomplete="username" /></div>
@@ -799,6 +820,31 @@
   let currentRole = 'admin';
   let liveMode = false; // true once a real dev-login/OAuth session exists
 
+  // If we just landed back from /auth/google/callback — a real Google OAuth
+  // round trip for this dashboard — the backend hands the result off via a
+  // URL fragment (never logged by servers/proxies), the same way it does
+  // for the student app. Three possible outcomes: a token, a paused 2FA
+  // step, or a rejection because the Google account isn't an admin,
+  // professor or reseller (the backend checks this before issuing anything,
+  // so no session ever gets created for the rejected case).
+  let pendingGoogleToken = null;
+  let googleSignInError = null;
+  (function captureGoogleRedirect(){
+    const m = location.hash.match(/access_token=([^&]+)/);
+    const m2 = location.hash.match(/requires_2fa=1&pending_token=([^&]+)/);
+    const m3 = location.hash.match(/google_error=([^&]+)/);
+    if (m){
+      authToken = decodeURIComponent(m[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+    } else if (m2){
+      pendingGoogleToken = decodeURIComponent(m2[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+    } else if (m3){
+      googleSignInError = decodeURIComponent(m3[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  })();
+
   // Every value that reaches innerHTML from the API goes through this.
   // Names, titles, captions and bios are attacker-controlled text (a student
   // picks their own full_name; a professor picks booklet/course titles), and
@@ -960,6 +1006,39 @@
   });
 
   // ---------- Login ----------
+  async function startAdminGoogleSignIn(){
+    const btn = document.getElementById('adminGoogleBtn');
+    const label = document.getElementById('adminGoogleBtnLabel');
+    btn.disabled = true;
+    label.textContent = 'جارٍ التحقق من حساب Google...';
+    try {
+      const res = await fetch(API_BASE_URL + '/health');
+      if (!res.ok) throw new Error();
+    } catch (e) {
+      btn.disabled = false;
+      label.textContent = 'الدخول عبر Google';
+      showToast('تعذّر الاتصال بالخادم — تأكد أنه يعمل ثم أعد المحاولة، أو استخدم البريد وكلمة المرور', 'error');
+      return;
+    }
+    // Hands off to the backend, which redirects to Google, then back to
+    // this exact page with #access_token=... (or a 2FA/rejection outcome —
+    // see captureGoogleRedirect above) once the visitor is back.
+    // ?next=admin is what tells the callback to send them back HERE
+    // instead of the student app.
+    window.location.href = API_BASE_URL + '/auth/google/login?next=admin';
+  }
+
+  // Reached once after landing back from Google with a real token — either
+  // straight away (no 2FA) or via the TOTP modal below. The backend has
+  // already refused anything but an admin/professor/reseller account before
+  // handing out a token at all, so there's no role check to repeat here.
+  async function finishGoogleSignIn(token, user){
+    authToken = token;
+    currentUser = user;
+    liveMode = true;
+    enterShell(roles[user.role] ? user.role : 'admin');
+  }
+
   async function submitPasswordLogin(){
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -1131,10 +1210,26 @@
   async function bootSession(){
     try {
       const data = await apiFetch('/auth/session/restore', {method: 'POST'});
+      // A restored cookie can belong to any account that's ever signed in
+      // anywhere on this origin, including a student who only ever used the
+      // student app on the same browser. Silently dropping them into the
+      // admin shell used to fall back to the "admin" tab layout while every
+      // request kept authenticating as that student, so the whole dashboard
+      // 403'd. Same rule submitPasswordLogin already applies: no student
+      // sessions here.
+      if (!roles[data.user.role]){
+        // authToken has to be set for this one call (apiFetch signs every
+        // request with it) — then cleared again since this session isn't
+        // usable here.
+        authToken = data.access_token;
+        await apiFetch('/auth/logout', {method: 'POST'}).catch(() => {});
+        authToken = null;
+        return;
+      }
       authToken = data.access_token;
       currentUser = data.user;
       liveMode = true;
-      enterShell(roles[data.user.role] ? data.user.role : 'admin');
+      enterShell(data.user.role);
     } catch (e) { /* no cookie, expired, or signed out elsewhere — stay on login */ }
   }
 
@@ -2697,7 +2792,25 @@
   }
 
   // Last statement in the file, so every const it reads (roles, ...) exists.
-  bootSession();
+  // Whatever the Google redirect handed back (if anything) takes priority
+  // over restoring an older session from the cookie.
+  if (authToken){
+    (async () => {
+      try {
+        const me = await apiFetch('/auth/me');
+        finishGoogleSignIn(authToken, me);
+      } catch (e) {
+        authToken = null;
+        showToast(e.detail || 'تعذّر إكمال تسجيل الدخول عبر Google', 'error');
+      }
+    })();
+  } else if (pendingGoogleToken){
+    promptTotpVerify(pendingGoogleToken, (data) => finishGoogleSignIn(data.access_token, data.user));
+  } else if (googleSignInError === 'role'){
+    showToast('هذا الحساب من نوع "طالب" — لوحة التحكم هذه للأدمن/الدكتور/المندوب فقط', 'error');
+  } else {
+    bootSession();
+  }
 </script>
 </body>
 </html>

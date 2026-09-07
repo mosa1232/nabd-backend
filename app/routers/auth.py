@@ -102,26 +102,57 @@ def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models
     return user
 
 
-def _issue_session_and_redirect(db: Session, user: models.User, device_label: str) -> RedirectResponse:
+def _issue_session_and_redirect(db: Session, user: models.User, device_label: str, redirect_base: str) -> RedirectResponse:
     if user.totp_enabled:
         # Don't start the real session yet — a session here would already
         # count as "logged in" for the single-active-session rule before the
         # second factor is checked. Hand the SPA a pending token instead;
         # it only unlocks POST /auth/2fa/verify.
         pending = create_2fa_pending_token(user.id)
-        return RedirectResponse(f"{settings.frontend_url}#requires_2fa=1&pending_token={pending}")
+        return RedirectResponse(f"{redirect_base}#requires_2fa=1&pending_token={pending}")
     session = start_new_session(db, user, device_label)
     token = create_access_token(user.id, session.id)
     # Hand the token to the SPA via a URL fragment (never logged by servers/proxies).
-    response = RedirectResponse(f"{settings.frontend_url}#access_token={token}")
+    response = RedirectResponse(f"{redirect_base}#access_token={token}")
     set_session_cookie(response, token)
     return response
 
 
+# Roles allowed to actually use the admin dashboard — kept in sync with the
+# `roles` map on the dashboard's own side (nabd-admin-dashboard.html), which
+# rejects anything else with the same message this returns via #google_error.
+ADMIN_DASHBOARD_ROLES = {models.Role.admin, models.Role.professor, models.Role.reseller}
+
+
+def _admin_redirect_base(request: Request) -> str:
+    """Where the browser lands after an admin/professor/reseller sign-in.
+
+    Derived from the request's own origin by default rather than
+    FRONTEND_URL: this app serves the admin dashboard itself at /admin (see
+    app/main.py), so "wherever this request came in on" is always a valid
+    target — in local dev that's http://127.0.0.1:8000, in production the
+    deployed origin, with no extra configuration either way. Only
+    ADMIN_FRONTEND_URL overrides it, for the unusual case of hosting the
+    dashboard somewhere this app doesn't serve it.
+    """
+    if settings.admin_frontend_url:
+        return settings.admin_frontend_url.rstrip("/")
+    return str(request.base_url).rstrip("/") + "/admin"
+
+
 @router.get("/google/login")
-async def google_login(request: Request):
+async def google_login(request: Request, next: str = ""):
     if not settings.google_client_id:
         raise HTTPException(500, "GOOGLE_CLIENT_ID غير مهيأ على الخادم — راجع ملف .env")
+    # Remembered across the round trip to Google in the same signed session
+    # cookie authlib already uses for OAuth state/nonce, so the callback
+    # below knows to send an admin/professor/reseller sign-in back to the
+    # dashboard instead of the student app — without it being something a
+    # caller could just forge by adding ?next=admin to the callback URL.
+    if next == "admin":
+        request.session["oauth_next"] = "admin"
+    else:
+        request.session.pop("oauth_next", None)
     redirect_uri = settings.google_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -137,10 +168,23 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     if not _domain_allowed(email):
         raise HTTPException(403, "الرجاء تسجيل الدخول ببريدك الجامعي الرسمي")
 
+    is_admin_flow = request.session.pop("oauth_next", None) == "admin"
     user = _find_or_create_user(db, email, name, sub)
+
+    if is_admin_flow:
+        redirect_base = _admin_redirect_base(request)
+        if user.role not in ADMIN_DASHBOARD_ROLES:
+            # No session issued at all — creating one just to reject it a
+            # moment later would also silently sign this account out of any
+            # real session it already holds elsewhere (single-active-session
+            # invalidates the older one the instant a new one starts).
+            return RedirectResponse(f"{redirect_base}#google_error=role")
+    else:
+        redirect_base = settings.frontend_url
+
     ua = request.headers.get("user-agent", "")
     device_label = "متصفح" if "Mobile" not in ua else "هاتف"
-    return _issue_session_and_redirect(db, user, device_label)
+    return _issue_session_and_redirect(db, user, device_label, redirect_base)
 
 
 @router.post("/dev-login", include_in_schema=True)

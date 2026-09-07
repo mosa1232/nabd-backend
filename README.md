@@ -78,7 +78,7 @@ the endpoint from there — easiest option on Windows.
 There are two frontend files, both static HTML — served the same way:
 
 - `nabd-home-quiz-prototype.html` — the student app
-- `nabd-admin-dashboard.html` — Super Admin / Professor / Reseller control panel (role switcher built in). Log in with real email + password — every seeded admin/professor/reseller account uses the password `Nabd@2026` (e.g. `admin@nabd.app` / `Nabd@2026`, `أحمد.الجبوري@uob.edu.iq` / `Nabd@2026`, `reseller@nabd.app` / `Nabd@2026`). The three "دخول كـ..." buttons below the form are still there too, for a one-click no-password demo via `/auth/dev-login`.
+- `nabd-admin-dashboard.html` — Super Admin / Professor / Reseller control panel (role switcher built in). Log in with "الدخول عبر Google" (a real OAuth round trip — no password, but only for an email that's already an admin/professor/reseller account; anything else is refused before a session is even created) or with real email + password — every seeded admin/professor/reseller account uses the password `Nabd@2026` (e.g. `admin@nabd.app` / `Nabd@2026`, `أحمد.الجبوري@uob.edu.iq` / `Nabd@2026`, `reseller@nabd.app` / `Nabd@2026`). The three "دخول كـ..." buttons below the form are still there too, for a one-click no-password demo via `/auth/dev-login`.
 
 Neither works opened directly (`file://`) — the OAuth redirect and API calls need a real HTTP origin:
 
@@ -90,16 +90,17 @@ python3 -m http.server 5500
 Then open `http://localhost:5500/nabd-home-quiz-prototype.html` or
 `http://localhost:5500/nabd-admin-dashboard.html`. Make sure:
 
-- `FRONTEND_URL` in `.env` matches the student app's origin (`http://localhost:5500`) — that's where Google's redirect sends the browser back to
+- `FRONTEND_URL` in `.env` matches the student app's origin (`http://localhost:5500`) — that's where Google's redirect sends the browser back to after a student sign-in. The admin dashboard's own Google button doesn't need `ADMIN_FRONTEND_URL` set for this split setup or any other — see the comment on it in `.env.example`.
 - `API_BASE_URL` near the top of each HTML file's `<script>` matches your backend (`http://localhost:8000` by default — already set)
-- CORS: in `DEBUG=true` (the default), the backend accepts requests from any origin, since auth uses Bearer tokens rather than cookies — so both files work regardless of which port serves them. Set `DEBUG=false` in production and list real origins in `CORS_ORIGINS` instead.
+- CORS: in `DEBUG=true` (the default), the backend accepts requests from any origin. Set `DEBUG=false` in production and list real origins in `CORS_ORIGINS` instead.
 
-With the backend running, "المتابعة عبر Google" on the student app performs a
-real OAuth round trip, and the admin dashboard's login form authenticates for
-real via `POST /auth/login` (email + password, PBKDF2-hashed server-side —
-see `password_hash` on the `User` model and `app/security.py`). If the
-backend isn't reachable, both frontends silently fall back to their built-in
-demo data — nothing breaks either way.
+With the backend running, "المتابعة عبر Google" on the student app and
+"الدخول عبر Google" on the admin dashboard both perform a real OAuth round
+trip, and the admin dashboard's login form also authenticates for real via
+`POST /auth/login` (email + password, PBKDF2-hashed server-side — see
+`password_hash` on the `User` model and `app/security.py`). If the backend
+isn't reachable, both frontends silently fall back to their built-in demo
+data — nothing breaks either way.
 
 ## 5. What's actually wired vs. still local-only
 

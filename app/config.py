@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     # Where to send the browser after a successful login
     frontend_url: str = "http://localhost:5500"
 
+    # Override for where an admin/professor/reseller Google sign-in lands.
+    # Left empty, it's derived from the request itself (this app's own
+    # origin + "/admin") — which is always correct, since this app serves
+    # the admin dashboard itself and that's the origin the sign-in button
+    # was clicked from. Only set this if the admin dashboard is hosted
+    # somewhere this app doesn't serve it.
+    admin_frontend_url: str = ""
+
     # Comma-separated list of origins allowed to call this API
     cors_origins: str = "http://localhost:5500,http://127.0.0.1:5500"
 
