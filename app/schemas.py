@@ -22,6 +22,8 @@ class UserOut(BaseModel):
     theme: str = "light"
     language: str = "ar"
     password_hash: Optional[str] = Field(default=None, exclude=True)
+    # None for an account that has never set one.
+    password_changed_at: Optional[datetime] = None
 
     @computed_field
     @property
@@ -428,3 +430,11 @@ class ClinicalPearlPreviewOut(BaseModel):
     title: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class ForgotPasswordIn(BaseModel):
+    email: str
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str

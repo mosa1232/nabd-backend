@@ -22,6 +22,19 @@ services:
           property: connectionString
       - key: ALLOWED_UNIVERSITY_DOMAINS
         value: ""
+      # Password reset needs these to actually deliver a link. Until they're
+      # set the feature reports itself as unavailable rather than silently
+      # failing. See .env.example for host/port per provider.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
       # Uploads go to an S3-compatible bucket, because the instance disk is
       # wiped on every deploy the same way the SQLite file was. Cloudflare R2
       # is the cheap choice for this workload — lecture video is mostly

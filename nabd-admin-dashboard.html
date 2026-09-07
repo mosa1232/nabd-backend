@@ -286,6 +286,11 @@
         <div class="form-field" style="margin-bottom:8px;"><input id="loginPassword" type="password" placeholder="كلمة المرور" autocomplete="current-password" /></div>
         <div id="loginError" style="font-size:.78rem; color:var(--danger); margin-bottom:10px; display:none;"></div>
         <button type="submit" class="btn" style="width:100%; justify-content:center; padding:12px;">تسجيل الدخول</button>
+        <button type="button" onclick="promptForgotPassword()"
+                style="background:none;border:0;cursor:pointer;font:inherit;width:100%;margin-top:12px;
+                       font-size:.78rem;font-weight:700;color:var(--accent);">
+          نسيت كلمة المرور؟
+        </button>
       </form>
 
       <div class="login-divider">أو جرّب بحساب تجريبي</div>
@@ -848,7 +853,17 @@
   // so no session ever gets created for the rejected case).
   let pendingGoogleToken = null;
   let googleSignInError = null;
+  let pendingResetToken = null;
   (function captureGoogleRedirect(){
+    // A password-reset link for an admin/professor/reseller points here
+    // rather than at the student app, since this is the dashboard they
+    // actually use.
+    const mReset = location.hash.match(/reset_token=([^&]+)/);
+    if (mReset){
+      pendingResetToken = decodeURIComponent(mReset[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
     const m = location.hash.match(/access_token=([^&]+)/);
     const m2 = location.hash.match(/requires_2fa=1&pending_token=([^&]+)/);
     const m3 = location.hash.match(/google_error=([^&]+)/);
@@ -1025,6 +1040,41 @@
   });
 
   // ---------- Login ----------
+  function promptResetPassword(token){
+    openGenericModal('كلمة مرور جديدة', [
+      {id: 'password', label: 'كلمة المرور الجديدة (8 أحرف على الأقل)', type: 'password'},
+      {id: 'confirm', label: 'أعد كتابة كلمة المرور', type: 'password'},
+    ], async (v) => {
+      if (v.password.length < 8) throw {detail: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'};
+      if (v.password !== v.confirm) throw {detail: 'كلمتا المرور غير متطابقتين'};
+      const res = await fetch(API_BASE_URL + '/auth/reset-password', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token, new_password: v.password}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw {detail: data.detail || 'تعذّر تعيين كلمة المرور'};
+      showToast(data.message || 'تم تعيين كلمة المرور — سجّل الدخول بها الآن');
+    });
+  }
+
+  function promptForgotPassword(){
+    openGenericModal('استعادة كلمة المرور', [
+      {id: 'email', label: 'بريدك الإلكتروني — نرسل لك رابطاً لتعيين كلمة مرور جديدة', type: 'text'},
+    ], async (v) => {
+      const email = v.email.trim();
+      if (!email) throw {detail: 'اكتب بريدك الإلكتروني'};
+      const res = await fetch(API_BASE_URL + '/auth/forgot-password', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw {detail: data.detail || 'تعذّر إرسال الرابط'};
+      // The same answer whether or not that address has an account — the
+      // server won't say which, and neither does this.
+      showToast(data.message || 'إذا كان هذا البريد مسجّلاً، فقد أُرسل إليه رابط');
+    });
+  }
+
   async function startAdminGoogleSignIn(){
     const btn = document.getElementById('adminGoogleBtn');
     const label = document.getElementById('adminGoogleBtnLabel');
@@ -2873,7 +2923,9 @@
   // Last statement in the file, so every const it reads (roles, ...) exists.
   // Whatever the Google redirect handed back (if anything) takes priority
   // over restoring an older session from the cookie.
-  if (authToken){
+  if (pendingResetToken){
+    promptResetPassword(pendingResetToken);
+  } else if (authToken){
     (async () => {
       try {
         const me = await apiFetch('/auth/me');

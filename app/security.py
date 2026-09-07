@@ -97,6 +97,23 @@ def decode_2fa_pending_token(token: str) -> str | None:
     return payload.get("pending_2fa_user")
 
 
+# --------------------------------------------------- password reset tokens
+def generate_reset_token() -> tuple[str, str]:
+    """Returns (raw token for the email, hash to store).
+
+    The raw token never touches the database: a reset link is a bearer
+    credential for the account, so a database dump shouldn't hand anyone a
+    working one. 32 random bytes is far past guessing range, so the hash
+    needs no salt or slow KDF — there's nothing to brute force.
+    """
+    raw = secrets.token_urlsafe(32)
+    return raw, hash_reset_token(raw)
+
+
+def hash_reset_token(raw: str) -> str:
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 # ------------------------------------------------------------- TOTP (2FA)
 # Standard RFC 6238 TOTP — compatible with Google Authenticator, Authy, etc.
 # No external dependency: HMAC-SHA1 and base32 are both in the stdlib.

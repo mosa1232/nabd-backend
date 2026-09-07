@@ -50,6 +50,28 @@ class Settings(BaseSettings):
 
     session_cookie_name: str = "nabd_session"
 
+    # ------------------------------------------------------------- email
+    # Password reset needs to actually deliver a link, so it stays switched
+    # off until real SMTP credentials exist rather than pretending to send.
+    # Plain SMTP works with Gmail, Brevo, Zoho, Mailgun, Resend and the
+    # rest, so nothing here ties the project to one provider.
+    smtp_host: str = ""
+    smtp_port: int = 587          # 587 = STARTTLS, 465 = implicit TLS
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""           # the From: address; defaults to smtp_user
+    smtp_from_name: str = "Kiur"
+    # Off only for a local relay that speaks plain SMTP (MailHog, Mailpit, a
+    # sidecar). Sending credentials in the clear to a remote host is refused
+    # outright — see mailer.send_email.
+    smtp_use_tls: bool = True
+
+    # How long a reset link stays valid, and how long before the same
+    # address can ask for another one (so nobody's inbox can be flooded
+    # through this endpoint).
+    password_reset_ttl_minutes: int = 60
+    password_reset_cooldown_seconds: int = 120
+
     # ---------------------------------------------------------- uploads
     # "local" writes to ./uploads (fine for development, but that directory
     # is wiped on every deploy on a host with an ephemeral disk). "s3" uses

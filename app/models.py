@@ -68,6 +68,15 @@ class User(Base):
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     failed_redeem_attempts = Column(Integer, default=0)
+    # Password reset. Only the hash of the token is kept, so a leaked
+    # database still can't be used to take over accounts — the raw token
+    # exists only in the email that was sent.
+    reset_token_hash = Column(String, nullable=True)
+    reset_token_expires_at = Column(DateTime, nullable=True)
+    reset_requested_at = Column(DateTime, nullable=True)  # throttles repeat requests
+    # Set whenever the password actually changes, so the account page can
+    # say when — it used to print a hardcoded "قبل 3 أشهر" for everyone.
+    password_changed_at = Column(DateTime, nullable=True)
     redeem_locked_until = Column(DateTime, nullable=True)
     theme = Column(String, default="light")
     language = Column(String, default="ar")

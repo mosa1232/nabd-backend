@@ -1307,6 +1307,47 @@
   </div>
 
   <!-- ============ LOGIN VIEW ============ -->
+  <!-- ============ FORGOT PASSWORD (ask for the link) ============ -->
+  <div class="view" id="view-forgot">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="auth-logo">
+          <svg viewBox="0 0 48 48" fill="none"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="display" style="font-size:1.1rem; font-weight:700;">Kiur</span>
+        </div>
+        <div class="auth-title" data-i18n="forgotTitle">استعادة كلمة المرور</div>
+        <div class="auth-sub" data-i18n="forgotSub">اكتب بريدك، ونرسل لك رابطاً لتعيين كلمة مرور جديدة.</div>
+
+        <div class="form-field"><input id="forgotEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني" data-i18n-placeholder="email" /></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:13px;" onclick="submitForgotPassword()" data-i18n="forgotSendBtn">أرسل الرابط</button>
+        <div id="forgotMsg" style="font-size:.8rem; margin-top:12px; text-align:center; line-height:1.8; display:none;"></div>
+
+        <button class="link-muted" type="button" onclick="goToLogin()" style="background:none;border:0;cursor:pointer;font:inherit;width:100%;margin-top:14px;">
+          <span class="link-accent" data-i18n="backToLogin">رجوع لتسجيل الدخول</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESET PASSWORD (arrived from the emailed link) ============ -->
+  <div class="view" id="view-reset">
+    <div class="auth-view">
+      <div class="auth-card glass">
+        <div class="auth-logo">
+          <svg viewBox="0 0 48 48" fill="none"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="display" style="font-size:1.1rem; font-weight:700;">Kiur</span>
+        </div>
+        <div class="auth-title" data-i18n="resetTitle">كلمة مرور جديدة</div>
+        <div class="auth-sub" data-i18n="resetSub">اختر كلمة مرور جديدة لحسابك — 8 أحرف على الأقل.</div>
+
+        <div class="form-field"><input id="resetPassword" type="password" placeholder="كلمة المرور الجديدة" data-i18n-placeholder="newPasswordPlaceholder" /></div>
+        <div class="form-field"><input id="resetPasswordConfirm" type="password" placeholder="أعد كتابة كلمة المرور" data-i18n-placeholder="repeatPasswordPlaceholder" /></div>
+        <button class="btn" style="width:100%; justify-content:center; padding:13px;" onclick="submitResetPassword()" data-i18n="resetSaveBtn">حفظ كلمة المرور</button>
+        <div id="resetMsg" style="font-size:.8rem; margin-top:12px; text-align:center; line-height:1.8; display:none;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ CLINICAL PEARLS (signed in) ============ -->
   <div class="view" id="view-pearls">
     <div class="quiz-top">
@@ -1434,6 +1475,10 @@
         <button class="google-btn" id="googleBtn" onclick="startGoogleSignIn()">
           <span class="google-mark">G</span>
           <span id="googleBtnLabel" data-i18n="continueWithGoogleBtn">المتابعة عبر Google</span>
+        </button>
+
+        <button class="link-muted" type="button" onclick="goToForgotPassword()" style="background:none;border:0;cursor:pointer;font:inherit;width:100%;">
+          <span class="link-accent" data-i18n="forgotPassword">نسيت كلمة المرور؟</span>
         </button>
 
         <div class="auth-divider" data-i18n="or">أو</div>
@@ -1567,7 +1612,7 @@
           <div class="item-icon pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
           <div class="item-body">
             <div class="item-title" data-i18n="changePassword">كلمة المرور</div>
-            <div class="item-meta" id="passwordMeta">آخر تغيير قبل 3 أشهر</div>
+            <div class="item-meta" id="passwordMeta">—</div>
           </div>
           <button class="btn btn-ghost item-action" onclick="togglePasswordChangeForm()" data-i18n="change">تغيير</button>
         </div>
@@ -1792,9 +1837,17 @@
   // either a real access_token, or (on a 2FA-enabled account) a pending_token
   // that still needs a code before any session actually starts.
   let pending2faToken = null;
+  let pendingResetToken = null;
   (function captureRedirectToken(){
     const m = location.hash.match(/access_token=([^&]+)/);
     const m2 = location.hash.match(/requires_2fa=1&pending_token=([^&]+)/);
+    // The link from a password-reset email lands here.
+    const m3 = location.hash.match(/reset_token=([^&]+)/);
+    if (m3){
+      pendingResetToken = decodeURIComponent(m3[1]);
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
     if (m){
       authToken = decodeURIComponent(m[1]);
       history.replaceState(null, '', location.pathname + location.search);
@@ -1889,6 +1942,18 @@
       toggleSidebar:'طي/فتح القائمة',
       // -- toasts / statuses --
       selectSubjectFirst:'اختر المادة أولاً', noFileYet:'لا يوجد ملف مرفوع بعد لهذه الملزمة',
+      forgotPassword:'نسيت كلمة المرور؟', forgotTitle:'استعادة كلمة المرور',
+      forgotSub:'اكتب بريدك، ونرسل لك رابطاً لتعيين كلمة مرور جديدة.',
+      forgotSendBtn:'أرسل الرابط', backToLogin:'رجوع لتسجيل الدخول',
+      enterEmailFirst:'اكتب بريدك الإلكتروني أولاً', sending:'جارٍ الإرسال...', saving:'جارٍ الحفظ...',
+      resetLinkSent:'إذا كان هذا البريد مسجّلاً لدينا، فقد أُرسل إليه رابط لإعادة التعيين.',
+      resetSendFailed:'تعذّر إرسال الرابط — حاول مرة أخرى',
+      resetTitle:'كلمة مرور جديدة', resetSub:'اختر كلمة مرور جديدة لحسابك — 8 أحرف على الأقل.',
+      resetSaveBtn:'حفظ كلمة المرور', repeatPasswordPlaceholder:'أعد كتابة كلمة المرور',
+      passwordTooShort:'كلمة المرور يجب أن تكون 8 أحرف على الأقل', passwordsDoNotMatch:'كلمتا المرور غير متطابقتين',
+      passwordResetDone:'تم تعيين كلمة المرور — سجّل الدخول بها الآن.',
+      resetFailed:'انتهت صلاحية الرابط أو أنه غير صالح — اطلب رابطاً جديداً',
+      lastChanged:'آخر تغيير',
       landingTitle:'استكشف Kiur، منصتك الطبية المتكاملة',
       landingSub:'بنك أسئلة حقيقي، محاضرات من دكاترتك، ولمحات سريرية تُبنى معك خطوة بخطوة — أنشئ حسابك وابدأ تتبّع تقدّمك من أول سؤال.',
       landingSignIn:'تسجيل الدخول', landingSignUp:'إنشاء حساب جديد',
@@ -1965,6 +2030,18 @@
       editProfile:'Edit profile', changePhoto:'Change photo', addCaptionPrompt:'Tap to add a caption...',
       toggleSidebar:'Toggle sidebar',
       selectSubjectFirst:'Select a subject first', noFileYet:'No file uploaded yet for this booklet',
+      forgotPassword:'Forgot your password?', forgotTitle:'Reset your password',
+      forgotSub:'Enter your email and we will send you a link to set a new password.',
+      forgotSendBtn:'Send the link', backToLogin:'Back to sign in',
+      enterEmailFirst:'Enter your email first', sending:'Sending...', saving:'Saving...',
+      resetLinkSent:'If that address has an account, a reset link has been sent to it.',
+      resetSendFailed:'Could not send the link — please try again',
+      resetTitle:'New password', resetSub:'Choose a new password for your account — at least 8 characters.',
+      resetSaveBtn:'Save password', repeatPasswordPlaceholder:'Repeat the password',
+      passwordTooShort:'Password must be at least 8 characters', passwordsDoNotMatch:'The passwords do not match',
+      passwordResetDone:'Password set — sign in with it now.',
+      resetFailed:'That link has expired or is invalid — request a new one',
+      lastChanged:'last changed',
       landingTitle:'Explore Kiur, your complete medical platform',
       landingSub:'A real question bank, lectures from your own professors, and clinical pearls that grow with you — create your account and start tracking your progress from the first question.',
       landingSignIn:'Sign in', landingSignUp:'Create an account',
@@ -2041,6 +2118,18 @@
       editProfile:'دەستکاریکردنی پرۆفایل', changePhoto:'گۆڕینی وێنە', addCaptionPrompt:'کلیک بکە بۆ زیادکردنی کورتە...',
       toggleSidebar:'لار کردنی لیستە',
       selectSubjectFirst:'یەکەم جار بابەت هەڵبژێرە', noFileYet:'هیچ فایلێک بارنەکراوە بۆ ئەم مەلزەمەیە',
+      forgotPassword:'وشەی نهێنیت لەبیرچووە؟', forgotTitle:'گەڕاندنەوەی وشەی نهێنی',
+      forgotSub:'ئیمەیلەکەت بنووسە، بەستەرێکت بۆ دەنێرین بۆ دانانی وشەی نهێنی نوێ.',
+      forgotSendBtn:'بەستەرەکە بنێرە', backToLogin:'گەڕانەوە بۆ چوونەژوورەوە',
+      enterEmailFirst:'سەرەتا ئیمەیلەکەت بنووسە', sending:'دەنێردرێت...', saving:'پاشەکەوت دەکرێت...',
+      resetLinkSent:'ئەگەر ئەم ئیمەیلە هەژماری هەبێت، بەستەری ڕێکخستنەوەی بۆ نێردراوە.',
+      resetSendFailed:'نەتوانرا بەستەرەکە بنێردرێت — دووبارە هەوڵ بدە',
+      resetTitle:'وشەی نهێنی نوێ', resetSub:'وشەیەکی نهێنی نوێ هەڵبژێرە — بەلایەنی کەمەوە ٨ پیت.',
+      resetSaveBtn:'وشەی نهێنی پاشەکەوت بکە', repeatPasswordPlaceholder:'دووبارە وشەی نهێنی بنووسە',
+      passwordTooShort:'وشەی نهێنی دەبێت بەلایەنی کەمەوە ٨ پیت بێت', passwordsDoNotMatch:'وشە نهێنییەکان وەک یەک نین',
+      passwordResetDone:'وشەی نهێنی دانرا — ئێستا پێی بچۆ ژوورەوە.',
+      resetFailed:'ئەم بەستەرە بەسەرچووە یان نادروستە — داوای یەکێکی نوێ بکە',
+      lastChanged:'دوا گۆڕان',
       landingTitle:'Kiur بدۆزەرەوە، پلاتفۆرمی پزیشکی تەواوت',
       landingSub:'بانکی پرسیاری ڕاستەقینە، وانەی ڤیدیۆیی لە مامۆستاکانی خۆت، و لمحاتی کلینیکی کە لەگەڵت گەشە دەکەن — هەژمارەکەت دروست بکە و لە یەکەم پرسیارەوە پێشکەوتنت بپێوە.',
       landingSignIn:'چوونەژوورەوە', landingSignUp:'هەژماری نوێ دروست بکە',
@@ -3247,8 +3336,7 @@
     renderAccountHeader();
     loadActivations();
     loadActiveSession();
-    document.getElementById('passwordMeta').textContent = currentUser?.has_password
-      ? t('passwordSet') : t('noPasswordGoogleOnly');
+    renderPasswordMeta();
     renderTotpStatus();
     loadMyHistory();
   }
@@ -3577,6 +3665,20 @@
     }
   }
 
+  // The date is only shown when the backend actually has one. Accounts whose
+  // password predates password_changed_at just say it's set — the row used to
+  // claim "آخر تغيير قبل 3 أشهر" for everyone, including people who had never
+  // set a password at all.
+  function renderPasswordMeta(){
+    const el = document.getElementById('passwordMeta');
+    if (!currentUser?.has_password){ el.textContent = t('noPasswordGoogleOnly'); return; }
+    const changed = currentUser.password_changed_at;
+    el.textContent = changed
+      ? `${t('passwordSet')} · ${t('lastChanged')} ${new Date(changed + 'Z').toLocaleDateString(dateLocale())}`
+      : t('passwordSet');
+  }
+  function dateLocale(){ return currentLang === 'en' ? 'en-GB' : 'ar-IQ'; }
+
   async function submitPasswordChange(){
     const current = document.getElementById('currentPasswordInput').value;
     const next = document.getElementById('newPasswordInput').value;
@@ -3600,7 +3702,9 @@
       msg.textContent = 'تم تحديث كلمة المرور بنجاح';
       document.getElementById('currentPasswordInput').value = '';
       document.getElementById('newPasswordInput').value = '';
-      document.getElementById('passwordMeta').textContent = 'آخر تغيير الآن';
+      // Re-read the account so the row shows the real new timestamp.
+      try { currentUser = await apiFetch('/auth/me'); } catch (e) { /* keep what we have */ }
+      renderPasswordMeta();
     } catch (e) {
       msg.style.color = 'var(--danger)';
       msg.textContent = e.detail || 'تعذّر تحديث كلمة المرور';
@@ -3962,6 +4066,75 @@
         loadBanStatus();
       }
       // Otherwise: backend unreachable or token expired — stays on "جارٍ التحميل..." rather than showing fake data.
+    }
+  }
+
+  // ---------- Password reset ----------
+  function goToForgotPassword(){
+    showView('view-forgot');
+    document.body.classList.add('auth-mode');
+    document.getElementById('forgotEmail').value = '';
+    document.getElementById('forgotMsg').style.display = 'none';
+  }
+
+  async function submitForgotPassword(){
+    const email = document.getElementById('forgotEmail').value.trim();
+    const msg = document.getElementById('forgotMsg');
+    msg.style.display = 'block';
+    if (!email){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = t('enterEmailFirst');
+      return;
+    }
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = t('sending');
+    try {
+      const res = await apiFetch('/auth/forgot-password', {method: 'POST', body: JSON.stringify({email})});
+      // Deliberately the same answer whether or not that address has an
+      // account — the server won't say, and neither will this screen.
+      msg.style.color = 'var(--success)';
+      msg.textContent = res.message || t('resetLinkSent');
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || t('resetSendFailed');
+    }
+  }
+
+  function goToResetPassword(){
+    showView('view-reset');
+    document.body.classList.add('auth-mode');
+    document.getElementById('resetMsg').style.display = 'none';
+  }
+
+  async function submitResetPassword(){
+    const pass = document.getElementById('resetPassword').value;
+    const confirm = document.getElementById('resetPasswordConfirm').value;
+    const msg = document.getElementById('resetMsg');
+    msg.style.display = 'block';
+    if (pass.length < 8){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = t('passwordTooShort');
+      return;
+    }
+    if (pass !== confirm){
+      msg.style.color = 'var(--danger)';
+      msg.textContent = t('passwordsDoNotMatch');
+      return;
+    }
+    msg.style.color = 'var(--ink-faint)';
+    msg.textContent = t('saving');
+    try {
+      await apiFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({token: pendingResetToken, new_password: pass}),
+      });
+      pendingResetToken = null;
+      msg.style.color = 'var(--success)';
+      msg.textContent = t('passwordResetDone');
+      setTimeout(goToLogin, 1600);
+    } catch (e) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = e.detail || t('resetFailed');
     }
   }
 
@@ -4400,6 +4573,10 @@
     if (authToken){
       goToOtpFromLogin();
       loadRealProfile();
+      return;
+    }
+    if (pendingResetToken){
+      goToResetPassword();
       return;
     }
     if (pending2faToken){

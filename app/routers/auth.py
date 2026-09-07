@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, Query
+from fastapi import (
+    APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile, Query,
+)
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -9,11 +11,12 @@ from .. import models, ranking, schemas
 from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user
+from ..mailer import email_configured, send_password_reset
 from ..security import (
     clear_session_cookie, create_2fa_pending_token, create_access_token,
-    decode_2fa_pending_token, decode_access_token, generate_totp_secret,
-    hash_password, set_session_cookie, start_new_session, totp_provisioning_uri,
-    verify_password, verify_totp,
+    decode_2fa_pending_token, decode_access_token, generate_reset_token,
+    generate_totp_secret, hash_password, hash_reset_token, set_session_cookie,
+    start_new_session, totp_provisioning_uri, verify_password, verify_totp,
 )
 from ..storage import media_url, storage
 from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, delete_stored_upload, safe_upload_name
@@ -266,7 +269,9 @@ def enable_2fa(body: schemas.TOTPCodeIn, db: Session = Depends(get_db), user: mo
     if not user.totp_secret:
         raise HTTPException(400, "لم تبدئي إعداد التحقق بخطوتين بعد")
     if not verify_totp(user.totp_secret, body.code):
-        raise HTTPException(401, "رمز التحقق غير صحيح")
+        # 403, not 401: the session is fine, the code isn't. A 401 here tells
+        # the frontend the session died and signs the user out mid-form.
+        raise HTTPException(403, "رمز التحقق غير صحيح")
     user.totp_enabled = True
     db.commit()
     return {"ok": True}
@@ -277,7 +282,7 @@ def disable_2fa(body: schemas.TOTPCodeIn, db: Session = Depends(get_db), user: m
     if not user.totp_enabled:
         raise HTTPException(400, "التحقق بخطوتين غير مفعّل أصلاً")
     if not verify_totp(user.totp_secret, body.code):
-        raise HTTPException(401, "رمز التحقق غير صحيح")
+        raise HTTPException(403, "رمز التحقق غير صحيح")  # see enable_2fa
     user.totp_enabled = False
     user.totp_secret = None
     db.commit()
@@ -659,11 +664,15 @@ def change_password(
     that never had a password (Google-only signups) can set their first one
     without proving a current password; everyone else must confirm it."""
     if user.password_hash and not verify_password(body.current_password, user.password_hash):
-        raise HTTPException(401, "كلمة المرور الحالية غير صحيحة")
+        # 403, not 401 — the caller is signed in, they just typed the wrong
+        # current password. Returning 401 made the frontend's session-expiry
+        # handler fire and log them out over a typo.
+        raise HTTPException(403, "كلمة المرور الحالية غير صحيحة")
     if len(body.new_password) < 8:
         raise HTTPException(400, "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل")
 
     user.password_hash = hash_password(body.new_password)
+    user.password_changed_at = datetime.utcnow()
     db.commit()
     return {"ok": True}
 
@@ -720,6 +729,121 @@ def restore_session(request: Request, response: Response, db: Session = Depends(
     fresh = create_access_token(user.id, session.id)
     set_session_cookie(response, fresh)
     return schemas.LoginResponse(access_token=fresh, user=user)
+
+
+# ------------------------------------------------------- password reset
+MIN_PASSWORD_LENGTH = 8
+
+
+def _reset_link(request: Request, user: models.User, raw_token: str) -> str:
+    """Where the emailed link points.
+
+    Staff land on the dashboard and students on the student app, since
+    those are different pages served by this same app — sending an admin
+    to the student app to reset, then making them navigate to /admin to
+    use it, is a pointless detour. Base URL comes from the request for the
+    same reason it does in the Google flow: it's the origin that actually
+    served this app, with no configuration to keep in sync.
+    """
+    base = str(request.base_url).rstrip("/")
+    if user.role in ADMIN_DASHBOARD_ROLES:
+        return f"{base}/admin#reset_token={raw_token}"
+    return f"{base}/#reset_token={raw_token}"
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    body: schemas.ForgotPasswordIn,
+    request: Request,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Starts a password reset.
+
+    The response is identical whether or not the address has an account.
+    Anything else turns this endpoint into a way to ask "does this person
+    use Kiur?" for any email someone cares to try — and for a platform
+    where the answer is "this person studies medicine at this university",
+    that is worth protecting.
+
+    The one thing the caller can learn is whether the server can send mail
+    at all, which is a property of the deployment rather than of any
+    account.
+    """
+    if not email_configured():
+        raise HTTPException(
+            503,
+            "خدمة البريد غير مهيأة على الخادم — لا يمكن إرسال رابط الاستعادة. راجع إعدادات SMTP.",
+        )
+
+    email = body.email.strip()
+    user = db.query(models.User).filter(models.User.email == email).first()
+    now = datetime.utcnow()
+
+    if user and not user.is_banned:
+        recently = (
+            user.reset_requested_at
+            and (now - user.reset_requested_at).total_seconds() < settings.password_reset_cooldown_seconds
+        )
+        if not recently:
+            raw, token_hash = generate_reset_token()
+            user.reset_token_hash = token_hash
+            user.reset_token_expires_at = now + timedelta(minutes=settings.password_reset_ttl_minutes)
+            user.reset_requested_at = now
+            db.commit()
+            # Sent after the response goes out: SMTP takes seconds, and how
+            # long this endpoint blocks shouldn't hint at whether it found
+            # an account.
+            background.add_task(
+                send_password_reset,
+                email,
+                user.full_name or "",
+                _reset_link(request, user, raw),
+                settings.password_reset_ttl_minutes,
+            )
+
+    return {"ok": True, "message": "إذا كان هذا البريد مسجّلاً لدينا، فقد أُرسل إليه رابط لإعادة التعيين."}
+
+
+@router.post("/reset-password")
+def reset_password(body: schemas.ResetPasswordIn, db: Session = Depends(get_db)):
+    """Finishes a reset: consumes the token and sets the new password."""
+    if len(body.new_password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(400, f"كلمة المرور يجب أن تكون {MIN_PASSWORD_LENGTH} أحرف على الأقل")
+
+    token = (body.token or "").strip()
+    if not token:
+        raise HTTPException(400, "رابط غير صالح")
+
+    user = (
+        db.query(models.User)
+        .filter(models.User.reset_token_hash == hash_reset_token(token))
+        .first()
+    )
+    if not user or not user.reset_token_expires_at or user.reset_token_expires_at < datetime.utcnow():
+        # Same message either way: a wrong token and an expired one are the
+        # same dead end to whoever is holding it.
+        raise HTTPException(400, "انتهت صلاحية الرابط أو أنه غير صالح — اطلب رابطاً جديداً")
+    if user.is_banned:
+        raise HTTPException(403, "هذا الحساب محظور")
+
+    user.password_hash = hash_password(body.new_password)
+    user.password_changed_at = datetime.utcnow()
+    # One use only.
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    # A reset is how someone recovers an account they may have lost control
+    # of, so every session anywhere ends here — including the intruder's.
+    # They have the new password; they can sign in again.
+    db.query(models.UserSession).filter(
+        models.UserSession.user_id == user.id,
+        models.UserSession.is_active == True,  # noqa: E712
+    ).update({"is_active": False})
+    # A successful reset also clears any lockout from failed sign-ins.
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
+    return {"ok": True, "message": "تم تعيين كلمة المرور — سجّل الدخول بها الآن."}
 
 
 @router.post("/logout")

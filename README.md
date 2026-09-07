@@ -191,5 +191,31 @@ the old backend need copying across, since nothing migrates them for you.
 ## 8. Other production notes
 
 - Add Redis for catalog caching (mentioned in the SRS) — not required to run
-- Forgot-password and email-change are deliberately unimplemented: both need
-  a real email service, and neither should be faked
+- Email-change is still unimplemented: it needs the same verification round
+  trip as a reset, and shouldn't be faked
+
+## 9. Password reset
+
+`نسيت كلمة المرور؟` on both front-ends. It sends a real email, so it stays
+switched off until `SMTP_HOST` and friends are set — with them empty the
+endpoint answers 503 and says the server can't send mail, rather than
+showing "check your inbox" for a message that never left. Any SMTP provider
+works; `.env.example` lists host/port for the common ones.
+
+How it behaves, and why:
+
+- `POST /auth/forgot-password` answers **identically** whether or not the
+  address has an account. Anything else turns it into a way to ask "does
+  this person use Kiur?", and here that answers "does this person study
+  medicine at this university".
+- Only the SHA-256 of the reset token is stored. A database dump therefore
+  contains no usable reset links.
+- One link at a time, single use, valid for `PASSWORD_RESET_TTL_MINUTES`
+  (default 60), and a repeat request for the same address inside
+  `PASSWORD_RESET_COOLDOWN_SECONDS` (default 120) sends nothing — the
+  response is the same either way.
+- Completing a reset **ends every session on every device**. A reset is how
+  someone recovers an account they may have lost control of, so whoever
+  else was signed in gets dropped.
+- Staff links point at `/admin` and student links at `/`, since those are
+  different apps served by this one process.
