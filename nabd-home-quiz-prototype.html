@@ -159,14 +159,26 @@
   }
   .stat-ring::before{content:''; position:absolute; inset:6px; border-radius:50%; background:var(--glass-bg-strong);}
   .stat-ring span{position:relative; font-size:.72rem; font-weight:700;}
-  .hero-stats{display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; position:relative;}
+  /* أزرار الإجراء داخل قسم الترحيب — تستخدم .btn و .btn-ghost الموجودين
+     أصلاً، فلا لون جديد هنا. */
+  .hero-actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; position:relative;}
+
+  /* الشرائح صارت بطاقات: نفس الخلفية والحدود والألوان، الترتيب فقط تغيّر
+     من صف أفقي مزدحم إلى ثلاث بطاقات متساوية. */
+  .hero-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px; position:relative;}
   .stat-chip{
-    display:flex; align-items:center; gap:8px; padding:8px 14px;
-    border-radius:999px; background:var(--glass-bg-strong); border:1px solid var(--glass-border);
-    font-size:.82rem; font-weight:600; color:var(--ink-soft);
+    display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center;
+    padding:12px 8px;
+    border-radius:var(--radius-md); background:var(--glass-bg-strong); border:1px solid var(--glass-border);
+    font-size:.72rem; font-weight:600; color:var(--ink-soft);
+    transition:transform .26s cubic-bezier(.2,.8,.3,1), box-shadow .26s ease;
   }
-  .stat-chip svg{width:16px; height:16px; color:var(--warm); flex:none;}
-  .stat-chip b{color:var(--ink); font-family:'IBM Plex Mono',monospace; direction:ltr;}
+  .stat-chip:hover{transform:translateY(-3px); box-shadow:var(--shadow-lift);}
+  .stat-chip svg{width:18px; height:18px; color:var(--warm); flex:none;}
+  .stat-chip b{
+    color:var(--ink); font-family:'IBM Plex Mono',monospace; direction:ltr;
+    font-size:1.15rem; font-weight:600;
+  }
 
   /* ---------- Living path (signature element) ---------- */
   .path-card{padding:20px 22px 22px; margin-bottom:20px;}
@@ -207,11 +219,14 @@
     padding:18px 12px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;
     transition:.25s;
   }
-  .tile:hover{transform:translateY(-3px); box-shadow:0 22px 44px -18px var(--glass-shadow);}
+  .tile{transition:transform .3s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease, background .3s ease;}
+  .tile:hover{transform:translateY(-8px); box-shadow:var(--shadow-lift); background:var(--glass-bg-strong);}
+  .tile:hover .tile-icon{transform:scale(1.06);}
   .tile-icon{
     width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
     background:linear-gradient(145deg, var(--accent), var(--accent-2)); color:#fff;
   }
+  .tile-icon{transition:transform .3s cubic-bezier(.2,.8,.3,1);}
   .tile-icon svg{width:22px; height:22px;}
   .tile-label{font-size:.8rem; font-weight:700;}
 
@@ -549,6 +564,7 @@
     .tiles{grid-template-columns:repeat(2,1fr);}
     .brand-name{display:none;}
     .hero-greeting{font-size:1.25rem;}
+    .hero-actions .btn{flex:1 1 100%; justify-content:center;}
   }
 
   /* ---------- Tablet (iPad portrait etc, 721-1023px) ---------- */
@@ -677,16 +693,30 @@
       <div class="hero-stats">
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c2 4-1 5-1 8a4 4 0 0 0 8 0c0-1-1-2-1-2 1 3-1 4-2 4a2 2 0 0 1-2-2c0-2 3-3 1-8Z"/><path d="M8 14a4 4 0 0 0 4 8 5 5 0 0 0 5-5"/></svg>
-          <span data-i18n="streakLabel">سلسلة</span> <b id="statStreak">—</b>
+          <b id="statStreak">—</b>
+          <span data-i18n="streakLabel">سلسلة</span>
         </div>
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          <span data-i18n="answeredLabel">أُجيب اليوم</span> <b id="statAnsweredToday">—</b>
+          <b id="statAnsweredToday">—</b>
+          <span data-i18n="answeredLabel">أُجيب اليوم</span>
         </div>
         <div class="stat-chip">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3H8a2 2 0 0 0-2 2v16l6-3 6 3V5a2 2 0 0 0-2-2Z"/></svg>
-          <span data-i18n="rankLabel">ترتيبك بالجامعة</span> <b id="statRank">—</b>
+          <b id="statRank">—</b>
+          <span data-i18n="rankLabel">ترتيبك بالجامعة</span>
         </div>
+      </div>
+
+      <div class="hero-actions">
+        <button class="btn" onclick="goToBankSelect()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          <span data-i18n="heroStartBtn">ابدأ التعلم — امتحن الآن</span>
+        </button>
+        <button class="btn btn-ghost" onclick="goToAcademy()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/></svg>
+          <span data-i18n="heroVideoBtn">تصفّح أكاديمية الفيديو</span>
+        </button>
       </div>
     </div>
 
@@ -1580,6 +1610,7 @@
       noProfessorsYet:'لا يوجد دكاترة بعد', noBookletsYet:'لا توجد ملازم بعد', noExamsYet:'لا توجد امتحانات بعد',
       noBookletsForCourse:'لا توجد ملازم مرتبطة بهذا الكورس', noQuizzesForCourse:'لا توجد كويزات مرتبطة بهذا الكورس',
       noActivationsYet:'لا يوجد أكواد مفعّلة على حسابك بعد', noNotificationsYet:'لا توجد إشعارات بعد', noRankingsYet:'لا يوجد ترتيب بعد',
+      heroStartBtn:'ابدأ التعلم — امتحن الآن', heroVideoBtn:'تصفّح أكاديمية الفيديو',
       loginToSeeActivations:'سجّل الدخول لعرض أكوادك المفعّلة', activationsLoadFailed:'تعذّر تحميل أكوادك — تحقّق من الاتصال وحاول مرة أخرى',
       googleUnavailable:'تعذّر الاتصال بالخادم — حاول مرة أخرى',
       noQuestionsForStage:'لا توجد أسئلة متاحة لمرحلتك بعد', noProductsInCategory:'لا توجد منتجات ضمن هذا التصنيف', noProductsAvailable:'لا توجد منتجات معروضة حالياً',
@@ -1639,6 +1670,7 @@
       noProfessorsYet:'No professors yet', noBookletsYet:'No booklets yet', noExamsYet:'No exams yet',
       noBookletsForCourse:'No booklets linked to this course', noQuizzesForCourse:'No quizzes linked to this course',
       noActivationsYet:'No activated codes on your account yet', noNotificationsYet:'No notifications yet', noRankingsYet:'No ranking yet',
+      heroStartBtn:'Start learning — take a quiz', heroVideoBtn:'Browse the video academy',
       loginToSeeActivations:'Sign in to see your activated codes', activationsLoadFailed:"Couldn't load your codes — check your connection and try again",
       googleUnavailable:'Cannot reach the server — please try again',
       noQuestionsForStage:'No questions available for your stage yet', noProductsInCategory:'No products in this category', noProductsAvailable:'No products available right now',
@@ -1698,6 +1730,7 @@
       noProfessorsYet:'هیچ مامۆستایەک نییە', noBookletsYet:'هیچ مەلزەمەیەک نییە', noExamsYet:'هیچ تاقیکردنەوەیەک نییە',
       noBookletsForCourse:'هیچ مەلزەمەیەک پەیوەندی بەم کۆرسەوە نییە', noQuizzesForCourse:'هیچ کویزێک پەیوەندی بەم کۆرسەوە نییە',
       noActivationsYet:'هیچ کۆدێکی چالاک لەسەر هەژمارەکەت نییە', noNotificationsYet:'هیچ ئاگادارکردنەوەیەک نییە', noRankingsYet:'هێشتا پلەبەندی نییە',
+      heroStartBtn:'دەست بکە بە فێربوون — تاقیکردنەوە بکە', heroVideoBtn:'ئەکادیمیای ڤیدیۆ ببینە',
       loginToSeeActivations:'بچۆ ژوورەوە بۆ بینینی کۆدە چالاککراوەکانت', activationsLoadFailed:'نەتوانرا کۆدەکانت باربکرێن — پەیوەندییەکەت بپشکنە و دووبارە هەوڵ بدە',
       googleUnavailable:'ناتوانرێت پەیوەندی بە ڕاژەکارەوە بکرێت — تکایە دووبارە هەوڵ بدە',
       noQuestionsForStage:'هێشتا پرسیار بۆ قۆناغەکەت بەردەست نییە', noProductsInCategory:'هیچ بەرهەمێک لەم پۆلە نییە', noProductsAvailable:'هیچ بەرهەمێک ئێستا نمایش نەکراوە',
