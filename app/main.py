@@ -147,11 +147,20 @@ def health():
 
 # Serves both frontend files from this same FastAPI app so the whole
 # platform is one deployable service — no separate static host needed.
+#
+# Each app is a single HTML file that carries all of its own CSS and JS, so
+# a cached copy is a whole stale release: without this header browsers were
+# heuristically caching it and showing yesterday's app after a deploy.
+# "no-cache" still lets the ETag do its job — the browser revalidates and
+# gets a 304 when nothing changed.
+SPA_HEADERS = {"Cache-Control": "no-cache"}
+
+
 @app.get("/")
 def serve_student_app():
-    return FileResponse(FRONTEND_DIR / "nabd-home-quiz-prototype.html")
+    return FileResponse(FRONTEND_DIR / "nabd-home-quiz-prototype.html", headers=SPA_HEADERS)
 
 
 @app.get("/admin")
 def serve_admin_app():
-    return FileResponse(FRONTEND_DIR / "nabd-admin-dashboard.html")
+    return FileResponse(FRONTEND_DIR / "nabd-admin-dashboard.html", headers=SPA_HEADERS)
