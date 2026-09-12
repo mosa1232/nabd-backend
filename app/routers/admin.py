@@ -583,25 +583,164 @@ def catalog_duplicate(body: schemas.CatalogDuplicateIn, db: Session = Depends(ge
         if not db.get(_CATALOG_MODEL[parent_type], target_parent_id):
             raise HTTPException(404, "العنصر الأب المستهدف غير موجود")
 
-    new_name = (body.new_name or node.name).strip()
-    if not new_name:
+    names = [n.strip() for n in (body.new_names or [body.new_name or node.name]) if n and n.strip()]
+    if not names:
         raise HTTPException(400, "الاسم مطلوب")
 
     # Same rule as adding by hand: no two siblings with the same name.
     if parent_col:
-        clash = (
+        siblings = (
             db.query(_CATALOG_MODEL[body.type])
             .filter(getattr(_CATALOG_MODEL[body.type], parent_col) == target_parent_id)
             .all()
         )
     else:
-        clash = db.query(models.Section).all()
-    if any((c.name or "").strip().lower() == new_name.lower() for c in clash):
-        raise HTTPException(400, f"يوجد عنصر بنفس الاسم هنا: {new_name}")
+        siblings = db.query(models.Section).all()
+    taken = {(c.name or "").strip().lower() for c in siblings}
 
-    created, counts = _duplicate_subtree(db, body.type, node, new_name, target_parent_id)
+    totals = {"universities": 0, "stages": 0, "subjects": 0}
+    made, skipped = [], []
+    for new_name in names:
+        if new_name.lower() in taken:
+            skipped.append(new_name)
+            continue
+        taken.add(new_name.lower())
+        created, counts = _duplicate_subtree(db, body.type, node, new_name, target_parent_id)
+        for k in totals:
+            totals[k] += counts[k]
+        made.append({"id": created.id, "name": new_name})
+
+    if not made:
+        raise HTTPException(400, f"كل الأسماء موجودة هنا مسبقاً: {', '.join(skipped)}")
+
     db.commit()
-    return {"id": created.id, "name": new_name, **counts}
+    return {"copies": made, "skipped": skipped, **totals}
+
+
+# --------------------------------------------------- whole-curriculum import
+MAX_IMPORT_LINES = 4000
+_IMPORT_LEVEL_NAMES = ["قسم", "جامعة", "مرحلة", "مادة"]
+
+
+def _parse_indented(text: str) -> list[tuple[int, str]]:
+    """Turns indented text into (level, name) pairs.
+
+    Indentation style is inferred rather than dictated: the distinct indent
+    widths that actually appear are sorted and become levels 0..3. Tabs,
+    two spaces, four spaces or a mix all work as long as the text is
+    internally consistent, which is what pasting from an editor or a
+    spreadsheet gives you. Bullets are stripped so lists copied from
+    elsewhere come in cleanly.
+    """
+    rows = []
+    for raw in text.splitlines():
+        if not raw.strip():
+            continue
+        expanded = raw.replace("\t", "    ")
+        indent = len(expanded) - len(expanded.lstrip(" "))
+        name = expanded.strip().lstrip("-*•").strip()
+        if name:
+            rows.append((indent, name))
+
+    widths = sorted({indent for indent, _ in rows})
+    level_of = {w: i for i, w in enumerate(widths)}
+    return [(min(level_of[indent], 3), name) for indent, name in rows]
+
+
+@router.post("/catalog/import")
+def catalog_import(body: schemas.CatalogImportIn, db: Session = Depends(get_db)):
+    """Builds the whole tree from one block of indented text.
+
+    قسم / جامعة / مرحلة / مادة by depth:
+
+        طب بشري
+          جامعة بغداد
+            المرحلة الأولى
+              التشريح
+              الفسلجة
+
+    Anything that already exists is reused rather than duplicated, so the
+    same text can be re-imported after an edit and only the new lines land.
+    With preview=True nothing is written — it reports what it would do,
+    which matters when one paste can create a thousand rows.
+    """
+    lines = body.text.splitlines()
+    if len(lines) > MAX_IMPORT_LINES:
+        raise HTTPException(400, f"الحد الأقصى {MAX_IMPORT_LINES} سطر في المرة الواحدة")
+
+    parsed = _parse_indented(body.text)
+    if not parsed:
+        raise HTTPException(400, "لا يوجد نص لاستيراده")
+
+    created = {"sections": 0, "universities": 0, "stages": 0, "subjects": 0}
+    reused = {"sections": 0, "universities": 0, "stages": 0, "subjects": 0}
+    problems = []
+
+    distinct_indents = len({len(r.replace("	", "    ")) - len(r.replace("	", "    ").lstrip(" "))
+                            for r in body.text.splitlines() if r.strip()})
+    if distinct_indents > 4:
+        problems.append(
+            f"المسافات البادئة غير منتظمة ({distinct_indents} مستويات مختلفة) — "
+            "المستويات أربعة فقط: قسم ثم جامعة ثم مرحلة ثم مادة"
+        )
+
+    # The node currently open at each level, so a child attaches to whatever
+    # came above it.
+    current = [None, None, None, None]
+
+    def find_or_make(level: int, name: str):
+        key = ["sections", "universities", "stages", "subjects"][level]
+        if level == 0:
+            existing = next(
+                (x for x in db.query(models.Section).all()
+                 if (x.name or "").strip().lower() == name.lower()), None)
+            if existing:
+                reused[key] += 1
+                return existing
+            node = models.Section(name=name)
+        else:
+            parent = current[level - 1]
+            if parent is None:
+                problems.append(f"«{name}» بلا {_IMPORT_LEVEL_NAMES[level - 1]} فوقه — تم تخطيه")
+                return None
+            model, parent_col = [
+                (models.University, "section_id"),
+                (models.Stage, "university_id"),
+                (models.Subject, "stage_id"),
+            ][level - 1]
+            existing = next(
+                (x for x in db.query(model).filter(getattr(model, parent_col) == parent.id).all()
+                 if (x.name or "").strip().lower() == name.lower()), None)
+            if existing:
+                reused[key] += 1
+                return existing
+            node = model(**{"name": name, parent_col: parent.id})
+
+        db.add(node)
+        db.flush()
+        created[key] += 1
+        return node
+
+    for level, name in parsed:
+        node = find_or_make(level, name)
+        current[level] = node
+        # A new parent invalidates whatever was open beneath it.
+        for deeper in range(level + 1, 4):
+            current[deeper] = None
+
+    total = sum(created.values())
+    if body.preview:
+        db.rollback()
+    else:
+        db.commit()
+
+    return {
+        "preview": body.preview,
+        "created": created,
+        "reused": reused,
+        "total_created": total,
+        "problems": problems[:20],
+    }
 
 
 # ---------------------------------------------------- catalog rename/delete

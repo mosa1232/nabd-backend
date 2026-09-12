@@ -457,7 +457,10 @@
         <div class="dash-card glass">
           <div class="dash-card-head">
             <span class="dash-card-title">إدارة المناهج</span>
-            <button class="btn" onclick="promptAddSection()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة قسم</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="openCatalogImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>استيراد المنهج كامل</button>
+            <button class="btn btn-ghost" onclick="promptAddSection()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة قسم</button>
+            </div>
           </div>
           <div id="catalogTree"></div>
         </div>
@@ -816,6 +819,30 @@
     <div class="dash-card-head"><span class="dash-card-title">الأمان — التحقق بخطوتين</span></div>
     <div id="securityBody"></div>
     <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="document.getElementById('securityOverlay').style.display='none'">إغلاق</button>
+  </div>
+</div>
+
+<!-- ============ CATALOG IMPORT ============ -->
+<div id="catalogImportOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:1001; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:640px; width:100%; max-height:92vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title">استيراد المنهج كامل</span></div>
+    <div class="item-meta" style="line-height:1.9; margin-bottom:12px;">
+      اكتب أو الصق المنهج كله بمرة واحدة. كل مستوى بمسافة بادئة أكثر من اللي فوقه:
+      <b>قسم</b> ثم <b>جامعة</b> ثم <b>مرحلة</b> ثم <b>مادة</b>.
+      الموجود مسبقاً ما يتكرر — تكدر تعيد الاستيراد بعد أي تعديل.
+    </div>
+    <textarea id="catalogImportText" rows="14" spellcheck="false"
+      style="width:100%; resize:vertical; font:inherit; line-height:1.9; padding:12px;
+             border-radius:var(--radius-sm); border:1px solid var(--glass-border);
+             background:var(--glass-bg-strong); color:var(--ink);"></textarea>
+    <div id="catalogImportResult" style="display:none; font-size:.82rem; line-height:1.9; margin-top:12px;
+         padding:12px 14px; border-radius:var(--radius-sm); background:var(--glass-bg-strong);
+         border:1px solid var(--glass-border);"></div>
+    <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" onclick="previewCatalogImport()">معاينة</button>
+      <button class="btn" id="catalogImportConfirm" style="flex:1; justify-content:center; display:none;" onclick="runCatalogImport()">تأكيد الاستيراد</button>
+      <button class="btn btn-ghost" style="flex:0 0 100px; justify-content:center;" onclick="closeCatalogImport()">إغلاق</button>
+    </div>
   </div>
 </div>
 
@@ -1863,13 +1890,94 @@
   // duplicate, so re-pasting a list is safe and legible.
   function reportBulk(res, noun){
     if (res.created && res.skipped){
-      showToast(`أُضيفت ${res.created} ${noun} — وتُجوهلت ${res.skipped} موجودة مسبقاً`);
+      showToast(`أُضيفت ${res.created} ${noun} — وتم تجاهل ${res.skipped} موجودة مسبقاً`);
     } else if (res.created){
       showToast(`أُضيفت ${res.created} ${noun}`);
     } else if (res.skipped){
       showToast(`لم يُضف شيء — كل الأسماء (${res.skipped}) موجودة مسبقاً`);
     } else {
       showToast('لم تُدخل أي اسم');
+    }
+  }
+
+  // One paste builds the whole tree. Preview first, because a single
+  // import can create a thousand rows and there's no undo for that.
+  const CATALOG_IMPORT_EXAMPLE = [
+    'طب بشري',
+    '  جامعة بغداد',
+    '    المرحلة الأولى',
+    '      التشريح العام',
+    '      الكيمياء الطبية',
+    '    المرحلة الثانية',
+    '      التشريح',
+    '      الفسلجة',
+    '  جامعة البصرة',
+    '    المرحلة الأولى',
+    '      التشريح العام',
+  ].join('\n');
+
+  function openCatalogImport(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    const ta = document.getElementById('catalogImportText');
+    ta.placeholder = CATALOG_IMPORT_EXAMPLE;
+    document.getElementById('catalogImportResult').style.display = 'none';
+    document.getElementById('catalogImportConfirm').style.display = 'none';
+    document.getElementById('catalogImportOverlay').style.display = 'flex';
+    setTimeout(() => ta.focus(), 50);
+  }
+
+  function closeCatalogImport(){
+    document.getElementById('catalogImportOverlay').style.display = 'none';
+  }
+
+  function renderImportSummary(res, done){
+    const box = document.getElementById('catalogImportResult');
+    const c = res.created, r = res.reused;
+    const line = (label, n) => n ? `<div>${label}: <b>${n}</b></div>` : '';
+    const anyReused = r.sections + r.universities + r.stages + r.subjects;
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div style="font-weight:700; margin-bottom:6px; color:${done ? 'var(--success)' : 'var(--ink)'};">
+        ${done ? 'تم الاستيراد' : (res.total_created ? 'سيُنشأ:' : 'لا يوجد شيء جديد لإنشائه')}
+      </div>
+      ${line('أقسام', c.sections)}${line('جامعات', c.universities)}
+      ${line('مراحل', c.stages)}${line('مواد', c.subjects)}
+      ${anyReused ? `<div style="color:var(--ink-faint); margin-top:6px;">موجود مسبقاً وما تكرر: ${anyReused}</div>` : ''}
+      ${(res.problems || []).map(pr => `<div style="color:var(--danger); margin-top:6px;">⚠ ${esc(pr)}</div>`).join('')}
+    `;
+  }
+
+  async function previewCatalogImport(){
+    const text = document.getElementById('catalogImportText').value;
+    if (!text.trim()){ showToast('اكتب أو الصق المنهج أولاً', 'error'); return; }
+    try {
+      const res = await apiFetch('/api/admin/catalog/import', {
+        method: 'POST', body: JSON.stringify({text, preview: true}),
+      });
+      renderImportSummary(res, false);
+      // Nothing to confirm when the paste adds nothing new.
+      document.getElementById('catalogImportConfirm').style.display = res.total_created ? 'inline-flex' : 'none';
+    } catch (e) {
+      showToast(e.detail || 'تعذّرت المعاينة', 'error');
+    }
+  }
+
+  async function runCatalogImport(){
+    const text = document.getElementById('catalogImportText').value;
+    const btn = document.getElementById('catalogImportConfirm');
+    btn.disabled = true;
+    try {
+      const res = await apiFetch('/api/admin/catalog/import', {
+        method: 'POST', body: JSON.stringify({text, preview: false}),
+      });
+      renderImportSummary(res, true);
+      btn.style.display = 'none';
+      showToast(`تم استيراد ${res.total_created} عنصر`);
+      loadCatalog();
+    } catch (e) {
+      showToast(e.detail || 'تعذّر الاستيراد', 'error');
+    } finally {
+      btn.disabled = false;
     }
   }
 
@@ -1945,15 +2053,19 @@
       fields.push({id: 'parent', label: picker.label, type: 'select',
                    value: currentParent || (options[0] && options[0].value), options});
     }
-    fields.push({id: 'name', label: `اسم النسخة`, type: 'text', value: `${row.name} (نسخة)`});
+    // A list, not one name: this is how twenty universities come out of one
+    // properly-built one, in a single action.
+    fields.push({id: 'names', label: 'اسم كل نسخة في سطر منفصل', type: 'textarea', rows: 7,
+                 value: `${row.name} (نسخة)`});
 
     openGenericModal(`نسخ ${CATALOG_TYPE_LABEL[type]}: ${row.name}`, fields, async (v) => {
-      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
+      const names = v.names.split('\n');
+      if (!names.some(n => n.trim())) throw {detail: 'اكتب اسماً واحداً على الأقل'};
       const res = await apiFetch('/api/admin/catalog/duplicate', {
         method: 'POST',
         body: JSON.stringify({
           type, id,
-          new_name: v.name.trim(),
+          new_names: names,
           target_parent_id: v.parent || null,
         }),
       });
@@ -1961,7 +2073,11 @@
       if (res.universities) bits.push(`${res.universities} جامعة`);
       if (res.stages) bits.push(`${res.stages} مرحلة`);
       if (res.subjects) bits.push(`${res.subjects} مادة`);
-      showToast(bits.length ? `تم النسخ — ${bits.join(' و')}` : 'تم النسخ');
+      const made = `${res.copies.length} نسخة`;
+      showToast(
+        `تم إنشاء ${made}${bits.length ? ' — ' + bits.join(' و') : ''}` +
+        (res.skipped.length ? ` · وتم تجاهل ${res.skipped.length} موجودة مسبقاً` : '')
+      );
       loadCatalog();
     });
   }

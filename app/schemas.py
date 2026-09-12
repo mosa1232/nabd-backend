@@ -452,4 +452,13 @@ class CatalogDuplicateIn(BaseModel):
     # Defaults to the source name, which is what you want when copying into
     # a different parent (the same stage name under another university).
     new_name: Optional[str] = None
+    # One copy per name, in a single request — how you get twenty
+    # universities out of one properly-built one.
+    new_names: Optional[list[str]] = None
     target_parent_id: Optional[str] = None
+
+class CatalogImportIn(BaseModel):
+    # The whole curriculum as indented text. preview=True parses and counts
+    # without writing anything.
+    text: str
+    preview: bool = False
