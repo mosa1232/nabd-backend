@@ -438,3 +438,18 @@ class ForgotPasswordIn(BaseModel):
 class ResetPasswordIn(BaseModel):
     token: str
     new_password: str
+
+class CatalogBulkIn(BaseModel):
+    # "root" creates sections; the rest create children of parent_id.
+    parent_type: str
+    parent_id: Optional[str] = None
+    names: list[str]
+
+
+class CatalogDuplicateIn(BaseModel):
+    type: str
+    id: str
+    # Defaults to the source name, which is what you want when copying into
+    # a different parent (the same stage name under another university).
+    new_name: Optional[str] = None
+    target_parent_id: Optional[str] = None

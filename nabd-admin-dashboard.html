@@ -938,13 +938,21 @@
 
   function openGenericModal(title, fields, onSubmit){
     document.getElementById('genericModalTitle').textContent = title;
-    genericModalFieldsSpec = fields; // [{id, label, type:'text'|'password'|'number'|'select', value, placeholder, options:[{value,label}]}]
+    genericModalFieldsSpec = fields; // [{id, label, type:'text'|'password'|'number'|'select'|'textarea', value, placeholder, options:[{value,label}], rows}]
     genericModalOnSubmit = onSubmit;
     document.getElementById('genericModalFields').innerHTML = fields.map(f => {
       const labelHtml = `<label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">${esc(f.label)}</label>`;
       if (f.type === 'select'){
         const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
         return `<div class="form-field">${labelHtml}<select id="gm_${f.id}">${opts}</select></div>`;
+      }
+      if (f.type === 'textarea'){
+        // Used for pasting a whole list at once — one item per line.
+        return `<div class="form-field">${labelHtml}<textarea id="gm_${f.id}" rows="${f.rows || 8}"
+          placeholder="${esc(f.placeholder || '')}"
+          style="width:100%; resize:vertical; font:inherit; line-height:1.9; padding:10px 12px;
+                 border-radius:var(--radius-sm); border:1px solid var(--glass-border);
+                 background:var(--glass-bg-strong); color:var(--ink);">${esc(f.value || '')}</textarea></div>`;
       }
       const val = f.value != null ? String(f.value).replace(/"/g, '&quot;') : '';
       return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="${f.type || 'text'}" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}" /></div>`;
@@ -1836,6 +1844,7 @@
           : `<span class="hier-name">${esc(r.name)}</span>`}
         <span class="hier-meta">${esc(r.meta)}</span>
         ${noun && r.id ? `<button class="btn btn-ghost hier-add" onclick="promptAddCatalogChild('${r.type}', '${r.id}')" title="إضافة ${noun} داخل ${esc(r.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>${noun}</button>` : ''}
+        ${r.id && r.type !== 'subject' ? `<button class="icon-btn" aria-label="نسخ مع كل ما تحته" style="width:24px;height:24px;" title="نسخ ${esc(r.name)} مع كل ما تحته" onclick="promptDuplicateCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>` : ''}
         ${r.id ? `
           <button class="icon-btn" aria-label="تعديل الاسم" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
           <button class="icon-btn" aria-label="حذف" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
@@ -1843,36 +1852,130 @@
     }).join('');
   }
 
+  // Everything below adds in bulk. A real curriculum is on the order of a
+  // thousand rows — same stages under every university, same subjects under
+  // every stage — so one-name-per-dialog was the whole bottleneck.
+  function bulkPlaceholder(examples){
+    return examples.join('\n');
+  }
+
+  // Reports what the server actually did, including what it refused to
+  // duplicate, so re-pasting a list is safe and legible.
+  function reportBulk(res, noun){
+    if (res.created && res.skipped){
+      showToast(`أُضيفت ${res.created} ${noun} — وتُجوهلت ${res.skipped} موجودة مسبقاً`);
+    } else if (res.created){
+      showToast(`أُضيفت ${res.created} ${noun}`);
+    } else if (res.skipped){
+      showToast(`لم يُضف شيء — كل الأسماء (${res.skipped}) موجودة مسبقاً`);
+    } else {
+      showToast('لم تُدخل أي اسم');
+    }
+  }
+
   function promptAddSection(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    openGenericModal('إضافة قسم', [
-      {id: 'name', label: 'اسم القسم الجديد', type: 'text', placeholder: 'مثال: طب بشري'},
+    openGenericModal('إضافة أقسام', [
+      {id: 'names', label: 'اسم كل قسم في سطر منفصل', type: 'textarea', rows: 6,
+       placeholder: bulkPlaceholder(['طب بشري', 'طب أسنان', 'صيدلة'])},
     ], async (v) => {
-      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
-      await apiFetch('/api/admin/catalog/sections?' + new URLSearchParams({name: v.name.trim()}), {method: 'POST'});
+      const names = v.names.split('\n');
+      if (!names.some(n => n.trim())) throw {detail: 'اكتب اسماً واحداً على الأقل'};
+      const res = await apiFetch('/api/admin/catalog/bulk', {
+        method: 'POST',
+        body: JSON.stringify({parent_type: 'root', parent_id: null, names}),
+      });
+      reportBulk(res, 'قسم');
       loadCatalog();
     });
   }
 
-  const CATALOG_CHILD_CONFIG = {
-    section: {label: 'اسم الجامعة الجديدة', endpoint: 'universities', paramKey: 'section_id'},
-    university: {label: 'اسم المرحلة الجديدة', endpoint: 'stages', paramKey: 'university_id'},
-    stage: {label: 'اسم المادة الجديدة', endpoint: 'subjects', paramKey: 'stage_id'},
+  const CATALOG_BULK_EXAMPLES = {
+    section: ['جامعة بغداد', 'جامعة البصرة', 'جامعة الموصل'],
+    university: ['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'],
+    stage: ['التشريح', 'الفسلجة', 'الأنسجة', 'الكيمياء الحيوية'],
   };
 
   function promptAddCatalogChild(parentType, parentId){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const config = CATALOG_CHILD_CONFIG[parentType];
-    if (!config) return;
-    // Heading says the action ("إضافة مادة"); the field says what to type.
+    const noun = CATALOG_CHILD_NOUN[parentType];
+    if (!noun) return;
     const parent = allCatalogRows.find(r => r.id === parentId);
-    const heading = `إضافة ${CATALOG_CHILD_NOUN[parentType]}` + (parent ? ` إلى ${parent.name}` : '');
-    openGenericModal(heading, [{id: 'name', label: config.label, type: 'text'}], async (v) => {
-      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
-      const params = new URLSearchParams({name: v.name.trim(), [config.paramKey]: parentId});
-      await apiFetch('/api/admin/catalog/' + config.endpoint + '?' + params.toString(), {method: 'POST'});
+    const heading = `إضافة ${noun}` + (parent ? ` إلى ${parent.name}` : '');
+    openGenericModal(heading, [
+      {id: 'names', label: `اسم كل ${noun} في سطر منفصل — تكدر تلصق قائمة كاملة`,
+       type: 'textarea', rows: 8,
+       placeholder: bulkPlaceholder(CATALOG_BULK_EXAMPLES[parentType] || [])},
+    ], async (v) => {
+      const names = v.names.split('\n');
+      if (!names.some(n => n.trim())) throw {detail: 'اكتب اسماً واحداً على الأقل'};
+      const res = await apiFetch('/api/admin/catalog/bulk', {
+        method: 'POST',
+        body: JSON.stringify({parent_type: parentType, parent_id: parentId, names}),
+      });
+      reportBulk(res, noun);
       loadCatalog();
     });
+  }
+
+  // Copying a branch is the other half of making a thousand rows tractable:
+  // build one university properly, then copy it for each of the others.
+  // Structure only — questions, booklets, courses and exams stay with the
+  // original, so a copy is an empty shell to fill.
+  const CATALOG_PARENT_PICKER = {
+    university: {type: 'section', label: 'داخل القسم'},
+    stage: {type: 'university', label: 'داخل الجامعة'},
+  };
+
+  function promptDuplicateCatalog(type, id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    const row = allCatalogRows.find(r => r.id === id);
+    if (!row) return;
+    const picker = CATALOG_PARENT_PICKER[type];
+    const fields = [];
+
+    if (picker){
+      // Lets a stage be copied into a different university, keeping its name
+      // and all its subjects — the common case when two universities teach
+      // the same year.
+      const options = allCatalogRows
+        .filter(r => r.type === picker.type && r.id)
+        .map(r => ({value: r.id, label: r.name}));
+      const currentParent = currentParentIdOf(type, id);
+      fields.push({id: 'parent', label: picker.label, type: 'select',
+                   value: currentParent || (options[0] && options[0].value), options});
+    }
+    fields.push({id: 'name', label: `اسم النسخة`, type: 'text', value: `${row.name} (نسخة)`});
+
+    openGenericModal(`نسخ ${CATALOG_TYPE_LABEL[type]}: ${row.name}`, fields, async (v) => {
+      if (!v.name.trim()) throw {detail: 'الاسم مطلوب'};
+      const res = await apiFetch('/api/admin/catalog/duplicate', {
+        method: 'POST',
+        body: JSON.stringify({
+          type, id,
+          new_name: v.name.trim(),
+          target_parent_id: v.parent || null,
+        }),
+      });
+      const bits = [];
+      if (res.universities) bits.push(`${res.universities} جامعة`);
+      if (res.stages) bits.push(`${res.stages} مرحلة`);
+      if (res.subjects) bits.push(`${res.subjects} مادة`);
+      showToast(bits.length ? `تم النسخ — ${bits.join(' و')}` : 'تم النسخ');
+      loadCatalog();
+    });
+  }
+
+  // The tree is flat and indented, so a row's parent is the nearest row
+  // above it that sits one level up.
+  function currentParentIdOf(type, id){
+    const idx = allCatalogRows.findIndex(r => r.id === id);
+    if (idx < 0) return null;
+    const parentLevel = allCatalogRows[idx].level - 1;
+    for (let i = idx - 1; i >= 0; i--){
+      if (allCatalogRows[i].level === parentLevel) return allCatalogRows[i].id;
+    }
+    return null;
   }
 
   const CATALOG_ENDPOINTS = {section: 'sections', university: 'universities', stage: 'stages', subject: 'subjects'};

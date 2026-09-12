@@ -425,6 +425,185 @@ def create_subject(name: str, stage_id: str, db: Session = Depends(get_db)):
     return {"id": subj.id}
 
 
+# ------------------------------------------------------- catalog bulk tools
+# Building a real curriculum means on the order of a thousand rows —
+# every university has the same stages, and every stage the same subjects.
+# Adding those one dialog at a time is the actual bottleneck, so these two
+# endpoints exist: paste a list, and copy a branch that already exists.
+MAX_BULK_NAMES = 300
+
+# child model, the column pointing at the parent, and the parent model
+_CATALOG_CHILD = {
+    "root": (models.Section, None, None),
+    "section": (models.University, "section_id", models.Section),
+    "university": (models.Stage, "university_id", models.University),
+    "stage": (models.Subject, "stage_id", models.Stage),
+}
+
+
+def _existing_names(db: Session, parent_type: str, parent_id: str | None) -> set[str]:
+    child_model, parent_col, _ = _CATALOG_CHILD[parent_type]
+    q = db.query(child_model.name)
+    if parent_col:
+        q = q.filter(getattr(child_model, parent_col) == parent_id)
+    return {row[0].strip().lower() for row in q.all() if row[0]}
+
+
+@router.post("/catalog/bulk")
+def catalog_bulk_add(body: schemas.CatalogBulkIn, db: Session = Depends(get_db)):
+    """Creates many siblings at once — one name per line.
+
+    Names that already exist under the same parent are skipped rather than
+    duplicated, so pasting the same list twice is safe and the response
+    says exactly what was skipped.
+    """
+    if body.parent_type not in _CATALOG_CHILD:
+        raise HTTPException(400, "نوع غير صالح")
+    child_model, parent_col, parent_model = _CATALOG_CHILD[body.parent_type]
+
+    if parent_col:
+        if not body.parent_id or not db.get(parent_model, body.parent_id):
+            raise HTTPException(404, "العنصر الأب غير موجود")
+
+    if len(body.names) > MAX_BULK_NAMES:
+        raise HTTPException(400, f"الحد الأقصى {MAX_BULK_NAMES} اسم في المرة الواحدة")
+
+    taken = _existing_names(db, body.parent_type, body.parent_id)
+    created, skipped = [], []
+    for raw in body.names:
+        name = raw.strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in taken:          # already there, or repeated in this same paste
+            skipped.append(name)
+            continue
+        taken.add(key)
+        kwargs = {"name": name}
+        if parent_col:
+            kwargs[parent_col] = body.parent_id
+        db.add(child_model(**kwargs))
+        created.append(name)
+
+    db.commit()
+    return {"created": len(created), "skipped": len(skipped), "skipped_names": skipped[:20]}
+
+
+def _duplicate_subtree(db: Session, node_type: str, node, new_name: str, target_parent_id: str):
+    """Copies a catalog node and everything structural under it.
+
+    Structure only: questions, booklets, courses and exams stay with the
+    original subject. A duplicated curriculum is an empty shell to fill,
+    not a copy of another university's content.
+    """
+    counts = {"universities": 0, "stages": 0, "subjects": 0}
+
+    if node_type == "section":
+        new_section = models.Section(name=new_name)
+        db.add(new_section)
+        db.flush()
+        for uni in db.query(models.University).filter(models.University.section_id == node.id).all():
+            new_uni = models.University(name=uni.name, section_id=new_section.id)
+            db.add(new_uni)
+            db.flush()
+            counts["universities"] += 1
+            _copy_stages(db, uni.id, new_uni.id, counts)
+        return new_section, counts
+
+    if node_type == "university":
+        new_uni = models.University(name=new_name, section_id=target_parent_id)
+        db.add(new_uni)
+        db.flush()
+        _copy_stages(db, node.id, new_uni.id, counts)
+        return new_uni, counts
+
+    if node_type == "stage":
+        new_stage = models.Stage(name=new_name, university_id=target_parent_id)
+        db.add(new_stage)
+        db.flush()
+        counts["stages"] += 1
+        for subj in db.query(models.Subject).filter(models.Subject.stage_id == node.id).all():
+            db.add(models.Subject(name=subj.name, stage_id=new_stage.id))
+            counts["subjects"] += 1
+        return new_stage, counts
+
+    # subject: nothing hangs under it structurally
+    new_subj = models.Subject(name=new_name, stage_id=target_parent_id)
+    db.add(new_subj)
+    db.flush()
+    counts["subjects"] += 1
+    return new_subj, counts
+
+
+def _copy_stages(db: Session, from_uni_id: str, to_uni_id: str, counts: dict):
+    for stage in db.query(models.Stage).filter(models.Stage.university_id == from_uni_id).all():
+        new_stage = models.Stage(name=stage.name, university_id=to_uni_id)
+        db.add(new_stage)
+        db.flush()
+        counts["stages"] += 1
+        for subj in db.query(models.Subject).filter(models.Subject.stage_id == stage.id).all():
+            db.add(models.Subject(name=subj.name, stage_id=new_stage.id))
+            counts["subjects"] += 1
+
+
+_CATALOG_MODEL = {
+    "section": models.Section,
+    "university": models.University,
+    "stage": models.Stage,
+    "subject": models.Subject,
+}
+_CATALOG_PARENT_COL = {
+    "section": None,
+    "university": "section_id",
+    "stage": "university_id",
+    "subject": "stage_id",
+}
+_PARENT_TYPE_OF = {"university": "section", "stage": "university", "subject": "stage"}
+
+
+@router.post("/catalog/duplicate")
+def catalog_duplicate(body: schemas.CatalogDuplicateIn, db: Session = Depends(get_db)):
+    """Copies a whole branch — a university with all its stages and their
+    subjects, say — under a new name or into a different parent.
+
+    This is what makes a real curriculum tractable: build one university
+    properly, then copy it for each of the others and rename.
+    """
+    if body.type not in _CATALOG_MODEL:
+        raise HTTPException(400, "نوع غير صالح")
+    node = db.get(_CATALOG_MODEL[body.type], body.id)
+    if not node:
+        raise HTTPException(404, "العنصر غير موجود")
+
+    parent_col = _CATALOG_PARENT_COL[body.type]
+    target_parent_id = body.target_parent_id or (getattr(node, parent_col) if parent_col else None)
+
+    if parent_col:
+        parent_type = _PARENT_TYPE_OF[body.type]
+        if not db.get(_CATALOG_MODEL[parent_type], target_parent_id):
+            raise HTTPException(404, "العنصر الأب المستهدف غير موجود")
+
+    new_name = (body.new_name or node.name).strip()
+    if not new_name:
+        raise HTTPException(400, "الاسم مطلوب")
+
+    # Same rule as adding by hand: no two siblings with the same name.
+    if parent_col:
+        clash = (
+            db.query(_CATALOG_MODEL[body.type])
+            .filter(getattr(_CATALOG_MODEL[body.type], parent_col) == target_parent_id)
+            .all()
+        )
+    else:
+        clash = db.query(models.Section).all()
+    if any((c.name or "").strip().lower() == new_name.lower() for c in clash):
+        raise HTTPException(400, f"يوجد عنصر بنفس الاسم هنا: {new_name}")
+
+    created, counts = _duplicate_subtree(db, body.type, node, new_name, target_parent_id)
+    db.commit()
+    return {"id": created.id, "name": new_name, **counts}
+
+
 # ---------------------------------------------------- catalog rename/delete
 # Deletes are blocked ("leaf-first") whenever real content still hangs off
 # the node — safer than silently cascading through questions, professor
