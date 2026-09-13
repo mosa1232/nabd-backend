@@ -11,7 +11,7 @@ from .config import get_settings
 from .database import Base, engine
 from .routers import (
     activation, admin, auth, bans, catalog, courses, exams, import_export, pearls,
-    notifications, professors, questions, reseller, store, students,
+    notifications, professors, public, questions, reseller, store, students,
 )
 from .storage import name_from_url, storage
 
@@ -56,6 +56,7 @@ app.include_router(exams.router)
 app.include_router(notifications.router)
 app.include_router(students.router)
 app.include_router(pearls.router)
+app.include_router(public.router)
 
 @app.get("/media-files/{name}")
 def serve_media(name: str):

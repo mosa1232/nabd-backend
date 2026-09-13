@@ -6,7 +6,7 @@
 <title>Kiur — معاينة الواجهة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&family=Lexend:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root{
     --bg-1:#EAF0FF; --bg-2:#F7ECFF; --bg-3:#FFF8F0;
@@ -690,119 +690,359 @@
   /* ---------- Auth (login / OTP) ---------- */
   body.auth-mode .topbar{display:none;}
   .auth-view{min-height:78vh; display:flex; align-items:center; justify-content:center; padding:20px 0;}
-  /* ---------- صفحة الهبوط (زائر غير مسجّل) ---------- */
-  .landing{max-width:960px; margin-inline:auto;}
-  .landing-topbar{
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
-    padding:10px 16px; margin-bottom:22px; border-radius:999px;
+  /* ---------- صفحة الهبوط (زائر غير مسجّل) ----------
+     A theme of its own, scoped to this one view: moss ground, pale paper
+     cards, a floating dock and a live pulse line where the reference had a
+     grown moss root. Nothing here leaks into the rest of the platform — every
+     rule hangs off #view-landing or body.landing-mode, which is only set while
+     the landing is on screen. */
+  body.landing-mode{background:#383b34; color:#fff;}
+  body.landing-mode .app{max-width:none !important; width:100% !important; margin:0 !important; padding:0 !important;}
+  #view-landing.active{animation:none;}   /* its own entrance, and no transform to trap the fixed dock */
+
+  @property --lp-rim{syntax:'<angle>'; inherits:false; initial-value:0deg;}
+
+  .lp{
+    --lp-ink:#fff; --lp-soft:rgba(255,255,255,.62); --lp-faint:rgba(255,255,255,.44);
+    --lp-rule:rgba(255,255,255,.055);
+    --lp-card:#f2f3ef; --lp-card-ink:#23261f; --lp-card-label:#7c8177; --lp-plate:#263025;
+    --lp-ease:cubic-bezier(.22,.61,.36,1); --lp-out:cubic-bezier(.16,1,.3,1);
+    /* clip, not hidden: overflow:hidden makes this a scroll container, and
+       scrollIntoView then scrolls the view inside itself instead of the page */
+    position:relative; overflow-x:clip; background:#383b34; color:var(--lp-ink);
+    font-family:'Noto Sans Arabic','Lexend',sans-serif; font-weight:300;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   }
-  .landing-brand{display:flex; align-items:center; gap:9px; font-weight:800;}
-  .landing-brand svg{width:26px; height:26px; color:var(--accent);}
-  .landing-hero{
-    position:relative; overflow:hidden; text-align:center;
-    padding:clamp(28px,5vw,52px) clamp(20px,4vw,44px) clamp(74px,9vw,96px);
-    background:var(--glass-bg-strong);
+  html[dir="ltr"] .lp{font-family:'Lexend','Noto Sans Arabic',sans-serif;}
+  .lp button{font-family:inherit;}
+  .lp [hidden]{display:none !important;}   /* class display rules would otherwise beat the attribute */
+  .lp :focus-visible{outline:2px solid rgba(255,255,255,.85); outline-offset:4px; border-radius:10px;}
+
+  /* ── hero shell ── */
+  .lp-hero{
+    position:relative; min-height:max(100svh, 720px); overflow:hidden; isolation:isolate;
+    background:
+      radial-gradient(64% 52% at 27% 84%, rgba(232,238,222,.085) 0%, rgba(232,238,222,0) 72%),
+      radial-gradient(70% 60% at 92% 8%, rgba(24,28,20,.10) 0%, rgba(24,28,20,0) 68%),
+      #4a4d44;
   }
-  .landing-hero h1{
-    margin:0 0 12px; font-family:'Reem Kufi','Noto Sans Arabic',sans-serif;
-    font-size:clamp(1.55rem,4.6vw,2.6rem); line-height:1.3; font-weight:700;
-    background:linear-gradient(120deg, var(--ink) 20%, var(--accent) 62%, var(--accent-2) 96%);
-    -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; color:transparent;
+  /* the floor of light the pulse runs through */
+  .lp-hero::after{
+    content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(72% 44% at 50% 117%, rgba(238,243,231,.50) 0%, rgba(238,243,231,.21) 42%, rgba(238,243,231,.04) 72%, rgba(238,243,231,0) 88%),
+      linear-gradient(180deg, rgba(238,243,231,0) 54%, rgba(238,243,231,.03) 78%, rgba(238,243,231,.085) 100%);
   }
-  .landing-hero p{margin:0 auto 22px; max-width:50ch; color:var(--ink-soft); font-size:clamp(.88rem,2vw,1rem); line-height:1.85;}
-  .landing-actions{display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
-  /* بطاقات معاينة مموّهة — توضيحية فقط، والنص تحتها يقول ذلك صراحة */
-  .peek-stats{
-    display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
-    max-width:520px; margin:-56px auto 0; position:relative; z-index:2; padding-inline:14px;
+  .lp-pulse{position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none;}
+  .lp-guides{position:absolute; inset:0; z-index:1; pointer-events:none;}
+  .lp-guides i{
+    position:absolute; top:0; bottom:0; width:1px;
+    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, var(--lp-rule) 12%, var(--lp-rule) 78%, rgba(255,255,255,0) 100%);
   }
-  .peek-card{
-    padding:13px 8px; border-radius:var(--radius-md); text-align:center;
-    background:var(--glass-bg-strong); border:1px solid var(--glass-border); box-shadow:var(--shadow-soft);
-    display:flex; flex-direction:column; align-items:center; gap:5px;
+  .lp-guides i:nth-child(1){left:25%;} .lp-guides i:nth-child(2){left:50%;} .lp-guides i:nth-child(3){left:75%;}
+  .lp-ghost{
+    position:absolute; z-index:1; left:.4vw; bottom:-3.4vw; direction:ltr;
+    font-family:'Lexend',sans-serif; font-weight:400; line-height:.78;
+    font-size:clamp(110px, 19.4vw, 360px); letter-spacing:.1em;
+    color:rgba(255,255,255,.055); white-space:nowrap; user-select:none; pointer-events:none;
   }
-  .peek-value{
-    font-family:'IBM Plex Mono',monospace; direction:ltr; font-weight:700; font-size:1.15rem;
-    color:var(--accent); filter:blur(6px); user-select:none;
+
+  /* ── the dock ── */
+  .lp-dock-wrap{position:fixed; z-index:60; top:22px; left:0; right:0; display:flex; justify-content:center; pointer-events:none;}
+  .lp-dock{
+    pointer-events:auto; position:relative;
+    display:flex; align-items:flex-start; gap:4px; height:50px; padding:6px; border-radius:16px;
+    border:1px solid rgba(255,255,255,.11);
+    /* no backdrop-filter: it sits over a canvas that repaints every frame */
+    background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,0) 42%), rgba(34,40,31,.82);
+    box-shadow:0 8px 22px rgba(10,14,8,.30), inset 0 1px rgba(255,255,255,.06);
   }
-  .peek-label{font-size:.66rem; color:var(--ink-faint); font-weight:600;}
-  .peek-note{
-    display:flex; align-items:center; justify-content:center; gap:6px;
-    text-align:center; font-size:.72rem; color:var(--ink-faint); margin-top:12px;
+  .lp-dock-item{
+    --m:0; position:relative; z-index:1;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:none;
+    height:calc(38px + 12px * var(--m)); padding-inline:calc(13px + 5px * var(--m));
+    transform:translateY(calc(3px * var(--m))); transform-origin:50% 0;
+    border:1px solid transparent; border-radius:11px; background:rgba(255,255,255,.04);
+    color:var(--lp-faint); font-size:.78rem; font-weight:500; white-space:nowrap; cursor:pointer;
+    transition:color .18s var(--lp-ease), border-color .2s var(--lp-ease), background .2s var(--lp-ease);
   }
-  .peek-note svg{width:12px; height:12px; flex:none;}
-  /* البطاقات المقفولة */
-  .lock-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:12px;}
-  .lock-card{
-    position:relative; overflow:hidden; padding:22px 18px; text-align:start;
-    display:flex; flex-direction:column; gap:10px; cursor:pointer; width:100%;
-    transition:transform .3s cubic-bezier(.2,.8,.3,1), box-shadow .3s ease;
+  .lp-dock-item[data-near="true"]{
+    z-index:2; color:#fff; border-color:rgba(255,255,255,.19); background:rgba(31,37,28,.94);
+    box-shadow:0 7px 16px rgba(10,14,8,.30);
   }
-  .lock-card:hover, .lock-card:focus-visible{transform:translateY(-6px); box-shadow:var(--shadow-lift);}
-  .lock-chip{
-    position:absolute; inset-block-start:12px; inset-inline-end:12px; z-index:2;
-    display:flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px;
-    background:var(--track); color:var(--ink-faint); font-size:.64rem; font-weight:700;
+  .lp-dock-item .glyph{width:15px; height:15px; flex:none; opacity:.66; transition:opacity .18s;}
+  .lp-dock-item .glyph svg{display:block; width:100%; height:100%; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round;}
+  .lp-dock-item[data-near="true"] .glyph{opacity:1;}
+  .lp-dock-mark{width:calc(38px + 12px * var(--m)); padding:0; background:#eef1e7; border-color:#eef1e7; color:#23261f;}
+  .lp-dock-mark svg{width:58%; height:58%; display:block;}
+  .lp-dock-mark[data-near="true"]{background:#fff; border-color:#fff; color:#1b1e18;}
+  .lp-dock-item.is-active{background:var(--lp-card); border-color:var(--lp-card); color:var(--lp-card-ink); box-shadow:0 6px 16px rgba(12,17,9,.24);}
+  .lp-dock-item.is-active .glyph{opacity:.8;}
+  .lp-dock-enter{color:#fff; background:rgba(255,255,255,.075);}
+  /* specular rim that points back at the pointer */
+  .lp-dock{--spec-angle:2.4rad; --spec-bright:0;}
+  .lp-dock::after{
+    content:''; position:absolute; inset:-1px; z-index:3; padding:1px; border-radius:inherit; pointer-events:none;
+    opacity:var(--spec-bright);
+    background:conic-gradient(from var(--spec-angle) at 50% 50%,
+      rgba(240,246,232,0) 0deg, rgba(240,246,232,.08) 14deg, rgba(240,246,232,.95) 28deg,
+      rgba(240,246,232,.16) 46deg, rgba(240,246,232,0) 68deg, rgba(240,246,232,0) 180deg,
+      rgba(240,246,232,.08) 194deg, rgba(240,246,232,.95) 208deg, rgba(240,246,232,.16) 226deg,
+      rgba(240,246,232,0) 248deg, rgba(240,246,232,0) 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
   }
-  .lock-chip svg{width:10px; height:10px;}
-  .lock-card .tile-icon{width:46px; height:46px;}
-  .lock-card h3{margin:0; font-size:1rem; font-weight:700;}
-  .lock-card p{margin:0; color:var(--ink-soft); font-size:.8rem; line-height:1.7;}
-  /* الغطاء يظهر عند المرور/التركيز — على اللمس الشارة الثابتة أعلاه هي الدليل */
-  .lock-veil{
-    position:absolute; inset:0; z-index:3; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:8px; text-align:center; padding:16px;
-    background:rgba(22,33,58,.74); color:#fff; opacity:0; pointer-events:none; transition:opacity .25s ease;
+
+  /* ── hero copy + cards ── */
+  .lp-stage{
+    position:relative; z-index:3; max-width:1560px; margin-inline:auto; min-height:inherit;
+    padding:clamp(128px, 18vh, 196px) clamp(20px, 3.2vw, 56px) clamp(96px, 12vh, 140px);
+    display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(0, .9fr); column-gap:clamp(24px, 4vw, 70px);
   }
-  html.dark .lock-veil{background:rgba(6,9,20,.84);}
-  .lock-card:hover .lock-veil, .lock-card:focus-visible .lock-veil{opacity:1;}
-  .lock-veil svg{width:24px; height:24px;}
-  .lock-veil span{font-size:.82rem; font-weight:700;}
-  /* لمحات سريرية — العنوان ظاهر، والتفاصيل غير موجودة أصلاً قبل الدخول */
-  .pearl-card{padding:18px; display:flex; flex-direction:column; gap:10px;}
-  .pearl-head{display:flex; align-items:flex-start; gap:9px; font-weight:700; font-size:.88rem; line-height:1.6;}
-  .pearl-chip{
-    flex:none; font-size:.64rem; font-weight:700; padding:3px 8px; border-radius:999px;
-    background:var(--danger-soft); color:var(--danger); white-space:nowrap;
+  .lp-headline{margin:0; font-weight:300; font-size:clamp(2.3rem, 4.4vw, 4.3rem); line-height:1.24; letter-spacing:-.005em; color:#fff;}
+  html[dir="ltr"] .lp-headline{line-height:1.04; letter-spacing:-.01em;}
+  .lp-headline span{display:block; padding-bottom:.04em;}
+  .lp-headline i{display:inline-block; font-style:normal;}
+  .lp-lede{margin:24px 0 0; max-width:34ch; font-size:clamp(.96rem, 1.15vw, 1.1rem); line-height:1.85; color:var(--lp-soft);}
+  .lp-cta-row{display:flex; align-items:center; gap:16px; margin-top:36px; flex-wrap:wrap;}
+
+  /* liquid-glass pill: dark plate, a prismatic rim that travels round the
+     edge, a molten sheen under the pointer and a ripple where it's pressed */
+  .lp-liquid, .lp-orb{
+    position:relative; isolation:isolate; overflow:hidden; border:0; cursor:pointer; color:#fff;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.014) 44%, rgba(255,255,255,0) 64%),
+      rgba(10,12,10,.42);
+    box-shadow:0 5px 11px rgba(0,0,0,.38), 0 14px 30px rgba(0,0,0,.28), 0 28px 56px rgba(0,0,0,.16),
+      inset 0 1px 0 rgba(255,255,255,.13);
+    transition:box-shadow .38s var(--lp-ease), background .38s var(--lp-ease), transform .5s var(--lp-out);
   }
-  .pearl-gate{
-    position:relative; border-radius:var(--radius-sm); overflow:hidden; min-height:74px;
-    background:var(--glass-bg-strong); border:1px solid var(--glass-border);
+  .lp-liquid{display:inline-flex; align-items:center; gap:14px; height:60px; padding-inline:22px 28px; border-radius:999px; font-size:1.02rem; font-weight:500;}
+  .lp-orb{width:60px; height:60px; border-radius:50%; display:grid; place-items:center;}
+  .lp-liquid svg, .lp-orb svg{width:20px; height:20px; position:relative; z-index:2; flex:none;}
+  .lp-liquid > span{position:relative; z-index:2;}
+  .lp-liquid::before, .lp-orb::before{
+    content:''; position:absolute; inset:0; z-index:1; padding:1.5px; border-radius:inherit; pointer-events:none;
+    background:conic-gradient(from var(--lp-rim),
+      rgba(240,246,232,.16) 0deg, rgba(255,170,140,.55) 22deg, rgba(250,252,240,.95) 34deg, rgba(120,214,255,.60) 48deg,
+      rgba(240,246,232,.14) 80deg, rgba(240,246,232,.10) 180deg, rgba(190,255,170,.45) 208deg, rgba(240,246,232,.70) 222deg,
+      rgba(240,246,232,.12) 250deg, rgba(240,246,232,.16) 360deg);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    animation:lpRim 14s linear infinite;
   }
-  /* الأسطر الرمادية مجرد شكل — لا نص حقيقي هنا، لأن المحتوى لا يُرسل أصلاً */
-  .pearl-ghost{padding:14px; display:flex; flex-direction:column; gap:8px; filter:blur(3px);}
-  .pearl-ghost span{height:8px; border-radius:999px; background:var(--track-strong); display:block;}
-  .pearl-gate-label{
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:5px; color:var(--ink); font-size:.72rem; font-weight:700; text-align:center; padding:8px;
+  .lp-liquid::after, .lp-orb::after{
+    content:''; position:absolute; inset:0; z-index:1; border-radius:inherit; pointer-events:none; opacity:0;
+    background:
+      radial-gradient(90% 120% at var(--mx, 50%) var(--my, 50%), rgba(120,210,255,.30), rgba(180,255,170,.16) 34%, rgba(0,0,0,0) 64%),
+      linear-gradient(100deg, rgba(0,0,0,0) 18%, rgba(255,200,150,.14) 40%, rgba(150,230,255,.16) 56%, rgba(0,0,0,0) 76%);
+    mix-blend-mode:screen; transition:opacity .38s var(--lp-ease);
   }
-  .pearl-gate-label svg{width:18px; height:18px; color:var(--accent);}
-  /* التدريب الصيفي — معطّل بالكامل، بلا أي عنصر قابل للنقر */
-  .summer{position:relative; overflow:hidden; padding:clamp(30px,5vw,46px) 22px; text-align:center; filter:saturate(.8);}
-  .summer-ribbon{
-    position:absolute; inset-block-start:20px; inset-inline-end:-56px; z-index:3;
-    background:linear-gradient(135deg, var(--warm), #FF6B9D); color:#fff;
-    font-size:.68rem; font-weight:800; padding:6px 66px; transform:rotate(45deg);
-    box-shadow:0 8px 18px -6px rgba(255,138,91,.5);
+  .lp-liquid:hover, .lp-orb:hover, .lp-liquid:focus-visible, .lp-orb:focus-visible{
+    background:linear-gradient(180deg, rgba(255,255,255,.105), rgba(255,255,255,.02) 44%, rgba(255,255,255,0) 64%), rgba(8,10,8,.50);
+    box-shadow:0 6px 13px rgba(0,0,0,.44), 0 19px 40px rgba(0,0,0,.34), 0 40px 80px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.17);
   }
-  .summer-veil{position:absolute; inset:0; z-index:2; background:rgba(10,15,30,.6);}
-  html.dark .summer-veil{background:rgba(4,6,14,.68);}
-  .summer-body{position:relative; z-index:3; color:#fff;}
-  .summer-lock{
-    width:56px; height:56px; border-radius:50%; margin:0 auto 14px; display:grid; place-items:center;
-    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25);
+  .lp-liquid:hover::after, .lp-orb:hover::after, .lp-liquid:focus-visible::after, .lp-orb:focus-visible::after{opacity:1;}
+  .lp-liquid:active, .lp-orb:active{transform:scale(.97);}
+  .lp-ripple{
+    position:absolute; z-index:1; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%;
+    border:1.5px solid rgba(240,250,236,.8); pointer-events:none; animation:lpRipple .9s var(--lp-out) forwards;
   }
-  .summer-lock svg{width:25px; height:25px;}
-  .summer-body h3{margin:0 0 8px; font-size:clamp(1.05rem,3vw,1.35rem); font-weight:700;}
-  .summer-body p{margin:0 auto; max-width:44ch; font-size:.84rem; line-height:1.8; color:rgba(255,255,255,.82);}
-  .summer-status{
-    display:inline-flex; align-items:center; gap:6px; margin-top:14px; padding:7px 15px; border-radius:999px;
-    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); font-size:.74rem; font-weight:700;
+  @keyframes lpRim{to{--lp-rim:360deg;}}
+  @keyframes lpRipple{to{transform:scale(22); opacity:0; border-width:.3px;}}
+
+  .lp-cards{position:relative; min-height:clamp(560px, calc(100svh - 300px), 720px);}
+  .lp-band{position:absolute; top:60%; height:190px; width:1px; left:0;}
+  .lp-stats{position:absolute; top:0; inset-inline-end:1%; z-index:4; display:flex; flex-direction:column; gap:26px; margin:0;}
+  .lp-stat{display:flex; align-items:flex-start; gap:10px;}
+  .lp-stat:nth-child(2){margin-inline-end:clamp(40px, 6vw, 96px);}
+  .lp-stat:nth-child(3){margin-inline-end:clamp(10px, 2vw, 30px);}
+  .lp-stat-mark{width:32px; height:32px; flex:none; margin-top:2px; color:rgba(255,255,255,.34);}
+  .lp-stat-mark svg{width:100%; height:100%; display:block; filter:drop-shadow(0 2px 10px rgba(10,14,8,.6));}
+  .lp-stat dt{font-size:.84rem; color:var(--lp-soft); line-height:1.5; text-shadow:0 2px 16px rgba(10,14,8,.6);}
+  .lp-stat dd{margin:0; font-family:'Lexend',sans-serif; font-size:1.02rem; font-weight:600; color:#fff; line-height:1.4; text-shadow:0 2px 16px rgba(10,14,8,.6);}
+
+  .lp-card{
+    position:absolute; width:clamp(250px, 21vw, 336px);
+    background:var(--lp-card); color:var(--lp-card-ink); border-radius:clamp(30px, 2.9vw, 46px);
+    box-shadow:0 30px 70px rgba(16,21,13,.30); padding:14px 14px 26px; --mr:clamp(30px, 2.9vw, 46px);
+    transition:box-shadow .8s var(--lp-ease);
   }
-  .summer-status svg{width:13px; height:13px;}
-  @media (max-width:520px){
-    .landing-actions .btn{flex:1 1 100%; justify-content:center;}
+  .lp-card:hover{box-shadow:0 38px 84px rgba(16,21,13,.36);}
+  .lp-card--about{top:17%; inset-inline-start:0;}
+  /* anchored to the column's foot, so a long real case title grows the card
+     upward instead of pushing it out of the hero */
+  .lp-card--note{bottom:0; inset-inline-end:0; padding-top:28px;}
+  .lp-label{margin:0; padding-inline:22px; font-size:.9rem; color:var(--lp-card-label); font-weight:300;}
+  .lp-card h2{margin:6px 0 0; padding-inline:22px 84px; font-size:clamp(1.22rem, 1.6vw, 1.62rem); line-height:1.3; font-weight:400; color:var(--lp-card-ink); min-height:2.6em;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;}
+  .lp-card--note h2{padding-inline-end:22px; font-size:clamp(1.1rem, 1.35vw, 1.4rem);}
+  .lp-card--about .lp-label{margin-top:18px;}
+  .lp-plate{position:relative; margin:0; overflow:hidden; isolation:isolate; background:var(--lp-plate); border-radius:clamp(22px, 2.1vw, 34px); height:clamp(112px, 9.5vw, 156px);}
+  .lp-card--note .lp-plate{margin-top:18px;}
+  .lp-plate > svg{   /* the drawing only — not the lock or icon glyphs inside a plate */
+    position:absolute; inset:-8px; width:calc(100% + 16px); height:calc(100% + 16px); display:block;
+    transform:translate3d(calc(var(--px, 0) * -9px), calc(var(--py, 0) * -6px), 0) scale(1.04);
+  }
+  .lp-plate .trace{fill:none; stroke:rgba(226,242,208,.9); stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; filter:url(#lpGlow);}
+  .lp-plate .trace-far{fill:none; stroke:rgba(226,242,208,.22); stroke-width:1; stroke-linecap:round; stroke-linejoin:round;}
+  .lp-plate::after{
+    content:''; position:absolute; z-index:2; top:0; bottom:0; width:26%; left:-30%; opacity:0; pointer-events:none; filter:blur(2px);
+    background:linear-gradient(90deg, transparent, rgba(229,244,209,.2) 42%, rgba(252,255,246,.72) 54%, transparent);
+  }
+  .lp-knob{
+    position:absolute; inset-inline-end:18px; bottom:18px; z-index:4;
+    width:52px; height:52px; border:0; border-radius:50%; cursor:pointer;
+    background:#fbfcf8; display:grid; place-items:center; color:#3f453a;
+    box-shadow:0 6px 16px rgba(16,21,13,.18);
+    transition:transform .5s var(--lp-out), background .4s var(--lp-ease);
+  }
+  .lp-knob svg{width:19px; height:19px; display:block;}
+  .lp-knob:hover{transform:scale(1.1) rotate(-8deg); background:#fff;}
+  html[dir="ltr"] .lp-knob svg{transform:scaleX(-1);}
+  .lp-knob:focus-visible{outline-color:rgba(28,34,22,.9);}
+
+  .lp-scroll{
+    position:absolute; z-index:4; left:50%; bottom:clamp(26px, 5vh, 54px); transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:12px; border:0; background:none; cursor:pointer;
+    font-size:.78rem; font-weight:400; color:rgba(255,255,255,.5);
+  }
+  .lp-scroll .track{position:relative; width:1px; height:56px; background:rgba(255,255,255,.18); overflow:hidden;}
+  .lp-scroll .track::after{content:''; position:absolute; inset:0 0 auto; height:40%; background:rgba(255,255,255,.75); animation:lpTrickle 2.6s var(--lp-ease) infinite;}
+  @keyframes lpTrickle{0%{transform:translateY(-105%); opacity:0;} 22%{opacity:1;} 78%{opacity:1;} 100%{transform:translateY(255%); opacity:0;}}
+
+  /* pointer parallax: --px/--py are written on .lp-hero, each layer rides --pd */
+  .lp-par{
+    transform:perspective(1400px)
+      translate3d(calc(var(--px, 0) * var(--pd, 0) * -1px), calc(var(--py, 0) * var(--pd, 0) * -.62px), 0)
+      rotateY(calc(var(--px, 0) * var(--pr, 0) * 1deg)) rotateX(calc(var(--py, 0) * var(--pr, 0) * -.7deg));
+  }
+
+  /* entrance: wiped in behind a mask, then the clips come off */
+  .lp .lp-reveal{clip-path:inset(100% 0 0 0 round var(--mr, 0px));}
+  .lp.lp-ready .lp-reveal{clip-path:inset(0 0 0 0 round var(--mr, 0px)); transition:clip-path 1.05s var(--lp-out) var(--d, 0ms);}
+  .lp.lp-intro-done .lp-reveal{clip-path:none; transition:none;}
+  .lp .lp-fade{opacity:0;}
+  .lp.lp-ready .lp-fade{opacity:1; transition:opacity 1.3s var(--lp-ease) var(--d, 0ms);}
+  .lp .lp-headline i{opacity:0; transform:translateY(16px);}
+  .lp.lp-ready .lp-headline i{opacity:1; transform:none; transition:opacity 1.05s var(--lp-ease) var(--d, 0ms), transform 1.25s var(--lp-out) var(--d, 0ms);}
+  .lp .lp-dock{opacity:0;}
+  .lp.lp-ready .lp-dock{opacity:1; transition:opacity .8s var(--lp-ease) 80ms;}
+  .lp .lp-plate .trace{stroke-dasharray:1400; stroke-dashoffset:1400;}
+  .lp.lp-ready .lp-plate .trace{stroke-dashoffset:0; transition:stroke-dashoffset 1.6s steps(14, end) var(--pd2, 1000ms);}
+  .lp.lp-ready .lp-plate::after{animation:lpScan 1.45s steps(12, end) var(--pd2, 1000ms) both;}
+  @keyframes lpScan{0%{left:-30%; opacity:0;} 10%{opacity:.75;} 88%{opacity:.55;} 100%{left:104%; opacity:0;}}
+
+  /* ── below the hero ── */
+  .lp-sections{position:relative; background:linear-gradient(180deg, #4a4d44 0%, #41443b 38%, #383b34 100%);}
+  .lp-section{position:relative; max-width:1560px; margin-inline:auto; padding:clamp(72px, 10vw, 132px) clamp(20px, 3.2vw, 56px) 0;}
+  .lp-eyebrow{margin:0 0 12px; font-size:.86rem; color:rgba(255,255,255,.5);}
+  .lp-h{margin:0; font-weight:300; font-size:clamp(1.8rem, 3.2vw, 3rem); line-height:1.25; color:#fff; max-width:20ch;}
+  .lp-sub{margin:14px 0 0; max-width:52ch; color:var(--lp-soft); font-size:.95rem; line-height:1.85;}
+  .lp-grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:clamp(14px, 1.6vw, 24px); margin-top:clamp(28px, 4vw, 48px);}
+  .lp-feature{
+    position:relative; display:flex; flex-direction:column; width:100%; text-align:start; border:0;
+    background:var(--lp-card); color:var(--lp-card-ink); border-radius:clamp(28px, 2.6vw, 40px);
+    padding:14px 14px 26px; box-shadow:0 30px 70px rgba(16,21,13,.30);
+    transition:transform .6s var(--lp-out), box-shadow .8s var(--lp-ease);
+  }
+  button.lp-feature{cursor:pointer;}
+  button.lp-feature:hover, button.lp-feature:focus-visible{transform:translateY(-8px); box-shadow:0 38px 84px rgba(16,21,13,.36);}
+  .lp-feature .lp-plate{height:clamp(124px, 11vw, 172px); display:grid; place-items:center; color:#dfeccf;}
+  .lp-plate-icon{position:relative; z-index:2; width:46px; height:46px;}
+  .lp-plate-icon svg{width:100%; height:100%; display:block; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linecap:round; stroke-linejoin:round;}
+  .lp-feature .lp-plate::before{
+    content:''; position:absolute; inset:0; z-index:1;
+    background:
+      radial-gradient(60% 80% at 50% 110%, rgba(226,242,208,.20), rgba(226,242,208,0) 70%),
+      radial-gradient(circle at 1px 1px, rgba(226,242,208,.14) 1px, transparent 1.4px) 0 0 / 14px 14px;
+  }
+  .lp-lock{
+    position:absolute; top:26px; inset-inline-end:26px; z-index:3;
+    display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:999px;
+    background:rgba(242,243,239,.12); border:1px solid rgba(242,243,239,.22); color:#e9efdf; font-size:.7rem; font-weight:500;
+  }
+  .lp-lock svg{width:11px; height:11px;}
+  .lp-feature h3{margin:18px 0 0; padding-inline:18px; font-size:1.3rem; font-weight:400; line-height:1.35;}
+  .lp-feature p{margin:8px 0 0; padding-inline:18px 76px; color:#5f6559; font-size:.87rem; line-height:1.8;}
+  .lp-feature .lp-knob{inset-inline-end:16px; bottom:16px; width:46px; height:46px;}
+  .lp-feature:hover .lp-knob{transform:scale(1.08) rotate(-8deg);}
+  .lp-pearl h3{padding-inline:18px; font-size:1.12rem; min-height:3em;}
+  .lp-tag{align-self:flex-start; margin:18px 18px 0; padding:4px 10px; border-radius:999px; background:#e3e7da; color:#4c5245; font-size:.7rem; font-weight:500;}
+  .lp-gate{position:relative; margin:16px 4px 0; border-radius:22px; background:#e8ebe2; overflow:hidden; min-height:96px;}
+  .lp-gate-lines{padding:18px; display:flex; flex-direction:column; gap:9px; filter:blur(3px);}
+  .lp-gate-lines span{display:block; height:8px; border-radius:999px; background:#cfd4c6;}
+  .lp-gate-cta{
+    position:absolute; inset:0; border:0; background:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:7px; padding:10px;
+    color:var(--lp-card-ink); font-size:.8rem; font-weight:500; text-align:center;
+    background:linear-gradient(rgba(232,235,226,.62), rgba(232,235,226,.62));
+  }
+  .lp-gate-cta svg{width:16px; height:16px; flex:none;}
+  .lp-gate-cta:hover{text-decoration:underline; text-underline-offset:4px;}
+
+  .lp-summer{
+    position:relative; overflow:hidden; margin-top:clamp(28px, 4vw, 48px);
+    display:grid; grid-template-columns:auto 1fr auto; gap:clamp(18px, 3vw, 36px); align-items:center;
+    padding:clamp(34px, 5vw, 72px) clamp(22px, 4vw, 64px); border-radius:clamp(30px, 3vw, 46px);
+    border:1px solid rgba(255,255,255,.1);
+    background:
+      radial-gradient(60% 90% at 85% 0%, rgba(238,243,231,.10), rgba(238,243,231,0) 70%),
+      linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0)), #30332c;
+    user-select:none;
+  }
+  .lp-summer-lock{width:64px; height:64px; border-radius:50%; border:1px solid rgba(255,255,255,.17); display:grid; place-items:center; color:rgba(255,255,255,.7);}
+  .lp-summer-lock svg{width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round;}
+  .lp-summer h3{margin:0; font-weight:300; font-size:clamp(1.3rem, 2.2vw, 2rem); color:#fff;}
+  .lp-summer p{margin:8px 0 0; max-width:54ch; color:var(--lp-soft); font-size:.93rem; line-height:1.85;}
+  .lp-summer-side{display:flex; flex-direction:column; align-items:flex-end; gap:10px;}
+  .lp-soon{padding:8px 18px; border-radius:999px; background:var(--lp-card); color:var(--lp-card-ink); font-size:.82rem; font-weight:500; white-space:nowrap;}
+  .lp-status{display:inline-flex; align-items:center; gap:6px; color:rgba(255,255,255,.5); font-size:.76rem; white-space:nowrap;}
+  .lp-status svg{width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .lp-foot{
+    max-width:1560px; margin:clamp(72px, 9vw, 120px) auto 0; padding:34px clamp(20px, 3.2vw, 56px) 48px;
+    border-top:1px solid rgba(255,255,255,.07); color:rgba(255,255,255,.42); font-size:.8rem;
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  }
+  .lp-foot-mark{display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.7); font-family:'Lexend',sans-serif; font-weight:500; direction:ltr;}
+  .lp-foot-mark svg{width:22px; height:22px;}
+
+  /* ── one column ── */
+  @media (max-width:900px){
+    .lp-dock-wrap{top:12px;}
+    .lp-dock{height:56px; padding:5px; gap:4px; border-radius:17px;}
+    .lp-dock-item{width:44px; height:44px; padding:0; transform:none; border-radius:12px;}
+    .lp-dock-item > span:not(.glyph){display:none;}
+    .lp-dock-item .glyph{width:19px; height:19px;}
+    .lp-hero{min-height:0;}
+    .lp-stage{grid-template-columns:1fr; padding:112px 20px 120px;}
+    .lp-cards{min-height:0; display:flex; flex-direction:column; gap:14px; margin-top:34px;}
+    .lp-stats{position:static; flex-direction:row; flex-wrap:wrap; gap:18px 28px; order:0;}
+    .lp-stat:nth-child(n){margin:0;}
+    .lp-band{position:relative; top:auto; left:auto; width:100%; height:170px; order:1;}
+    /* same stacking as desktop, just full width: a plate squeezed into a
+       narrow side column zoomed the trace into one unreadable curve */
+    .lp-card{position:relative; top:auto; bottom:auto; inset-inline:auto; width:100%; order:2; padding:12px 12px 22px;}
+    .lp-card .lp-plate{height:132px;}
+    .lp-card .lp-label{padding-inline:12px;}
+    .lp-card h2{padding-inline:12px 72px; font-size:1.2rem; min-height:0;}
+    .lp-card--note{padding-top:22px;}
+    .lp-card .lp-knob{width:46px; height:46px; inset-inline-end:14px; bottom:14px;}
+    .lp-scroll{display:none;}
+    .lp-grid{grid-template-columns:1fr;}
+    .lp-summer{grid-template-columns:1fr; justify-items:center; text-align:center;}
+    .lp-summer-side{align-items:center;}
+    .lp-guides i:nth-child(1){left:33.3%;} .lp-guides i:nth-child(2){left:66.6%;} .lp-guides i:nth-child(3){display:none;}
+    .lp-ghost{font-size:31vw; bottom:-1vw;}
+    .lp-par{transform:none;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .lp .lp-reveal, .lp .lp-fade, .lp .lp-dock, .lp .lp-headline i{clip-path:none !important; opacity:1 !important; transform:none !important; transition:none !important;}
+    .lp .lp-plate .trace{stroke-dashoffset:0 !important; transition:none !important;}
+    .lp-plate::after, .lp-liquid::before, .lp-orb::before, .lp-scroll .track::after{animation:none !important;}
+    .lp-par, .lp-plate > svg{transform:none !important;}
   }
 
   .auth-card{width:100%; max-width:380px; padding:32px 28px;}
@@ -1571,103 +1811,145 @@
 
   <!-- ============ LANDING (visitor with no session) ============ -->
   <div class="view" id="view-landing">
-    <div class="landing">
+    <div class="lp" id="lpRoot">
 
-      <header class="landing-topbar glass">
-        <div class="landing-brand display">
-          <svg viewBox="0 0 48 48" fill="none"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span>Kiur</span>
-        </div>
-        <button class="btn btn-ghost" style="padding:8px 16px; font-size:.78rem;" onclick="goToLogin()" data-i18n="landingSignIn">تسجيل الدخول</button>
-      </header>
+      <div class="lp-dock-wrap">
+        <nav class="lp-dock" id="lpDock" aria-label="Kiur">
+          <button class="lp-dock-item lp-dock-mark" data-dock data-go="top" aria-label="Kiur" data-i18n-aria="lpBrand"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="lp-dock-item is-active" data-dock data-go="top" data-section="lpHero"><span class="glyph" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 7.4 8 2.8l5.5 4.6"/><path d="M4 6.6v6.6h8V6.6"/></svg></span><span data-i18n="navHome">الرئيسية</span></button>
+          <button class="lp-dock-item" data-dock data-go="lpFeatures" data-section="lpFeatures"><span class="glyph" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.6V3.9a1 1 0 0 1 1-1h8.4v9.7"/><path d="M4.2 14.2a1.2 1.2 0 0 1 0-2.4h8.2"/></svg></span><span data-i18n="lpNavFeatures">المنصة</span></button>
+          <button class="lp-dock-item" data-dock data-go="lpPearls" data-section="lpPearls" id="lpDockPearls" hidden><span class="glyph" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 2.4h5.3L12 5.1v8.5H4z"/><path d="M9.2 2.4V5h2.7"/><path d="M5.9 9.4h1.4l.8-1.8 1.1 3.2.7-1.4h.9"/></svg></span><span data-i18n="pearlsTitle">لمحات سريرية</span></button>
+          <button class="lp-dock-item" data-dock data-go="lpSummer" data-section="lpSummer"><span class="glyph" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/></svg></span><span data-i18n="summerTitle">التدريب الصيفي</span></button>
+          <button class="lp-dock-item lp-dock-enter" data-dock data-go="login"><span class="glyph" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M9.4 2.5H4.3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h5.1"/><path d="M13.4 8H6.8"/><path d="m9 5.6-2.4 2.4L9 10.4"/></svg></span><span data-i18n="landingSignIn">تسجيل الدخول</span></button>
+        </nav>
+      </div>
 
-      <section class="landing-hero glass">
-        <h1 data-i18n="landingTitle">استكشف Kiur، منصتك الطبية المتكاملة</h1>
-        <p data-i18n="landingSub">بنك أسئلة حقيقي، محاضرات من دكاترتك، ولمحات سريرية تُبنى معك خطوة بخطوة — أنشئ حسابك وابدأ تتبّع تقدّمك من أول سؤال.</p>
-        <div class="landing-actions">
-          <button class="btn" onclick="goToRegister()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M12 5v14M5 12h14"/></svg>
-            <span data-i18n="landingSignUp">إنشاء حساب جديد</span>
-          </button>
-          <button class="btn btn-ghost" onclick="goToLogin()" data-i18n="landingSignIn">تسجيل الدخول</button>
+      <section class="lp-hero" id="lpHero">
+        <canvas class="lp-pulse" id="lpPulse" aria-hidden="true"></canvas>
+        <div class="lp-guides lp-fade" style="--d:900ms" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="lp-ghost lp-fade" style="--d:1150ms" aria-hidden="true">KIUR</div>
+
+        <div class="lp-stage">
+          <div class="lp-copy">
+            <h1 class="lp-headline lp-par" style="--pd:16; --pr:1.1">
+              <span><i style="--d:260ms" data-i18n="lpHeadA">ادرس الطب</i></span>
+              <span><i style="--d:360ms" data-i18n="lpHeadB">كما يُمارَس فعلاً</i></span>
+            </h1>
+            <p class="lp-lede lp-reveal lp-par" style="--d:480ms; --pd:12; --pr:1" data-i18n="lpLede">بنك أسئلة حقيقي، محاضرات من دكاترتك، ولمحات سريرية تُبنى معك خطوة بخطوة.</p>
+            <div class="lp-cta-row lp-reveal lp-par" style="--d:600ms; --pd:14; --pr:1.2; --mr:999px">
+              <button class="lp-liquid" data-liquid data-go="register">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+                <span data-i18n="landingSignUp">إنشاء حساب جديد</span>
+              </button>
+              <button class="lp-orb" data-liquid data-go="login" aria-label="تسجيل الدخول" data-i18n-aria="landingSignIn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M3 12h11"/><path d="m10 8 4 4-4 4"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="lp-cards">
+            <dl class="lp-stats lp-reveal lp-par" id="lpStats" style="--d:700ms; --pd:12" hidden></dl>
+            <div class="lp-band" id="lpBand" aria-hidden="true"></div>
+
+            <article class="lp-card lp-card--about lp-reveal lp-par" style="--d:760ms; --pd:10; --pr:2.2; --pd2:920ms">
+              <figure class="lp-plate"><svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <filter id="lpGlow" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <radialGradient id="lpPlateLight" cx="30%" cy="100%" r="80%"><stop offset="0" stop-color="#e2f2d0" stop-opacity=".22"/><stop offset="1" stop-color="#e2f2d0" stop-opacity="0"/></radialGradient>
+              <pattern id="lpDots" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#e2f2d0" fill-opacity=".12"/></pattern>
+            </defs>
+            <rect width="320" height="150" fill="url(#lpDots)"/>
+            <rect width="320" height="150" fill="url(#lpPlateLight)"/>
+            <path class="trace-far" d="M0 60 H70 L78 54 L86 60 H120 L128 44 L136 72 L142 60 H200 L214 50 L226 60 H320"/>
+            <path class="trace" d="M-4 96 H46 C52 96 54 88 60 88 S66 96 72 96 H96 L102 104 L112 34 L122 118 L130 96 H158 C168 96 172 80 184 80 S198 96 208 96 H236 L242 104 L252 40 L262 116 L270 96 H324"/>
+          </svg></figure>
+              <p class="lp-label" data-i18n="lpEthosLabel">فلسفتنا</p>
+              <h2 data-i18n="lpEthosTitle">تعلّم من الحالة، لا من الحفظ.</h2>
+              <button class="lp-knob" data-go="lpFeatures" aria-label="المنصة" data-i18n-aria="lpNavFeatures"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></button>
+            </article>
+
+            <article class="lp-card lp-card--note lp-reveal lp-par" style="--d:880ms; --pd:20; --pr:2.4; --pd2:1080ms">
+              <p class="lp-label" id="lpNoteLabel">لمحات سريرية</p>
+              <h2 id="lpNoteTitle" dir="auto">حالات قصيرة تُقرأ بدقيقة</h2>
+              <figure class="lp-plate"><svg viewBox="0 0 320 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect width="320" height="150" fill="url(#lpDots)"/>
+            <rect width="320" height="150" fill="url(#lpPlateLight)" transform="translate(320 0) scale(-1 1)"/>
+            <path class="trace-far" d="M0 104 H90 L100 96 L108 104 H170 L180 90 L190 116 L198 104 H320"/>
+            <path class="trace" d="M-4 78 H30 L38 84 L50 22 L62 110 L70 78 H104 C116 78 120 62 134 62 S150 78 162 78 H190 L196 86 L208 30 L220 104 L228 78 H262 C272 78 276 66 286 66 S298 78 306 78 H324"/>
+          </svg></figure>
+              <button class="lp-knob" data-go="lpPearls" id="lpNoteKnob" aria-label="لمحات سريرية" data-i18n-aria="pearlsTitle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></button>
+            </article>
+          </div>
         </div>
+
+        <button class="lp-scroll lp-reveal" style="--d:1040ms" data-go="lpFeatures"><span data-i18n="lpDiscover">اكتشف</span><span class="track"></span></button>
       </section>
 
-      <!-- معاينة توضيحية — لا يوجد حساب بعد، فلا توجد أرقام حقيقية تُعرض -->
-      <div class="peek-stats" aria-hidden="true">
-        <div class="peek-card"><span>🔥</span><span class="peek-value">17</span><span class="peek-label" data-i18n="streakLabel">سلسلة</span></div>
-        <div class="peek-card"><span>🏆</span><span class="peek-value">#4</span><span class="peek-label" data-i18n="rankLabel">ترتيبك بالجامعة</span></div>
-        <div class="peek-card"><span>🎯</span><span class="peek-value">89%</span><span class="peek-label" data-i18n="accuracyLabel">نسبة الإجابات الصحيحة</span></div>
-      </div>
-      <p class="peek-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-        <span data-i18n="landingPeekNote">مثال توضيحي لشكل صفحتك — أرقامك الحقيقية تبدأ من أول تسجيل دخول</span>
-      </p>
-
-      <div class="section-block" style="margin-top:34px;">
-        <div class="section-title" style="text-align:center;" data-i18n="landingWaitingTitle">هذا اللي بانتظارك</div>
-        <div class="lock-grid">
-          <button class="lock-card glass" onclick="goToLogin()">
-            <span class="lock-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
-            <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
+      <div class="lp-sections">
+        <section class="lp-section" id="lpFeatures">
+          <p class="lp-eyebrow" data-i18n="lpNavFeatures">المنصة</p>
+          <h2 class="lp-h" data-i18n="landingWaitingTitle">هذا اللي بانتظارك</h2>
+          <p class="lp-sub" data-i18n="lpFeaturesSub">كل قسم يفتح بعد تسجيل الدخول — هذي لمحة عمّا ينتظرك.</p>
+          <div class="lp-grid">
+          <button class="lp-feature" data-go="login">
+            <figure class="lp-plate">
+              <span class="lp-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
+              <span class="lp-plate-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><path d="M11 14.3h.01"/></svg></span>
+            </figure>
             <h3 data-i18n="tileBank">بنك الأسئلة</h3>
             <p data-i18n="landingBankDesc">أسئلة بأسلوب الامتحانات الحقيقي، مقسّمة حسب مادتك ومرحلتك، مع شرح لكل إجابة.</p>
-            <span class="lock-veil">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-              <span data-i18n="landingUnlockCta">سجّل دخول للبدء</span>
-            </span>
+            <span class="lp-knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></span>
           </button>
-          <button class="lock-card glass" onclick="goToLogin()">
-            <span class="lock-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
-            <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" stroke="none"/></svg></span>
+          <button class="lp-feature" data-go="login">
+            <figure class="lp-plate">
+              <span class="lp-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
+              <span class="lp-plate-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg></span>
+            </figure>
             <h3 data-i18n="tileVideo">أكاديمية الفيديو</h3>
             <p data-i18n="landingVideoDesc">محاضرات مصوّرة يرفعها دكاترتك أنفسهم، مع حفظ موضع توقّفك لتكمل من نفس النقطة.</p>
-            <span class="lock-veil">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-              <span data-i18n="landingUnlockCta">سجّل دخول للبدء</span>
-            </span>
+            <span class="lp-knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></span>
           </button>
-          <button class="lock-card glass" onclick="goToLogin()">
-            <span class="lock-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
-            <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
+          <button class="lp-feature" data-go="login">
+            <figure class="lp-plate">
+              <span class="lp-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
+              <span class="lp-plate-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
+            </figure>
             <h3 data-i18n="tileProf">قسم الدكاترة</h3>
             <p data-i18n="landingProfDesc">صفحة لكل دكتور فيها ملازمه وامتحاناته — تعرف بالضبط مين يدرّسك شنو.</p>
-            <span class="lock-veil">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-              <span data-i18n="landingUnlockCta">سجّل دخول للبدء</span>
-            </span>
+            <span class="lp-knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></span>
           </button>
-        </div>
-      </div>
-
-      <!-- لمحات سريرية — العناوين حقيقية من /api/pearls/preview، والتفاصيل
-           لا تصل المتصفح إطلاقاً قبل تسجيل الدخول -->
-      <div class="section-block" id="landingPearlsBlock" style="display:none;">
-        <div class="section-title" style="text-align:center;" data-i18n="pearlsTitle">لمحات سريرية</div>
-        <div class="lock-grid" id="landingPearlsList"></div>
-      </div>
-
-      <!-- التدريب الصيفي — غير متاح، وبلا أي عنصر قابل للنقر بداخله -->
-      <div class="section-block">
-        <div class="section-title" style="text-align:center;" data-i18n="summerTitle">التدريب الصيفي</div>
-        <section class="summer glass" aria-disabled="true">
-          <span class="summer-ribbon" data-i18n="comingSoon">قريباً</span>
-          <span class="summer-veil" aria-hidden="true"></span>
-          <div class="summer-body">
-            <span class="summer-lock" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            </span>
-            <h3 data-i18n="summerLockedTitle">هذا القسم مقفول حالياً</h3>
-            <p data-i18n="summerLockedBody">نجهّز برنامج تدريب سريري صيفي للطلبة. التفاصيل والتسجيل يفتحون قبل بداية الصيف — انتظرونا.</p>
-            <span class="summer-status">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 3"/><circle cx="12" cy="12" r="9"/></svg>
-              <span data-i18n="notAvailableYet">غير متاح حالياً</span>
-            </span>
           </div>
         </section>
-      </div>
 
-      <footer data-i18n="footerNote">Kiur — منصة تعليمية طبية لطلبة الجامعات العراقية</footer>
+        <!-- العناوين حقيقية من /api/pearls/preview، والتشخيص لا يصل المتصفح قبل الدخول -->
+        <section class="lp-section" id="lpPearls" hidden>
+          <p class="lp-eyebrow" data-i18n="lpPearlsEyebrow">حالات حقيقية</p>
+          <h2 class="lp-h" data-i18n="pearlsTitle">لمحات سريرية</h2>
+          <p class="lp-sub" data-i18n="lpPearlsSub">العناوين حقيقية، والتشخيص يظهر بعد الدخول.</p>
+          <div class="lp-grid" id="landingPearlsList"></div>
+        </section>
+
+        <!-- التدريب الصيفي — غير متاح، وبلا أي عنصر قابل للنقر بداخله -->
+        <section class="lp-section" id="lpSummer">
+          <p class="lp-eyebrow" data-i18n="summerTitle">التدريب الصيفي</p>
+          <div class="lp-summer" aria-disabled="true">
+            <span class="lp-summer-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+            <div>
+              <h3 data-i18n="summerLockedTitle">هذا القسم مقفول حالياً</h3>
+              <p data-i18n="summerLockedBody">نجهّز برنامج تدريب سريري صيفي للطلبة. التفاصيل والتسجيل يفتحون قبل بداية الصيف — انتظرونا.</p>
+            </div>
+            <div class="lp-summer-side">
+              <span class="lp-soon" data-i18n="comingSoon">قريباً</span>
+              <span class="lp-status"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 3"/><circle cx="12" cy="12" r="9"/></svg><span data-i18n="notAvailableYet">غير متاح حالياً</span></span>
+            </div>
+          </div>
+        </section>
+
+        <footer class="lp-foot">
+          <span class="lp-foot-mark"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24H14L18 12L26 36L30 24H44" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>Kiur</span>
+          <span data-i18n="footerNote">Kiur — منصة تعليمية طبية لطلبة الجامعات العراقية</span>
+        </footer>
+      </div>
     </div>
   </div>
 
@@ -2266,6 +2548,12 @@
       resetFailed:'انتهت صلاحية الرابط أو أنه غير صالح — اطلب رابطاً جديداً',
       lastChanged:'آخر تغيير',
       landingTitle:'استكشف Kiur، منصتك الطبية المتكاملة',
+      lpHeadA:'ادرس الطب', lpHeadB:'كما يُمارَس فعلاً', lpBrand:'Kiur — الصفحة الرئيسية',
+      lpLede:'بنك أسئلة حقيقي، محاضرات من دكاترتك، ولمحات سريرية تُبنى معك خطوة بخطوة.',
+      lpNavFeatures:'المنصة', lpDiscover:'اكتشف', lpEthosLabel:'فلسفتنا', lpEthosTitle:'تعلّم من الحالة، لا من الحفظ.',
+      lpNoteLabel:'لمحة سريرية', lpNoteFallback:'حالات قصيرة تُقرأ بدقيقة',
+      lpStatQuestions:'سؤال في البنك', lpStatProfessors:'دكتور على المنصة', lpStatLectures:'محاضرة مصوّرة',
+      lpFeaturesSub:'كل قسم يفتح بعد تسجيل الدخول — هذي لمحة عمّا ينتظرك.', lpPearlsSub:'العناوين حقيقية، والتشخيص يظهر بعد الدخول.', lpPearlsEyebrow:'حالات حقيقية',
       landingSub:'بنك أسئلة حقيقي، محاضرات من دكاترتك، ولمحات سريرية تُبنى معك خطوة بخطوة — أنشئ حسابك وابدأ تتبّع تقدّمك من أول سؤال.',
       landingSignIn:'تسجيل الدخول', landingSignUp:'إنشاء حساب جديد',
       landingPeekNote:'مثال توضيحي لشكل صفحتك — أرقامك الحقيقية تبدأ من أول تسجيل دخول',
@@ -2367,6 +2655,12 @@
       resetFailed:'That link has expired or is invalid — request a new one',
       lastChanged:'last changed',
       landingTitle:'Explore Kiur, your complete medical platform',
+      lpHeadA:'Study medicine', lpHeadB:'the way it is practised', lpBrand:'Kiur — home',
+      lpLede:'A real question bank, lectures from your own professors, and clinical pearls that grow with you.',
+      lpNavFeatures:'Platform', lpDiscover:'Discover', lpEthosLabel:'Our approach', lpEthosTitle:'Learn from the case, not the cram.',
+      lpNoteLabel:'Clinical pearl', lpNoteFallback:'Short cases you read in a minute',
+      lpStatQuestions:'questions in the bank', lpStatProfessors:'professors on the platform', lpStatLectures:'recorded lectures',
+      lpFeaturesSub:'Every section opens once you sign in — here is a look at what is waiting.', lpPearlsSub:'The titles are real; the diagnosis appears after you sign in.', lpPearlsEyebrow:'Real cases',
       landingSub:'A real question bank, lectures from your own professors, and clinical pearls that grow with you — create your account and start tracking your progress from the first question.',
       landingSignIn:'Sign in', landingSignUp:'Create an account',
       landingPeekNote:'An illustration of what your page looks like — your real numbers start at your first sign-in',
@@ -2468,6 +2762,12 @@
       resetFailed:'ئەم بەستەرە بەسەرچووە یان نادروستە — داوای یەکێکی نوێ بکە',
       lastChanged:'دوا گۆڕان',
       landingTitle:'Kiur بدۆزەرەوە، پلاتفۆرمی پزیشکی تەواوت',
+      lpHeadA:'پزیشکی بخوێنە', lpHeadB:'وەک ئەوەی لە ڕاستیدا کاری پێدەکرێت', lpBrand:'Kiur — سەرەکی',
+      lpLede:'بانکی پرسیاری ڕاستەقینە، وانە لە مامۆستاکانی خۆت، و لمحاتی کلینیکی کە لەگەڵت گەشە دەکەن.',
+      lpNavFeatures:'پلاتفۆرم', lpDiscover:'بدۆزەرەوە', lpEthosLabel:'ڕێبازمان', lpEthosTitle:'لە حاڵەتەکەوە فێربە، نەک لە لەبەرکردن.',
+      lpNoteLabel:'لمحەی کلینیکی', lpNoteFallback:'حاڵەتی کورت کە بە خولەکێک دەخوێنرێنەوە',
+      lpStatQuestions:'پرسیار لە بانکدا', lpStatProfessors:'مامۆستا لە پلاتفۆرمدا', lpStatLectures:'وانەی تۆمارکراو',
+      lpFeaturesSub:'هەموو بەشێک دوای چوونەژوورەوە دەکرێتەوە — ئەمە سەیرێکە لەوەی چاوەڕێتە.', lpPearlsSub:'ناونیشانەکان ڕاستەقینەن؛ دەستنیشانکردن دوای چوونەژوورەوە دەردەکەوێت.', lpPearlsEyebrow:'حاڵەتی ڕاستەقینە',
       landingSub:'بانکی پرسیاری ڕاستەقینە، وانەی ڤیدیۆیی لە مامۆستاکانی خۆت، و لمحاتی کلینیکی کە لەگەڵت گەشە دەکەن — هەژمارەکەت دروست بکە و لە یەکەم پرسیارەوە پێشکەوتنت بپێوە.',
       landingSignIn:'چوونەژوورەوە', landingSignUp:'هەژماری نوێ دروست بکە',
       landingPeekNote:'نموونەیەکی ڕوونکردنەوەیە بۆ شێوەی لاپەڕەکەت — ژمارە ڕاستەقینەکانت لە یەکەم چوونەژوورەوە دەست پێدەکەن',
@@ -2509,7 +2809,7 @@
   const viewRerenderers = {
     'view-home': () => loadHomeStats(), 'view-professors': goToProfessors, 'view-professor': null, 'view-store': goToStore,
     'view-academy': goToAcademy, 'view-notifications': goToNotifications,
-    'view-pearls': goToPearls, 'view-landing': loadLandingPearls,
+    'view-pearls': goToPearls, 'view-landing': loadLandingData,
     // The account page carries a locale-formatted date and three tabs of
     // fetched content, none of which a data-i18n sweep can reach.
     'view-account': goToAccount,
@@ -2581,7 +2881,8 @@
     const incoming = document.getElementById(id);
     const outgoing = document.getElementById(currentViewId);
     if (outgoing && outgoing !== incoming) outgoing.classList.remove('active');
-    document.body.classList.remove('auth-mode');
+    document.body.classList.remove('auth-mode', 'landing-mode');
+    if (id !== 'view-landing' && typeof stopLanding === 'function') stopLanding();
     incoming.classList.add('active');
     currentViewId = id;
     updateNavActiveState(id);
@@ -4276,8 +4577,344 @@
   // password box with no idea what the platform is.
   function goToLanding(){
     showView('view-landing');
-    document.body.classList.add('auth-mode');
+    document.body.classList.add('auth-mode', 'landing-mode');
+    window.scrollTo(0, 0);
+    loadLandingData();
+    startLanding();
+  }
+
+  function loadLandingData(){
     loadLandingPearls();
+    loadLandingStats();
+  }
+
+  // What the platform actually holds, from /api/public/stats. A figure that
+  // is zero isn't shown at all rather than advertised as "0 lectures".
+  const LP_MARK_RING = '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="15" cy="15" r="10.5" stroke-dasharray="0.6 3.6"/><circle cx="15" cy="15" r="5.6" stroke-dasharray="0.6 3.2"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg>';
+  const LP_MARK_RAYS = '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M15 3.5v5M15 21.5v5M3.5 15h5M21.5 15h5M6.9 6.9l3.5 3.5M19.6 19.6l3.5 3.5M23.1 6.9l-3.5 3.5M10.4 19.6l-3.5 3.5"/><circle cx="15" cy="15" r="3.6"/></svg>';
+  const LP_MARK_WAVE = '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="15" r="10.5" stroke-dasharray="0.6 3.6"/><path d="M7 15h4l1.6-3.4 2.6 7 1.8-3.6H23"/></svg>';
+
+  async function loadLandingStats(){
+    const box = document.getElementById('lpStats');
+    if (!box) return;
+    try {
+      const st = await apiFetch('/api/public/stats');
+      const rows = [
+        ['questions', 'lpStatQuestions', LP_MARK_RING],
+        ['professors', 'lpStatProfessors', LP_MARK_RAYS],
+        ['lectures', 'lpStatLectures', LP_MARK_WAVE],
+      ].filter(([k]) => Number(st[k]) > 0);
+      if (!rows.length){ box.hidden = true; return; }
+      box.innerHTML = rows.map(([k, label, mark]) => `
+        <div class="lp-stat">
+          <span class="lp-stat-mark" aria-hidden="true">${mark}</span>
+          <div><dt>${t(label)}</dt><dd>${Number(st[k]).toLocaleString('en-US')}</dd></div>
+        </div>`).join('');
+      box.hidden = false;
+    } catch (e) { box.hidden = true; }
+  }
+
+  /* ---------- Landing theme: dock, parallax, liquid buttons, pulse line ----------
+     One rAF for the whole view, running only while the landing is on screen.
+     The pulse is a canvas-2D ECG trace sweeping through the light pool where
+     the reference grew a moss root: same role in the composition, a fraction
+     of the weight, and it says what this platform is about. */
+  const LP = {
+    running:false, raf:0, inited:false, introTimer:0,
+    hero:null, root:null, cv:null, ctx:null, W:0, H:0, dpr:1, t0:0, last:0,
+    ptr:{x:-9999, y:-9999, cx:0, cy:0, inside:false, moved:false},
+    sm:{x:0, y:0}, lastPx:null, lastPy:null,
+    bandY:0, bandH:180, motes:[], sprite:null, spawnAcc:0, ptrAmt:0, prevPtrX:null,
+    dock:[], dockEl:null, specAng:2.4, specBr:0,
+  };
+  const LP_REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+  const LP_FINE = matchMedia('(hover:hover) and (pointer:fine)');
+
+  function lpInit(){
+    if (LP.inited) return;
+    LP.inited = true;
+    LP.root = document.getElementById('lpRoot');
+    LP.hero = document.getElementById('lpHero');
+    LP.cv = document.getElementById('lpPulse');
+    LP.ctx = LP.cv.getContext('2d');
+    LP.dockEl = document.getElementById('lpDock');
+    LP.dock = [...LP.dockEl.querySelectorAll('[data-dock]')].map(el => ({el, v:0, target:0}));
+
+    // one soft mote sprite, reused for every particle
+    const sp = document.createElement('canvas'); sp.width = sp.height = 32;
+    const g = sp.getContext('2d');
+    const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(.35, 'rgba(236,244,224,.5)');
+    grad.addColorStop(1, 'rgba(236,244,224,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+    LP.sprite = sp;
+
+    new ResizeObserver(lpResize).observe(LP.hero);
+
+    LP.root.addEventListener('click', e => {
+      const el = e.target.closest('[data-go]');
+      if (!el) return;
+      const go = el.dataset.go;
+      if (go === 'login') return goToLogin();
+      if (go === 'register') return goToRegister();
+      const target = go === 'top' ? LP.hero : document.getElementById(go);
+      if (!target || target.hidden) return;
+      // mark it straight away; the observer below keeps it right while scrolling
+      LP.dock.forEach(d => d.el.classList.toggle('is-active', d.el.dataset.section === target.id));
+      target.scrollIntoView({behavior: LP_REDUCED.matches ? 'auto' : 'smooth', block:'start'});
+    });
+
+    window.addEventListener('pointermove', e => {
+      if (!LP.running || e.pointerType === 'touch') return;
+      LP.ptr.x = e.clientX; LP.ptr.y = e.clientY; LP.ptr.moved = true;
+      LP.ptr.cx = (e.clientX / innerWidth) * 2 - 1;
+      LP.ptr.cy = (e.clientY / innerHeight) * 2 - 1;
+    }, {passive:true});
+    document.addEventListener('pointerleave', () => { LP.ptr.x = LP.ptr.y = -9999; LP.ptr.cx = LP.ptr.cy = 0; LP.ptr.moved = true; });
+
+    // liquid buttons: the sheen follows the pointer, a press throws a ripple
+    LP.root.querySelectorAll('[data-liquid]').forEach(btn => {
+      btn.addEventListener('pointermove', e => {
+        const r = btn.getBoundingClientRect();
+        btn.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+        btn.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+      });
+      btn.addEventListener('pointerdown', e => {
+        if (LP_REDUCED.matches) return;
+        const r = btn.getBoundingClientRect();
+        const ring = document.createElement('span');
+        ring.className = 'lp-ripple';
+        ring.style.left = (e.clientX - r.left) + 'px';
+        ring.style.top = (e.clientY - r.top) + 'px';
+        btn.appendChild(ring);
+        setTimeout(() => ring.remove(), 950);
+      });
+    });
+
+    // the dock follows whichever section is on screen
+    const io = new IntersectionObserver(entries => {
+      for (const en of entries){
+        if (!en.isIntersecting) continue;
+        LP.dock.forEach(d => d.el.classList.toggle('is-active', d.el.dataset.section === en.target.id));
+      }
+    }, {rootMargin:'-45% 0px -50% 0px'});
+    ['lpHero', 'lpFeatures', 'lpPearls', 'lpSummer'].forEach(id => io.observe(document.getElementById(id)));
+  }
+
+  function startLanding(){
+    lpInit();
+    // replay the entrance every time the landing is shown
+    clearTimeout(LP.introTimer);
+    LP.root.classList.remove('lp-ready', 'lp-intro-done');
+    void LP.root.offsetHeight;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      LP.root.classList.add('lp-ready');
+      LP.introTimer = setTimeout(() => LP.root.classList.add('lp-intro-done'), LP_REDUCED.matches ? 0 : 2900);
+    }));
+    lpResize();
+    LP.t0 = performance.now(); LP.last = 0; LP.motes.length = 0;
+    if (LP.running) return;
+    LP.running = true;
+    if (LP_REDUCED.matches){ lpDraw(99, 0); return; }   // one still frame, no loop
+    LP.raf = requestAnimationFrame(lpFrame);
+  }
+
+  function stopLanding(){
+    LP.running = false;
+    cancelAnimationFrame(LP.raf);
+  }
+
+  function lpResize(){
+    if (!LP.hero) return;
+    const w = LP.hero.clientWidth, h = LP.hero.clientHeight;
+    const small = w < 900;
+    LP.dpr = Math.min(devicePixelRatio || 1, small ? 1.25 : 1.6);
+    LP.W = w; LP.H = h;
+    LP.cv.width = Math.max(1, Math.round(w * LP.dpr));
+    LP.cv.height = Math.max(1, Math.round(h * LP.dpr));
+    LP.ctx.setTransform(LP.dpr, 0, 0, LP.dpr, 0, 0);
+    const band = document.getElementById('lpBand').getBoundingClientRect();
+    const hr = LP.hero.getBoundingClientRect();
+    LP.bandH = Math.max(120, band.height);
+    LP.bandY = band.top - hr.top + band.height * 0.5;
+    if (LP_REDUCED.matches && LP.running) lpDraw(99, 0);
+  }
+
+  function lpFrame(now){
+    if (!LP.running) return;
+    LP.raf = requestAnimationFrame(lpFrame);
+    if (document.hidden) return;
+    const dt = LP.last ? Math.min((now - LP.last) / 1000, .05) : .016;
+    LP.last = now;
+    const t = (now - LP.t0) / 1000;
+
+    // eased pointer → parallax custom properties, written only when they change
+    LP.sm.x += (LP.ptr.cx - LP.sm.x) * .055;
+    LP.sm.y += (LP.ptr.cy - LP.sm.y) * .055;
+    const nx = Math.round(LP.sm.x * 1000) / 1000, ny = Math.round(LP.sm.y * 1000) / 1000;
+    if (nx !== LP.lastPx || ny !== LP.lastPy){
+      LP.lastPx = nx; LP.lastPy = ny;
+      LP.root.style.setProperty('--px', nx);
+      LP.root.style.setProperty('--py', ny);
+    }
+    lpDock(dt);
+    LP.ptr.moved = false;
+    lpDraw(t, dt);
+  }
+
+  function lpDock(dt){
+    if (!LP_FINE.matches || innerWidth <= 900) return;
+    const {x, y} = LP.ptr;
+    const dr = LP.dockEl.getBoundingClientRect();
+    const catching = x > dr.left - 48 && x < dr.right + 48 && y > dr.top - 44 && y < dr.bottom + 104;
+    let moving = false;
+    for (const d of LP.dock){
+      if (LP.ptr.moved){
+        if (catching){
+          const r = d.el.getBoundingClientRect();
+          const p = Math.max(0, 1 - Math.abs(x - (r.left + r.width / 2)) / 128);
+          d.target = p * p * (3 - 2 * p);
+        } else d.target = 0;
+      }
+      const nv = d.v + (d.target - d.v) * (1 - Math.exp(-dt * 14));
+      if (Math.abs(nv - d.v) > .001){ moving = true; }
+      d.v = Math.abs(d.target - nv) < .002 ? d.target : nv;
+      d.el.style.setProperty('--m', d.v.toFixed(3));
+      d.el.dataset.near = d.target > .08 ? 'true' : 'false';
+    }
+    // rim light points at the pointer and fades with distance
+    const cx = dr.left + dr.width / 2, cy = dr.top + dr.height / 2;
+    const dx = Math.max(dr.left - x, 0, x - dr.right), dy = Math.max(dr.top - y, 0, y - dr.bottom);
+    const dist = Math.hypot(dx, dy);
+    const tAng = Math.atan2(cy - y, x - cx);
+    const raw = Math.max(0, 1 - dist / 260);
+    const tBr = raw * raw * (3 - 2 * raw);
+    const diff = ((tAng - LP.specAng + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    LP.specAng += diff * (1 - Math.exp(-dt * 8));
+    LP.specBr += (tBr - LP.specBr) * (1 - Math.exp(-dt * 9));
+    LP.dockEl.style.setProperty('--spec-angle', LP.specAng.toFixed(4) + 'rad');
+    LP.dockEl.style.setProperty('--spec-bright', (LP.specBr * .92).toFixed(3));
+  }
+
+  // One heartbeat, u in [0,1): P wave, QRS complex, T wave. Canvas y grows
+  // downward, so the peaks come out negative.
+  function lpBeat(u){
+    const g = (c, w) => Math.exp(-(((u - c) / w) ** 2));
+    return -(g(.18, .035) * .12 - g(.30, .008) * .14 + g(.325, .010) - g(.35, .010) * .30 + g(.52, .05) * .22);
+  }
+
+  function lpDraw(t, dt){
+    const {ctx, W, H} = LP;
+    if (!W || !H) return;
+    ctx.clearRect(0, 0, W, H);
+    const reduced = LP_REDUCED.matches;
+    const r0 = reduced ? 1 : Math.min(1, Math.max(0, (t - .45) / 1.9));
+    const reveal = 1 - Math.pow(1 - r0, 3);
+    const revealX = reveal * (W + 40);
+    const baseY = LP.bandY, A = LP.bandH * .46;
+    const period = Math.max(240, W * .24);
+
+    // pointer relative to the canvas — the line swells under it
+    const hr = LP.hero.getBoundingClientRect();
+    const px = LP.ptr.x - hr.left, py = LP.ptr.y - hr.top;
+    const near = LP.ptr.x > -9000 && Math.abs(py - baseY) < LP.bandH * 1.3;
+    LP.ptrAmt += ((near ? 1 : 0) - LP.ptrAmt) * (1 - Math.exp(-(dt || .016) * 5));
+
+    const yAt = (x, phase, amp, drift) => {
+      const u = (((x + phase) % period) + period) % period / period;
+      const swell = 1 + .6 * LP.ptrAmt * Math.exp(-(((x - px) / 150) ** 2));
+      return lpBeat(u) * amp * swell
+        + Math.sin(x * .004 + t * .35) * A * .10 * drift
+        + Math.sin(x * .0113 - t * .2) * A * .05 * drift;
+    };
+    const scroll = reduced ? 0 : t * 34;
+
+    // far trace: thinner, fainter, a little higher — the ridge behind
+    ctx.beginPath();
+    for (let x = 0; x <= Math.min(W, revealX); x += 3){
+      const y = baseY - LP.bandH * .42 + LP.sm.y * 6 + yAt(x + LP.sm.x * 22, period * .37 + scroll * .6, A * .5, 1);
+      x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.strokeStyle = 'rgba(226,238,214,.16)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // near trace, lit like a monitor: bright behind the sweep head, fading back to a floor
+    const trail = W * .5, speed = Math.max(220, W * .19);
+    const head = reduced ? W * .62 : ((t * speed) % (W + trail));
+    const pts = [];
+    for (let x = 0; x <= Math.min(W, revealX); x += 2){
+      pts.push(x, baseY + yAt(x, scroll, A, 1));
+    }
+    if (pts.length > 4){
+      const grad = ctx.createLinearGradient(0, 0, W, 0);
+      const floor = 'rgba(232,244,220,.26)', lit = 'rgba(246,252,238,.98)';
+      const s0 = Math.min(1, Math.max(0, (head - trail) / W)), s1 = Math.min(1, Math.max(0, head / W));
+      grad.addColorStop(0, floor);
+      if (s0 > 0) grad.addColorStop(s0, floor);
+      if (s1 > s0) grad.addColorStop(s1, lit);
+      if (s1 < 1) grad.addColorStop(Math.min(1, s1 + .002), floor);
+      grad.addColorStop(1, floor);
+      const path = () => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); };
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(205,232,190,.55)';
+      ctx.shadowBlur = 18;
+      ctx.strokeStyle = grad; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      path(); ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = grad; ctx.lineWidth = 1.1;
+      path(); ctx.stroke();
+
+      // the sweep head
+      if (head <= Math.min(W, revealX)){
+        const hy = baseY + yAt(head, scroll, A, 1);
+        const glow = ctx.createRadialGradient(head, hy, 0, head, hy, 28);
+        glow.addColorStop(0, 'rgba(250,255,244,.9)');
+        glow.addColorStop(.25, 'rgba(226,244,210,.35)');
+        glow.addColorStop(1, 'rgba(226,244,210,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(head, hy, 28, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    if (reduced) return;
+
+    // pollen: drifts up through the light, and the pointer lifts more off the line
+    const cap = W < 900 ? 70 : 150;
+    LP.spawnAcc += dt * (W < 900 ? 14 : 30);
+    while (LP.spawnAcc > 1 && LP.motes.length < cap){
+      LP.spawnAcc -= 1;
+      LP.motes.push({x:Math.random() * W, y:H * (.35 + Math.random() * .75), vx:(Math.random() - .5) * 8,
+        vy:-(6 + Math.random() * 18), life:0, max:4 + Math.random() * 6, s:3 + Math.pow(Math.random(), 2.2) * 9, ph:Math.random() * 6.28});
+    }
+    if (LP.spawnAcc > 1) LP.spawnAcc = 1;
+    if (LP.ptrAmt > .2 && px > 0 && px < W){
+      const moved = LP.prevPtrX === null ? 0 : Math.abs(px - LP.prevPtrX);
+      const n = Math.min(6, Math.floor(moved / 9));
+      for (let k = 0; k < n && LP.motes.length < cap + 60; k++){
+        const mx = px + (Math.random() - .5) * 30;
+        LP.motes.push({x:mx, y:baseY + yAt(mx, scroll, A, 1), vx:(Math.random() - .5) * 40,
+          vy:-(20 + Math.random() * 50), life:0, max:1.2 + Math.random(), s:5 + Math.random() * 7, ph:Math.random() * 6.28});
+      }
+    }
+    LP.prevPtrX = LP.ptrAmt > .2 ? px : null;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = LP.motes.length - 1; i >= 0; i--){
+      const m = LP.motes[i];
+      m.life += dt;
+      if (m.life > m.max){ LP.motes.splice(i, 1); continue; }
+      m.x += (m.vx + Math.sin(t * .8 + m.ph) * 6) * dt;
+      m.y += m.vy * dt;
+      const u = m.life / m.max;
+      const a = Math.min(1, u * 8) * (1 - u) * (.55 + .45 * Math.sin(t * 1.7 + m.ph * 3)) * .55;
+      if (a <= 0) continue;
+      ctx.globalAlpha = a;
+      ctx.drawImage(LP.sprite, m.x - m.s, m.y - m.s, m.s * 2, m.s * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // Real case titles from the public preview endpoint. That endpoint never
@@ -4285,26 +4922,38 @@
   // lines below are a placeholder shape, not hidden text. A CSS blur over
   // real content would be one devtools click from being no gate at all.
   async function loadLandingPearls(){
-    const block = document.getElementById('landingPearlsBlock');
+    const block = document.getElementById('lpPearls');
+    const dockItem = document.getElementById('lpDockPearls');
+    const noteLabel = document.getElementById('lpNoteLabel');
+    const noteTitle = document.getElementById('lpNoteTitle');
+    // The hero's note card shows the newest real case when there is one, and
+    // says plainly what pearls are when there isn't — never an invented case.
+    const showNote = (p) => {
+      noteLabel.textContent = p ? t('lpNoteLabel') + (p.tag ? ' · ' + p.tag : '') : t('pearlsTitle');
+      noteTitle.textContent = p ? p.title : t('lpNoteFallback');
+      document.getElementById('lpNoteKnob').dataset.go = p ? 'lpPearls' : 'login';
+    };
     try {
       const rows = await apiFetch('/api/pearls/preview?limit=3');
-      if (!rows.length){ block.style.display = 'none'; return; }
-      block.style.display = 'block';
+      block.hidden = dockItem.hidden = !rows.length;
+      showNote(rows[0]);
       document.getElementById('landingPearlsList').innerHTML = rows.map(p => `
-        <article class="pearl-card glass">
-          <div class="pearl-head">
-            ${p.tag ? `<span class="pearl-chip">${esc(p.tag)}</span>` : ''}
-            <span>${esc(p.title)}</span>
-          </div>
-          <div class="pearl-gate">
-            <div class="pearl-ghost" aria-hidden="true"><span style="width:92%"></span><span style="width:78%"></span><span style="width:85%"></span></div>
-            <div class="pearl-gate-label">
+        <article class="lp-feature lp-pearl">
+          ${p.tag ? `<span class="lp-tag">${esc(p.tag)}</span>` : ''}
+          <h3 dir="auto">${esc(p.title)}</h3>
+          <div class="lp-gate">
+            <div class="lp-gate-lines" aria-hidden="true"><span style="width:92%"></span><span style="width:78%"></span><span style="width:85%"></span></div>
+            <button class="lp-gate-cta" data-go="login">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
               ${t('pearlsGateCta')}
-            </div>
+            </button>
           </div>
         </article>`).join('');
-    } catch (e) { block.style.display = 'none'; }
+    } catch (e) {
+      block.hidden = dockItem.hidden = true;
+      showNote(null);
+    }
+    if (LP.running) lpResize();
   }
 
   // Same login screen, opened straight into sign-up mode.
