@@ -515,19 +515,74 @@
   /* ---------- Store ---------- */
   .cart-badge{position:absolute; top:-3px; inset-inline-end:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:999px; background:var(--danger); color:#fff; font-size:.62rem; font-weight:700; display:grid; place-items:center; line-height:1;}
   .product-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px;}
-  .product-card{padding:14px; display:flex; flex-direction:column; gap:10px; transition:.2s;}
-  .product-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-lift);}
-  .product-icon-wrap{
-    width:100%; height:84px; border-radius:16px; position:relative; display:grid; place-items:center;
-    background:linear-gradient(135deg, var(--bg-2), var(--bg-1)); color:var(--accent);
+  /* Product card: lifts, glows from the top and sweeps a sheen across on
+     hover. Every colour is an existing token, so it follows light/dark. */
+  .product-card{
+    --dir:1;
+    position:relative; overflow:hidden; isolation:isolate;
+    padding:14px; display:flex; flex-direction:column; gap:10px;
+    transition:transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s cubic-bezier(.16,1,.3,1), border-color .3s ease;
   }
-  .product-icon-wrap svg{width:32px; height:32px;}
-  .product-badge{position:absolute; top:8px; inset-inline-start:8px; font-size:.62rem; font-weight:700; padding:4px 9px; border-radius:999px;}
-  .product-badge.digital{background:var(--track); color:var(--accent);}
-  .product-badge.physical{background:rgba(255,138,91,.18); color:var(--warm);}
-  .product-name{font-weight:700; font-size:.82rem; line-height:1.45; min-height:2.3em;}
-  .product-price{font-weight:700; font-size:.92rem;}
-  .product-add{width:100%; justify-content:center; padding:9px; font-size:.78rem;}
+  html[dir="rtl"] .product-card{--dir:-1;}
+  .product-shine{
+    position:absolute; inset:0; z-index:3; pointer-events:none; opacity:0;
+    background:linear-gradient(120deg, transparent 40%, var(--glass-bg-strong) 50%, transparent 60%);
+    background-size:250% 100%; background-position:-100% 0;
+    transition:opacity .3s ease;
+  }
+  .product-glow{
+    position:absolute; inset:-10px; z-index:0; pointer-events:none; opacity:0;
+    background:radial-gradient(circle at 50% 0%, var(--track-strong) 0%, transparent 70%);
+    transition:opacity .5s ease;
+  }
+  .product-card > :not(.product-shine):not(.product-glow){position:relative; z-index:1;}
+  .product-icon-wrap{
+    width:100%; height:96px; border-radius:14px; position:relative; overflow:hidden;
+    display:grid; place-items:center; color:#fff;
+    background:linear-gradient(45deg, var(--accent), var(--accent-2));
+    transition:transform .5s cubic-bezier(.16,1,.3,1), box-shadow .5s cubic-bezier(.16,1,.3,1);
+  }
+  .product-icon-wrap::after{
+    content:''; position:absolute; inset:0; opacity:.5; pointer-events:none;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,.18) 0%, transparent 30%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.09) 0 2px, transparent 2px 4px);
+  }
+  .product-icon-wrap svg{width:32px; height:32px; position:relative; z-index:1;}
+  .product-badge{
+    position:absolute; top:8px; inset-inline-end:8px; z-index:2;
+    font-size:.62rem; font-weight:700; padding:4px 9px; border-radius:999px;
+    background:var(--glass-bg-strong); color:var(--accent);
+    transform:scale(.8); opacity:0; transition:transform .4s ease .1s, opacity .4s ease .1s;
+  }
+  .product-badge.physical{color:var(--warm);}
+  .product-name{font-weight:700; font-size:.88rem; line-height:1.45; transition:color .3s ease, transform .3s ease;}
+  .product-desc{font-size:.72rem; color:var(--ink-soft); margin-top:2px; opacity:.75; transition:opacity .3s ease, transform .3s ease;}
+  .product-foot{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto;}
+  .product-price{font-weight:700; font-size:.92rem; transition:color .3s ease, transform .3s ease;}
+  .product-add{
+    width:34px; height:34px; flex:none; border-radius:50%; display:grid; place-items:center;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;
+    transform:scale(.9); transition:transform .3s ease, box-shadow .3s ease;
+  }
+  .product-add svg{width:16px; height:16px;}
+  .product-add.added{background:var(--success);}
+
+  .product-card:hover{transform:translateY(-10px); box-shadow:var(--shadow-lift); border-color:var(--track-strong);}
+  .product-card:hover .product-shine{opacity:1; animation:productShine 3s infinite;}
+  .product-card:hover .product-glow{opacity:1;}
+  .product-card:hover .product-badge{transform:scale(1); opacity:1;}
+  .product-card:hover .product-icon-wrap{transform:translateY(-5px) scale(1.03); box-shadow:var(--shadow-soft);}
+  .product-card:hover .product-name, .product-card:hover .product-price{color:var(--accent); transform:translateX(calc(2px * var(--dir)));}
+  .product-card:hover .product-desc{opacity:1; transform:translateX(calc(2px * var(--dir)));}
+  .product-card:hover .product-add{transform:scale(1); box-shadow:0 0 0 4px var(--track);}
+  .product-card:hover .product-add svg{animation:productPulse 1.5s infinite;}
+  .product-card:active{transform:translateY(-5px) scale(.98);}
+  /* Touch screens have no hover: the type badge carries information, so it
+     can't be something only a mouse ever reveals. */
+  @media (hover:none){ .product-badge{transform:scale(1); opacity:1;} }
+  @keyframes productShine{0%{background-position:-100% 0;} 100%{background-position:200% 0;}}
+  @keyframes productPulse{0%,100%{transform:scale(1);} 50%{transform:scale(1.2);}}
 
   .cart-item{display:flex; align-items:center; gap:12px; padding:14px 16px;}
   .cart-item-icon{width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:var(--track); color:var(--accent); flex:none;}
@@ -2238,7 +2293,7 @@
       heroStartBtn:'ابدأ التعلم — امتحن الآن', heroVideoBtn:'تصفّح أكاديمية الفيديو',
       loginToSeeActivations:'سجّل الدخول لعرض أكوادك المفعّلة', activationsLoadFailed:'تعذّر تحميل أكوادك — تحقّق من الاتصال وحاول مرة أخرى',
       googleUnavailable:'تعذّر الاتصال بالخادم — حاول مرة أخرى',
-      noQuestionsForStage:'لا توجد أسئلة متاحة لمرحلتك بعد', noProductsInCategory:'لا توجد منتجات ضمن هذا التصنيف', noProductsAvailable:'لا توجد منتجات معروضة حالياً',
+      noQuestionsForStage:'لا توجد أسئلة متاحة لمرحلتك بعد', noProductsInCategory:'لا توجد منتجات ضمن هذا التصنيف', noProductsAvailable:'لا توجد منتجات معروضة حالياً', productDescDigital:'منتج رقمي', productDescCourse:'كورس مصوّر', productDescPhysical:'منتج يُوصَّل لك', addToCart:'أضف للسلة',
       noMatchingResults:'ما لكيت نتائج مطابقة', noCoursesYet:'لا توجد كورسات بعد',
       passwordSet:'كلمة مرور مضبوطة', noPasswordGoogleOnly:'لا توجد كلمة مرور — الدخول عبر Google فقط',
       expiresIn:'ينتهي خلال', days:'يوم', filterAll:'الكل', filterDigital:'رقمي', filterPhysical:'منتجات ملموسة',
@@ -2339,7 +2394,7 @@
       heroStartBtn:'Start learning — take a quiz', heroVideoBtn:'Browse the video academy',
       loginToSeeActivations:'Sign in to see your activated codes', activationsLoadFailed:"Couldn't load your codes — check your connection and try again",
       googleUnavailable:'Cannot reach the server — please try again',
-      noQuestionsForStage:'No questions available for your stage yet', noProductsInCategory:'No products in this category', noProductsAvailable:'No products available right now',
+      noQuestionsForStage:'No questions available for your stage yet', noProductsInCategory:'No products in this category', noProductsAvailable:'No products available right now', productDescDigital:'Digital product', productDescCourse:'Video course', productDescPhysical:'Delivered to you', addToCart:'Add to cart',
       noMatchingResults:'No matching results', noCoursesYet:'No courses yet',
       passwordSet:'Password is set', noPasswordGoogleOnly:'No password set — Google sign-in only',
       expiresIn:'Expires in', days:'days', filterAll:'All', filterDigital:'Digital', filterPhysical:'Physical items',
@@ -2440,7 +2495,7 @@
       heroStartBtn:'دەست بکە بە فێربوون — تاقیکردنەوە بکە', heroVideoBtn:'ئەکادیمیای ڤیدیۆ ببینە',
       loginToSeeActivations:'بچۆ ژوورەوە بۆ بینینی کۆدە چالاککراوەکانت', activationsLoadFailed:'نەتوانرا کۆدەکانت باربکرێن — پەیوەندییەکەت بپشکنە و دووبارە هەوڵ بدە',
       googleUnavailable:'ناتوانرێت پەیوەندی بە ڕاژەکارەوە بکرێت — تکایە دووبارە هەوڵ بدە',
-      noQuestionsForStage:'هێشتا پرسیار بۆ قۆناغەکەت بەردەست نییە', noProductsInCategory:'هیچ بەرهەمێک لەم پۆلە نییە', noProductsAvailable:'هیچ بەرهەمێک ئێستا نمایش نەکراوە',
+      noQuestionsForStage:'هێشتا پرسیار بۆ قۆناغەکەت بەردەست نییە', noProductsInCategory:'هیچ بەرهەمێک لەم پۆلە نییە', noProductsAvailable:'هیچ بەرهەمێک ئێستا نمایش نەکراوە', productDescDigital:'بەرهەمی دیجیتاڵ', productDescCourse:'کۆرسی ڤیدیۆیی', productDescPhysical:'بۆت دەگەیەنرێت', addToCart:'زیادکردن بۆ سەبەتە',
       noMatchingResults:'هیچ ئەنجامێکی گونجاو نەدۆزرایەوە', noCoursesYet:'هیچ کۆرسێک نییە',
       passwordSet:'وشەی نهێنی دانراوە', noPasswordGoogleOnly:'هیچ وشەی نهێنی نییە — تەنها چوونەژوورەوە بە Google',
       expiresIn:'بەسەردەچێت لە ماوەی', days:'ڕۆژ', filterAll:'هەموو', filterDigital:'دیجیتاڵ', filterPhysical:'کاڵای فیزیکی',
@@ -3123,6 +3178,9 @@
   // The backend's three product types map onto the icon set the cards use.
   const PRODUCT_TYPE_ICON = {digital: 'key', course: 'play', physical: 'bag'};
   const PRODUCT_TYPE_BADGE = {digital: 'رقمي', course: 'كورس', physical: 'منتج'};
+  // What each type actually is — said in words under the name, instead of a
+  // made-up tagline.
+  const PRODUCT_TYPE_DESC = {digital: 'productDescDigital', course: 'productDescCourse', physical: 'productDescPhysical'};
 
   async function loadStoreProducts(){
     if (!authToken){ products = []; return; }
@@ -3141,13 +3199,22 @@
     }
     grid.innerHTML = list.map(p => `
       <div class="product-card glass">
+        <div class="product-shine"></div>
+        <div class="product-glow"></div>
         <div class="product-icon-wrap">
           <span class="product-badge ${p.type === 'physical' ? 'physical' : 'digital'}">${PRODUCT_TYPE_BADGE[p.type] || p.type}</span>
           ${productIcons[PRODUCT_TYPE_ICON[p.type] || 'key']}
         </div>
-        <div class="product-name">${esc(p.name)}</div>
-        <div class="product-price mono">${fmtPrice(p.price)}</div>
-        <button class="btn product-add" onclick="addToCart('${p.id}')">أضف للسلة</button>
+        <div>
+          <div class="product-name">${esc(p.name)}</div>
+          <div class="product-desc">${PRODUCT_TYPE_DESC[p.type] ? t(PRODUCT_TYPE_DESC[p.type]) : ''}</div>
+        </div>
+        <div class="product-foot">
+          <div class="product-price mono">${fmtPrice(p.price)}</div>
+          <button class="product-add" onclick="addToCart('${p.id}', this)" aria-label="${t('addToCart')}" title="${t('addToCart')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 12h16M12 4v16"/></svg>
+          </button>
+        </div>
       </div>
     `).join('');
   }
@@ -3160,9 +3227,20 @@
     badge.style.display = count > 0 ? 'grid' : 'none';
   }
 
-  function addToCart(id){
+  // The round button is small, so it confirms the add itself — a tick for a
+  // moment — rather than leaving the header badge as the only sign it worked.
+  const ADD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 12h16M12 4v16"/></svg>';
+  const ADDED_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>';
+
+  function addToCart(id, btn){
     cart[id] = (cart[id] || 0) + 1;
     updateCartBadge();
+    if (btn){
+      btn.classList.add('added');
+      btn.innerHTML = ADDED_ICON;
+      clearTimeout(btn._addedTimer);
+      btn._addedTimer = setTimeout(() => { btn.classList.remove('added'); btn.innerHTML = ADD_ICON; }, 1100);
+    }
   }
 
   function cartHasPhysical(){
