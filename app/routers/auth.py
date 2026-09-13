@@ -5,6 +5,7 @@ from fastapi import (
     APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile, Query,
 )
 from fastapi.responses import RedirectResponse
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .. import models, ranking, schemas
@@ -552,6 +553,46 @@ def my_stats(db: Session = Depends(get_db), user: models.User = Depends(get_curr
         total_ranked=len(ranked),
         accuracy_pct=ranking.accuracy_pct(db, user.id),
     )
+
+
+@router.get("/me/daily")
+def my_daily(days: int = Query(7, ge=1, le=31), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Answers per day for the last `days` days, plus the same span just
+    before it so the client can say how this week compares with last —
+    the daily-performance card on the home screen. Days with no answers
+    come back as explicit zeros rather than being left out, so a quiet day
+    shows up as a quiet day. UTC days, same as /me/stats."""
+    today = datetime.utcnow().date()
+    first = today - timedelta(days=days * 2 - 1)
+    day = func.date(models.StudentAnswer.answered_at).label("day")
+    rows = (
+        db.query(day, func.count(models.StudentAnswer.id),
+                 func.sum(case((models.StudentAnswer.is_correct.is_(True), 1), else_=0)))
+        .filter(models.StudentAnswer.user_id == user.id,
+                models.StudentAnswer.answered_at >= datetime.combine(first, datetime.min.time()))
+        .group_by(day)
+        .all()
+    )
+    # SQLite hands back 'YYYY-MM-DD' text and Postgres a date; key both the same way.
+    by_day = {str(d)[:10]: (int(n or 0), int(c or 0)) for d, n, c in rows}
+
+    def span(start):
+        out = []
+        for i in range(days):
+            key = (start + timedelta(days=i)).isoformat()
+            answered, correct = by_day.get(key, (0, 0))
+            out.append({"date": key, "answered": answered, "correct": correct})
+        return out
+
+    current = span(today - timedelta(days=days - 1))
+    previous = span(first)
+    return {
+        "days": current,
+        "previous": {
+            "answered": sum(d["answered"] for d in previous),
+            "correct": sum(d["correct"] for d in previous),
+        },
+    }
 
 
 @router.get("/me/performance")
