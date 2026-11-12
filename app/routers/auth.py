@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from authlib.integrations.starlette_client import OAuth
+from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import (
     APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile, Query,
 )
@@ -163,7 +163,14 @@ async def google_login(request: Request, next: str = ""):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
-    token = await oauth.google.authorize_access_token(request)
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except OAuthError:
+        # Stale/forged/expired state (e.g. callback URL opened directly, or
+        # the user denied consent) — send them back instead of a raw 500.
+        is_admin_flow = request.session.pop("oauth_next", None) == "admin"
+        base = _admin_redirect_base(request) if is_admin_flow else settings.frontend_url
+        return RedirectResponse(f"{base}#google_error=oauth")
     userinfo = token.get("userinfo") or await oauth.google.userinfo(token=token)
     email = userinfo["email"]
     name = userinfo.get("name", email.split("@")[0])

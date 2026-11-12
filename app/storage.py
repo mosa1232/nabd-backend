@@ -21,12 +21,14 @@ stored URL never goes stale and the object store needs no public bucket.
 """
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
 
 from .config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 
 MEDIA_PREFIX = "/media-files/"
 
@@ -166,12 +168,16 @@ def _build_storage():
             }.items() if not value
         ]
         if missing:
-            # Fail at startup rather than at the first upload, which would
-            # otherwise look like a working deploy until a professor tries
-            # to publish something.
-            raise RuntimeError(
-                "STORAGE_BACKEND=s3 but these are not set: " + ", ".join(missing)
+            # Don't take the whole platform down because uploads aren't
+            # configured yet: boot with local disk storage and say so loudly.
+            # (Local files are lost on every Render deploy, so set the S3_*
+            # variables to make uploads permanent.)
+            logger.warning(
+                "STORAGE_BACKEND=s3 but these are not set: %s — falling back to "
+                "LOCAL storage; uploaded files will NOT survive a redeploy.",
+                ", ".join(missing),
             )
+            return LocalStorage()
         return S3Storage()
     return LocalStorage()
 

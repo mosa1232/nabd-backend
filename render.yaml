@@ -5,7 +5,12 @@ services:
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
     envVars:
+      # Pin the interpreter: Render otherwise uses its newest default Python,
+      # which can lack prebuilt wheels for the pinned dependencies.
+      - key: PYTHON_VERSION
+        value: "3.12.7"
       - key: JWT_SECRET
         generateValue: true
       - key: DEBUG

@@ -182,7 +182,11 @@ def _import_questions(db: Session, rows) -> dict:
 async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Single dropzone for both templates — detects which one was uploaded
     from its header row rather than making the admin pick a file type."""
-    wb = load_workbook(io.BytesIO(await file.read()), read_only=True)
+    try:
+        wb = load_workbook(io.BytesIO(await file.read()), read_only=True)
+    except Exception:
+        # Not a readable .xlsx (wrong extension, corrupt, empty upload)
+        raise HTTPException(400, "الملف غير صالح — ارفعي ملف Excel (.xlsx) من القوالب المتاحة")
     ws = wb.active
     header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
     header = [str(h).strip() if h else "" for h in (header_row or [])]

@@ -3,7 +3,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # env_ignore_empty: Render passes every `sync: false` variable that was
+    # left blank in the dashboard as an empty string. Without this an empty
+    # SMTP_PORT fails int parsing and crashes the boot, and an empty
+    # GOOGLE_REDIRECT_URI / FRONTEND_URL would replace the defaults with "".
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     # Database — SQLite by default for local dev, point DATABASE_URL at
     # postgresql+psycopg://user:pass@host/db in production (per the SRS).

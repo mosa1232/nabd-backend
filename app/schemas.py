@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -294,7 +294,7 @@ class OrderItemIn(BaseModel):
 
 class OrderIn(BaseModel):
     items: list[OrderItemIn]
-    payment_method: str  # "zaincash" | "cod"
+    payment_method: Literal["zaincash", "cod"]
     delivery_name: Optional[str] = None
     delivery_phone: Optional[str] = None
     delivery_address: Optional[str] = None

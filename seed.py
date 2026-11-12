@@ -8,7 +8,12 @@ empty database — e.g. after a redeploy on a host with ephemeral disk —
 seeds itself instead of booting with nothing in it.
 """
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def utcnow() -> datetime:
+    # naive UTC, same as the old datetime.utcnow() but not deprecated
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 from sqlalchemy.orm import Session
 
@@ -156,7 +161,7 @@ def _seed(db: Session) -> None:
         who = random.choice(seeded_students + [admin_user])
         db.add(models.ActivityLog(
             user_id=who.id, action=random.choice(actions), ip_address=f"37.236.{random.randint(1,255)}.{random.randint(1,255)}",
-            created_at=datetime.utcnow() - timedelta(hours=i*3),
+            created_at=utcnow() - timedelta(hours=i*3),
         ))
 
     # reseller's code batch — some sold/activated, some still available
@@ -167,7 +172,7 @@ def _seed(db: Session) -> None:
             code=f"NBD-{1000+i}-BGD",
             status=models.CodeStatus.active if activated else models.CodeStatus.idle,
             reseller_id=reseller_user.id,
-            sold_at=(datetime.utcnow() - timedelta(days=i)) if sold else None,
+            sold_at=(utcnow() - timedelta(days=i)) if sold else None,
         ))
 
     # No seeded media rows: they pointed at url="#" with invented sizes, so

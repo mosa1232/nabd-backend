@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import models
+from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
 from .database import Base, engine
 from .routers import (
