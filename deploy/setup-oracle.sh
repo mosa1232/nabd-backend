@@ -17,7 +17,10 @@ die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || die "run as your normal user (e.g. ubuntu), not root — it uses sudo itself"
 command -v apt-get >/dev/null || die "this script supports Ubuntu/Debian (apt) only"
-sudo -v || die "sudo is required"
+# `sudo -v` insists on a password even where passwordless sudo is configured
+# (cloud images: AWS, Oracle…), which silently killed unattended first-boot
+# runs. Try a passwordless command first; only fall back to prompting.
+sudo -n true 2>/dev/null || sudo -v || die "sudo is required"
 
 # ---------------------------------------------------------------- packages
 say "Installing base packages (security updates, fail2ban, firewall persistence)"
