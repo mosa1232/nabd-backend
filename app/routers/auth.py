@@ -128,7 +128,7 @@ def _issue_session_and_redirect(db: Session, user: models.User, device_label: st
 # rejects anything else with the same message this returns via #google_error.
 ADMIN_DASHBOARD_ROLES = {
     models.Role.admin, models.Role.supervisor, models.Role.store_manager,
-    models.Role.professor, models.Role.assistant, models.Role.reseller,
+    models.Role.professor, models.Role.assistant, models.Role.reseller, models.Role.representative,
 }
 
 

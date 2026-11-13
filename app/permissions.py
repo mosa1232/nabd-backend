@@ -34,11 +34,14 @@ PERMISSIONS: dict[str, str] = {
     "prof.booklets": "الملازم",
     "prof.pearls": "اللمحات السريرية",
     "prof.students": "مشاهدة الطلاب",
+    # representative
+    "rep.codes": "رفع أسماء الطلاب وتوليد أكواد التوثيق وتنزيلها",
 }
 
 STAFF_PERMS = {"dashboard.analytics", "users.manage", "users.ban", "catalog.manage",
                "content.manage", "store.manage", "resellers.manage"}
 RESELLER_PERMS = {"codes.view", "codes.generate"}
+REP_PERMS = {"rep.codes"}
 PROF_PERMS = {"prof.questions", "prof.exams", "prof.courses", "prof.booklets", "prof.pearls", "prof.students"}
 
 # What each role gets with no extra grants.
@@ -49,11 +52,12 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
     "reseller": set(),          # everything a reseller can do is granted per reseller
     "professor": set(PROF_PERMS),
     "assistant": set(),         # granted per assistant by their professor
+    "representative": set(REP_PERMS),
     "student": set(),
 }
 
 # Roles that may open the dashboard at /admin.
-DASHBOARD_ROLES = {"admin", "supervisor", "store_manager", "professor", "assistant", "reseller"}
+DASHBOARD_ROLES = {"admin", "supervisor", "store_manager", "professor", "assistant", "reseller", "representative"}
 # Roles that may use /api/admin/* (still subject to per-route permissions).
 BACKOFFICE_ROLES = {"admin", "supervisor", "store_manager"}
 

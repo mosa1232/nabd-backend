@@ -858,6 +858,36 @@
         </div>
       </section>
 
+      <!-- ===== REPRESENTATIVE: student rosters & verification codes ===== -->
+      <section class="dash-section" id="sec-rep-codes">
+        <div class="dash-card glass" style="margin-bottom:16px;">
+          <div class="dash-card-head"><span class="dash-card-title">أكواد توثيق الطلاب</span></div>
+          <div class="item-meta" id="repScope" style="margin-bottom:6px;"></div>
+          <div class="item-meta" id="repStats" style="margin-bottom:14px;"></div>
+          <div class="item-meta" style="margin-bottom:12px; line-height:1.9;">
+            ١) ارفع ملف Excel (.xlsx) فيه أسماء الطلاب في العمود الأول (أو تحت عنوان «الاسم»).
+            ٢) يولّد النظام <b>كودًا لكل اسم</b>. ٣) نزّل الملف (الاسم + الكود) ووزّع الأكواد على طلابك.
+            ٤) يدخل الطالب كوده في تطبيقه فيُوثَّق حسابه ويُربط بجامعته ومرحلته تلقائيًا. الكود يُستعمل مرة واحدة فقط.
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-field" style="margin:0; flex:1; min-width:220px;"><label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">ملف الأسماء (.xlsx — حتى 5000 اسم)</label><input type="file" id="repFile" accept=".xlsx" /></div>
+            <div class="form-field" id="repStageWrap" style="margin:0; min-width:180px;"><label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">المرحلة</label><select id="repStage"></select></div>
+            <button class="btn" id="repUploadBtn" onclick="repUpload()">رفع وتوليد الأكواد</button>
+            <button class="btn btn-ghost" onclick="repTemplate()">تنزيل قالب</button>
+          </div>
+          <div id="repUploadMsg" style="display:none; font-size:.8rem; margin-top:10px;"></div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-head"><span class="dash-card-title">الدفعات المرفوعة</span></div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>الملف</th><th>المرحلة</th><th>الأسماء</th><th>وُثّق</th><th>التاريخ</th><th></th></tr></thead>
+              <tbody id="repBatchesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ===== ADMIN: Store ===== -->
       <section class="dash-section" id="sec-store">
         <div class="dash-card glass">
@@ -969,6 +999,25 @@
   <div class="ai-input">
     <textarea id="aiInput" placeholder="اسألني أي شيء عن المنصة أو عملك..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); aiSend();}"></textarea>
     <button class="btn" onclick="aiSend()" id="aiSendBtn">إرسال</button>
+  </div>
+</div>
+
+<!-- ============ REPRESENTATIVE: one batch ============ -->
+<div id="repOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:997; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:720px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="repBatchTitle">الدفعة</span></div>
+    <div class="item-meta" id="repBatchMeta" style="margin-bottom:10px;"></div>
+    <div class="form-field"><input id="repBatchSearch" type="text" placeholder="ابحث بالاسم أو الكود..." oninput="repRenderBatch()" /></div>
+    <div class="table-wrap" style="max-height:48vh; overflow-y:auto;">
+      <table class="dash-table">
+        <thead><tr><th>الاسم</th><th>الكود</th><th>الحالة</th><th></th></tr></thead>
+        <tbody id="repBatchBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn" style="flex:1; justify-content:center;" id="repBatchDownload">تنزيل Excel</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" onclick="document.getElementById('repOverlay').style.display='none'">إغلاق</button>
+    </div>
   </div>
 </div>
 
@@ -1581,6 +1630,7 @@
     'prof.booklets':'الملازم',
     'prof.pearls':'اللمحات السريرية',
     'prof.students':'مشاهدة الطلاب',
+    'rep.codes':'رفع أسماء الطلاب وتوليد أكواد التوثيق',
   };
   function myPerms(){
     if (liveMode && currentUser && currentUser.effective_permissions) return new Set(currentUser.effective_permissions);
@@ -1628,13 +1678,16 @@
     {id:'r-codes', label:'الأكواد', icon:'pdf', perm:'codes.any'},
     {id:'r-sales', label:'سجل المبيعات', icon:'log', perm:'codes.view'},
   ];
+  const REP_NAV = [
+    {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'rep.codes'},
+  ];
   const ROLE_NAV = {
     admin: STAFF_NAV, supervisor: STAFF_NAV, store_manager: STAFF_NAV,
-    professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV,
+    professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV, representative: REP_NAV,
   };
   const ROLE_LABELS = {
     admin:'المشرف (أدمن)', supervisor:'سوبر فايزر', store_manager:'مدير المتجر',
-    professor:'لوحة الدكتور', assistant:'مساعد الدكتور', reseller:'لوحة المندوب',
+    professor:'لوحة الدكتور', assistant:'مساعد الدكتور', reseller:'لوحة المندوب', representative:'الممثل العام',
   };
   // `roles[x]` stays the lookup the rest of this file already uses (existence
   // check, label, items, default section) — items are now computed from the
@@ -1711,7 +1764,7 @@
   function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleDateString('ar-IQ', {day:'numeric', month:'short'}); }
   function initialsOf(name){ return (name||'').trim().split(' ').map(w=>w[0]).slice(0,2).join(''); }
   function roleBadge(role){
-    const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور'};
+    const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور', representative:'ممثل عام'};
     return `<span class="badge badge-${role}">${map[role]||role}</span>`;
   }
   // Weekday label for a YYYY-MM-DD string, so a real per-day series can
@@ -1744,7 +1797,7 @@
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
     'p-questions': loadProfessorQuestions, 'p-pearls': loadProfessorPearls, 'p-assistants': loadAssistants,
-    summer: loadSummer, resellers: loadResellers,
+    summer: loadSummer, resellers: loadResellers, 'rep-codes': loadRepCodes,
     'r-overview': loadResellerOverview, 'r-sales': loadResellerSales, 'r-codes': loadResellerCodes,
     store: loadStore,
   };
@@ -1782,8 +1835,8 @@
   let allAccounts = [];
   let allCatalogRows = [];
   async function loadAccounts(){
-    const chips = ['all','admin','supervisor','store_manager','professor','assistant','reseller','student'];
-    const labels = {all:'الكل', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', student:'طلاب'};
+    const chips = ['all','admin','supervisor','store_manager','professor','assistant','reseller','representative','student'];
+    const labels = {all:'الكل', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', representative:'ممثلون', student:'طلاب'};
     document.getElementById('accountFilters').innerHTML = chips.map(c => `
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
@@ -1832,7 +1885,7 @@
       <tr style="cursor:pointer;" onclick="showAccountDetails('${a.id}')">
         <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${esc(a.full_name)}</div><div class="cell-sub mono">${esc(a.email)}</div></div></div></td>
         <td class="mono" dir="ltr" style="text-align:end;">${esc(a.phone || '—')}</td>
-        <td>${roleBadge(a.role)}${a.role === 'professor' ? professorSubjectCell(a) : ''}</td>
+        <td>${roleBadge(a.role)}${a.verified_at ? ' <span class="badge badge-active" title="موثّق بكود">✓ موثّق</span>' : ''}${a.role === 'professor' ? professorSubjectCell(a) : ''}</td>
         <td>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
         <td><div class="cell-sub">انضم ${when(a.created_at)}</div><div class="cell-sub">آخر دخول ${when(a.last_login)}</div></td>
         <td style="text-align:end;" onclick="event.stopPropagation()"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
@@ -2028,6 +2081,7 @@
     {value: 'professor', label: 'دكتور'},
     {value: 'assistant', label: 'مساعد دكتور'},
     {value: 'reseller', label: 'مندوب'},
+    {value: 'representative', label: 'ممثل عام (توثيق الطلاب)'},
     {value: 'store_manager', label: 'مدير المتجر'},
     {value: 'supervisor', label: 'سوبر فايزر'},
     {value: 'admin', label: 'أدمن (مشرف المنصة)'},
@@ -2037,6 +2091,21 @@
   const roleOptionsForMe = () => currentRole === 'admin' ? ROLE_OPTIONS
     : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
   const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({value: c, label: PERM_LABELS[c]}));
+  // Where a representative works: a college inside a university (and
+  // optionally one stage of it), read off the flat catalogue listing.
+  async function scopeOptions(){
+    const rows = await apiFetch('/api/admin/catalog');
+    const unis = [{value: '', label: 'لا ينطبق — ليس ممثلاً عامًا'}];
+    const stages = [{value: '', label: 'كل المراحل'}];
+    let sec = '', uni = '';
+    rows.forEach(r => {
+      if (r.type === 'section') sec = r.name;
+      else if (r.type === 'university'){ uni = r.name; unis.push({value: r.id, label: `${r.name} — ${sec}`}); }
+      else if (r.type === 'stage') stages.push({value: r.id, label: `${uni} — ${sec} — ${r.name}`});
+    });
+    return {unis, stages};
+  }
+
   async function professorOptions(){
     const rows = await apiFetch('/api/admin/professors');
     return [{value: '', label: 'لا ينطبق — ليس مساعداً'}].concat(rows.map(r => ({value: r.user_id, label: r.full_name})));
@@ -2054,6 +2123,8 @@
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
+    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}]};
+    try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
@@ -2061,6 +2132,8 @@
       {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
       {id: 'role', label: 'الدور', type: 'select', value: 'student', options: roleOptionsForMe()},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: '', options: professors},
+      {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
+      {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: '', options: scope.stages},
       {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
       // dashboard 404s, so the subject is collected here rather than left
@@ -2073,6 +2146,7 @@
       if (v.role === 'professor' && !v.subjectId){
         throw {detail: subjects.length ? 'اختر المادة التي يدرّسها الدكتور' : 'أضف مادة في "المناهج" أولاً، ثم أنشئ حساب الدكتور'};
       }
+      if (v.role === 'representative' && !v.scopeUni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها الممثل العام'};
       await apiFetch('/api/admin/users', {
         method: 'POST',
         body: JSON.stringify({
@@ -2082,6 +2156,8 @@
           subject_id: v.role === 'professor' ? v.subjectId : null,
           title: v.role === 'professor' ? (v.title || '').trim() : null,
           parent_user_id: v.role === 'assistant' ? (v.parentUserId || null) : null,
+          scope_university_id: v.role === 'representative' ? v.scopeUni : null,
+          scope_stage_id: v.role === 'representative' ? (v.scopeStage || null) : null,
           // a reseller made here can view + take codes unless the store manager says otherwise
           permissions: v.role === 'reseller' ? ['codes.view', 'codes.generate']
             : (['supervisor', 'store_manager'].includes(v.role) ? v.perms : []),
@@ -2118,6 +2194,8 @@
     if (!current) return;
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
+    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}]};
+    try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
     const isStaff = ['supervisor', 'store_manager'].includes(current.role);
     openGenericModal('تعديل مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text', value: current.full_name},
@@ -2127,12 +2205,18 @@
       {id: 'role', label: 'الدور', type: 'select', value: current.role,
        options: roleOptionsForMe().some(o => o.value === current.role) ? roleOptionsForMe() : ROLE_OPTIONS},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: current.parent_user_id || '', options: professors},
+      {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: current.scope_university_id || '', options: scope.unis},
+      {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: current.scope_stage_id || '', options: scope.stages},
       {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks',
        value: current.extra_permissions || [], options: STAFF_PERM_OPTIONS},
     ], async (v) => {
       if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
       const body = {full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, phone: v.phone.trim(), password: v.password || null};
       if (v.role === 'assistant') body.parent_user_id = v.parentUserId || null;
+      if (v.role === 'representative'){
+        if (!v.scopeUni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها الممثل العام'};
+        body.scope_university_id = v.scopeUni; body.scope_stage_id = v.scopeStage || null;
+      }
       // staff grants are only sent for the roles that use them, so editing a
       // reseller or professor here never wipes their own kind of grants
       if (['supervisor', 'store_manager'].includes(v.role)) body.permissions = v.perms;
@@ -3700,7 +3784,7 @@
   }
 
   // ===== ADMIN: full account details =====
-  const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', student: 'طالب'};
+  const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
   function showAccountDetails(id){
     const a = allAccounts.find(x => x.id === id);
     if (!a) return;
@@ -3719,6 +3803,8 @@
       (parent ? row('يعمل مع الدكتور', esc(parent)) : '') +
       (a.role === 'student' ? row('القسم', esc(catalogNameById[a.section_id] || '—')) + row('الجامعة', esc(catalogNameById[a.university_id] || '—')) + row('المرحلة', esc(a.is_graduate ? 'متخرج' : (catalogNameById[a.stage_id] || '—'))) : '') +
       (a.role === 'reseller' ? row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) : '') +
+      (a.role === 'representative' ? row('يمثّل', esc(catalogNameById[a.scope_university_id] || '—')) + row('المرحلة', esc(a.scope_stage_id ? (catalogNameById[a.scope_stage_id] || '—') : 'كل المراحل')) : '') +
+      (a.role === 'student' ? row('التوثيق', a.verified_at ? ('موثّق باسم «' + esc(a.verified_name || '') + '» — ' + fmt(a.verified_at)) : 'غير موثّق') : '') +
       ((a.extra_permissions || []).length ? row('صلاحيات إضافية', a.extra_permissions.map(p => esc(PERM_LABELS[p] || p)).join('، ')) : '') +
       row('الحالة', a.is_banned ? 'محظور' : 'نشط') +
       row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
@@ -3983,6 +4069,125 @@
       wait.className = 'ai-msg err'; wait.textContent = e.detail || 'تعذّر الوصول إلى المساعد';
       aiHistory.pop();
     } finally { btn.disabled = false; document.getElementById('aiMsgs').scrollTop = 1e9; }
+  }
+
+  // ===== REPRESENTATIVE: rosters & verification codes =====
+  let repBatches = [];
+  let repOpenBatch = null;   // {id, codes, ...} shown in the overlay
+
+  // Downloads a file the API protects with the Bearer token (a plain link
+  // would arrive without it) and hands it to the browser as a normal save.
+  async function downloadWithAuth(path, fallbackName){
+    const res = await fetch(API_BASE_URL + path, {credentials: 'include', headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {}});
+    if (!res.ok){
+      let d = ''; try { d = (await res.json()).detail; } catch (e) { /* no body */ }
+      throw new Error(d || ('API ' + res.status));
+    }
+    const blob = await res.blob();
+    let name = fallbackName;
+    const m = /filename\*=UTF-8''([^;]+)/i.exec(res.headers.get('content-disposition') || '');
+    if (m){ try { name = decodeURIComponent(m[1]); } catch (e) { /* keep fallback */ } }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  async function repTemplate(){
+    try { await downloadWithAuth('/api/rep/template', 'قالب أسماء الطلاب.xlsx'); }
+    catch (e) { showToast(e.message || 'تعذّر التنزيل', 'error'); }
+  }
+  async function repDownload(id){
+    try { await downloadWithAuth('/api/rep/batches/' + id + '/download', 'أكواد التوثيق.xlsx'); }
+    catch (e) { showToast(e.message || 'تعذّر التنزيل', 'error'); }
+  }
+
+  async function loadRepCodes(){
+    if (!liveMode){ document.getElementById('repBatchesBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    try {
+      const me = await apiFetch('/api/rep/me');
+      document.getElementById('repScope').textContent = 'نطاقك: ' + [me.university, me.college, me.stage || 'كل المراحل'].filter(Boolean).join(' — ');
+      document.getElementById('repStats').textContent = `${me.batches} دفعة · ${me.codes} كود · ${me.verified} طالب وثّق حسابه`;
+      const sel = document.getElementById('repStage');
+      sel.innerHTML = (me.stage_locked ? '' : '<option value="">كل المراحل</option>') + me.stages.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+      document.getElementById('repStageWrap').style.display = me.stage_locked ? 'none' : '';
+    } catch (e) { showToast(e.detail || 'تعذّر تحميل نطاقك', 'error'); }
+    try {
+      repBatches = await apiFetch('/api/rep/batches');
+      const when = iso => new Date(iso).toLocaleDateString('ar-IQ', {day: 'numeric', month: 'short', year: 'numeric'});
+      document.getElementById('repBatchesBody').innerHTML = repBatches.map(b => `
+        <tr>
+          <td class="cell-name">${esc(b.filename || '—')}</td>
+          <td>${esc(b.stage)}</td>
+          <td>${b.total}</td>
+          <td>${b.used} <span class="cell-sub">من ${b.total}</span></td>
+          <td>${when(b.created_at)}</td>
+          <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+            <button class="btn" style="padding:6px 12px; font-size:.7rem;" onclick="repDownload('${b.id}')">تنزيل Excel</button>
+            <button class="btn btn-ghost" style="padding:6px 12px; font-size:.7rem;" onclick="repShowBatch('${b.id}')">عرض الأكواد</button>
+            <button class="btn btn-ghost" style="padding:6px 12px; font-size:.7rem; color:var(--danger);" onclick="repDeleteBatch('${b.id}')">حذف</button>
+          </div></td>
+        </tr>`).join('') || `<tr><td colspan="6" class="empty-row">لا توجد دفعات بعد — ارفع أول ملف أسماء</td></tr>`;
+    } catch (e) { document.getElementById('repBatchesBody').innerHTML = `<tr><td colspan="6" class="empty-row">${esc(e.detail || 'تعذّر التحميل')}</td></tr>`; }
+  }
+
+  async function repUpload(){
+    const msg = document.getElementById('repUploadMsg'); msg.style.display = 'block';
+    const file = document.getElementById('repFile').files[0];
+    if (!file){ msg.style.color = 'var(--danger)'; msg.textContent = 'اختر ملف Excel أولاً'; return; }
+    const fd = new FormData(); fd.append('file', file); fd.append('stage_id', document.getElementById('repStage').value || '');
+    const btn = document.getElementById('repUploadBtn'); btn.disabled = true;
+    msg.style.color = 'var(--ink-faint)'; msg.textContent = 'جارٍ توليد الأكواد…';
+    try {
+      const res = await apiForm('/api/rep/batches', fd);
+      msg.style.color = 'var(--ink)';
+      msg.textContent = `تم توليد ${res.total} كود` + (res.duplicates_skipped ? ` — وتم تجاهل ${res.duplicates_skipped} اسم مكرر (${res.duplicate_names.slice(0, 3).join('، ')}…)` : '') + '. نزّل الملف من الجدول بالأسفل.';
+      document.getElementById('repFile').value = '';
+      await loadRepCodes();
+    } catch (e) { msg.style.color = 'var(--danger)'; msg.textContent = e.detail || e.message || 'تعذّر الرفع'; }
+    finally { btn.disabled = false; }
+  }
+
+  async function repDeleteBatch(id){
+    if (!await confirmModal('حذف هذه الدفعة وكل أكوادها؟ (لا يمكن إن كان أحد الطلاب قد استعمل كودًا منها)')) return;
+    try { await apiFetch('/api/rep/batches/' + id, {method: 'DELETE'}); loadRepCodes(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  }
+
+  const REP_STATUS = {unused: ['غير مستخدم', 'badge-idle'], used: ['وُثّق', 'badge-active'], revoked: ['ملغى', 'badge-disabled']};
+  async function repShowBatch(id){
+    try { repOpenBatch = await apiFetch('/api/rep/batches/' + id); }
+    catch (e) { showToast(e.detail || 'تعذّر التحميل', 'error'); return; }
+    document.getElementById('repBatchTitle').textContent = repOpenBatch.filename || 'الدفعة';
+    document.getElementById('repBatchMeta').textContent = `${repOpenBatch.stage} · ${repOpenBatch.total} اسم · وُثّق ${repOpenBatch.used}`;
+    document.getElementById('repBatchDownload').onclick = () => repDownload(id);
+    document.getElementById('repBatchSearch').value = '';
+    repRenderBatch();
+    document.getElementById('repOverlay').style.display = 'flex';
+  }
+  function repRenderBatch(){
+    if (!repOpenBatch) return;
+    const q = document.getElementById('repBatchSearch').value.trim().toLowerCase();
+    const rows = repOpenBatch.codes.filter(c => !q || c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q));
+    document.getElementById('repBatchBody').innerHTML = rows.map(c => {
+      const [label, cls] = REP_STATUS[c.status];
+      const acts = c.status === 'used' ? '' : `
+        <button class="btn btn-ghost" style="padding:4px 9px; font-size:.68rem;" onclick="repRegen('${c.id}')">كود جديد</button>
+        ${c.status === 'unused' ? `<button class="btn btn-ghost" style="padding:4px 9px; font-size:.68rem; color:var(--danger);" onclick="repRevoke('${c.id}')">إلغاء</button>` : ''}`;
+      return `<tr>
+        <td class="cell-name">${esc(c.name)}</td>
+        <td class="mono" dir="ltr" style="text-align:end; ${c.status === 'unused' ? '' : 'opacity:.55;'}">${esc(c.code)}</td>
+        <td><span class="badge ${cls}">${label}</span></td>
+        <td style="text-align:end;"><div style="display:flex; gap:5px; justify-content:flex-end;">${acts}</div></td></tr>`;
+    }).join('') || `<tr><td colspan="4" class="empty-row">لا نتائج</td></tr>`;
+  }
+  async function repRevoke(codeId){
+    if (!await confirmModal('إلغاء هذا الكود؟ لن يعمل بعد الآن.')) return;
+    try { await apiFetch('/api/rep/codes/' + codeId + '/revoke', {method: 'POST'}); await repShowBatch(repOpenBatch.id); loadRepCodes(); }
+    catch (e) { showToast(e.detail || 'تعذّر الإلغاء', 'error'); }
+  }
+  async function repRegen(codeId){
+    if (!await confirmModal('استبدال هذا الكود بكود جديد؟ القديم سيتوقف عن العمل.')) return;
+    try { const r = await apiFetch('/api/rep/codes/' + codeId + '/regenerate', {method: 'POST'}); showToast('الكود الجديد: ' + r.code); await repShowBatch(repOpenBatch.id); }
+    catch (e) { showToast(e.detail || 'تعذّر الاستبدال', 'error'); }
   }
 
   // Last statement in the file, so every const it reads (roles, ...) exists.

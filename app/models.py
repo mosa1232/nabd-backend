@@ -22,6 +22,7 @@ class Role(str, enum.Enum):
     supervisor = "supervisor"        # سوبر فايزر
     store_manager = "store_manager"  # منجر المتجر
     assistant = "assistant"          # مساعد الدكتور
+    representative = "representative"  # الممثل العام (يوثّق طلاب جامعته/كليته)
 
 
 class ProductType(str, enum.Enum):
@@ -93,9 +94,18 @@ class User(Base):
     parent_user_id = Column(String, ForeignKey("users.id"), nullable=True)
     # Reseller only: most codes they may hold in total. Null = unlimited.
     code_quota = Column(Integer, nullable=True)
+    # Representative only: the college-within-a-university (a University row)
+    # and, optionally, the stage whose students they onboard.
+    scope_university_id = Column(String, ForeignKey("universities.id"), nullable=True)
+    scope_stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
+    # Verification (توثيق): set when a student redeems a code from a roster.
+    verified_at = Column(DateTime, nullable=True)
+    verified_name = Column(String, nullable=True)
+    verify_failed_attempts = Column(Integer, default=0)
+    verify_locked_until = Column(DateTime, nullable=True)
 
-    university = relationship("University")
-    stage = relationship("Stage")
+    university = relationship("University", foreign_keys=[university_id])
+    stage = relationship("Stage", foreign_keys=[stage_id])
     section = relationship("Section")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
@@ -278,6 +288,32 @@ class LectureProgress(Base):
 
 
 # --------------------------------------------------------------- activation
+class VerificationBatch(Base):
+    """One uploaded roster (an Excel of student names) for a college/stage."""
+    __tablename__ = "verification_batches"
+    id = Column(String, primary_key=True, default=gen_id)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    university_id = Column(String, ForeignKey("universities.id"), nullable=False)
+    stage_id = Column(String, ForeignKey("stages.id"), nullable=True)  # null = every stage
+    filename = Column(String, default="")
+    total = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class VerificationCode(Base):
+    """One single-use code per name in a roster."""
+    __tablename__ = "verification_codes"
+    id = Column(String, primary_key=True, default=gen_id)
+    batch_id = Column(String, ForeignKey("verification_batches.id"), nullable=False, index=True)
+    student_name = Column(String, nullable=False)
+    code = Column(String, unique=True, index=True, nullable=False)   # 8 chars, no dash
+    revoked = Column(Boolean, default=False)
+    used_by_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    used_at = Column(DateTime, nullable=True)
+
+    batch = relationship("VerificationBatch")
+
+
 class ActivationCode(Base):
     __tablename__ = "activation_codes"
     id = Column(String, primary_key=True, default=gen_id)

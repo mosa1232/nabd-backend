@@ -142,6 +142,13 @@ def _seed(db: Session) -> None:
         role=models.Role.store_manager, password_hash=hash_password(DEMO_PASSWORD),
     ))
     reseller_user.permissions = "codes.generate,codes.view"
+    # General representative of this college-in-university (uploads student
+    # rosters and downloads the verification codes).
+    db.add(models.User(
+        email="rep@nabd.app", full_name="الممثل العام — جامعة بغداد",
+        role=models.Role.representative, password_hash=hash_password(DEMO_PASSWORD),
+        scope_university_id=university.id,
+    ))
     # Store sections.
     for i, cat in enumerate(["ملازم", "أكواد التفعيل", "كتب ومستلزمات"]):
         db.add(models.StoreCategory(name=cat, sort_order=i))

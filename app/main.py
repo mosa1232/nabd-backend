@@ -11,7 +11,7 @@ from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
 from .database import Base, engine
 from .routers import (
-    activation, admin, ai as ai_router, auth, bans, catalog, courses, exams, import_export, pearls,
+    activation, admin, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
     notifications, professors, public, questions, reseller, store, students, summer,
 )
 from .storage import name_from_url, storage
@@ -64,6 +64,8 @@ app.include_router(pearls.router)
 app.include_router(public.router)
 app.include_router(summer.router)
 app.include_router(ai_router.router)
+app.include_router(representative.router)
+app.include_router(verification.router)
 
 @app.get("/media-files/{name}")
 def serve_media(name: str):

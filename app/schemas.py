@@ -30,6 +30,10 @@ class UserOut(BaseModel):
     code_quota: Optional[int] = None
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
+    scope_university_id: Optional[str] = None
+    scope_stage_id: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    verified_name: Optional[str] = None
     # The raw extra grants; the dashboard reads `effective_permissions`.
     permissions: Optional[str] = Field(default="", exclude=True)
 
@@ -116,6 +120,10 @@ class CatalogQuickIn(BaseModel):
     stages: list[str] = []
 
 
+class VerifyRedeemIn(BaseModel):
+    code: str = Field(min_length=4, max_length=40)
+
+
 class StageChangeIn(BaseModel):
     stage_id: str
 
@@ -161,6 +169,9 @@ class UserCreateIn(BaseModel):
     # Reseller only.
     code_quota: Optional[int] = Field(default=None, ge=0)
     phone: Optional[str] = None
+    # Representative only: which college-in-university (and stage) they cover.
+    scope_university_id: Optional[str] = None
+    scope_stage_id: Optional[str] = None
 
 
 class PermissionsUpdateIn(BaseModel):
@@ -207,6 +218,8 @@ class UserUpdateIn(BaseModel):
     password: Optional[str] = None  # leave empty to keep the current password unchanged
     permissions: Optional[list[str]] = None  # None = leave grants unchanged
     phone: Optional[str] = None
+    scope_university_id: Optional[str] = None
+    scope_stage_id: Optional[str] = None
     parent_user_id: Optional[str] = None
     code_quota: Optional[int] = Field(default=None, ge=0)
 

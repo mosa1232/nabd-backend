@@ -1521,6 +1521,17 @@
       </div>
     </div>
 
+    <!-- التوثيق: الكود الذي يستلمه الطالب من ممثل دفعته -->
+    <div class="glass" id="verifyCard" style="display:none; padding:16px 18px; margin-bottom:16px;">
+      <div style="font-weight:800; margin-bottom:4px;" data-i18n="verifyTitle">وثّق حسابك</div>
+      <div class="item-meta" style="margin-bottom:10px;" data-i18n="verifySub">أدخل الكود الذي استلمته من ممثل دفعتك، فتُربط جامعتك ومرحلتك بحسابك تلقائيًا.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="form-field" style="flex:1; min-width:170px; margin:0;"><input id="verifyCode" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="XXXX-XXXX" style="text-transform:uppercase; letter-spacing:.12em; text-align:center; font-weight:700;" onkeydown="if(event.key==='Enter'){submitVerify()}" /></div>
+        <button class="btn" id="verifyBtn" onclick="submitVerify()" data-i18n="verifyBtn">توثيق</button>
+      </div>
+      <div id="verifyMsg" style="display:none; font-size:.8rem; margin-top:8px;"></div>
+    </div>
+
     <button class="glass" id="homePathCard" style="display:none; width:100%; text-align:start; padding:16px 18px; margin-bottom:16px; cursor:pointer;" onclick="goToAccountEdit()">
       <div class="item-meta" style="margin-bottom:6px;" data-i18n="pathLabel">المسار الدراسي</div>
       <div id="homePathTags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
@@ -2359,6 +2370,18 @@
         <div class="auth-title" data-i18n="completeProfileTitle">أكمل بياناتك</div>
         <div class="auth-sub" data-i18n="completeProfileSub">نحتاج بعض المعلومات لتخصيص تجربتك على Kiur</div>
 
+        <!-- لديه كود توثيق من ممثل الدفعة؟ فلا حاجة لتعبئة الجامعة والمرحلة يدويًا -->
+        <div style="padding:12px 14px; border-radius:14px; background:var(--track, rgba(0,0,0,.05)); margin-bottom:14px;">
+          <div style="font-weight:800; font-size:.86rem; margin-bottom:2px;" data-i18n="gateVerifyTitle">لديك كود توثيق؟</div>
+          <div class="item-meta" style="margin-bottom:8px;" data-i18n="gateVerifySub">أدخله وتُربط جامعتك ومرحلتك تلقائيًا — بدون تعبئة البيانات بالأسفل.</div>
+          <div style="display:flex; gap:8px;">
+            <input id="gateVerifyCode" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="XXXX-XXXX" style="flex:1; min-width:0; text-transform:uppercase; letter-spacing:.12em; text-align:center; font-weight:700; padding:10px 12px; border-radius:12px; border:1.5px solid var(--glass-border, rgba(0,0,0,.15)); background:transparent; color:inherit; font-family:inherit;" onkeydown="if(event.key==='Enter'){doVerify('gateVerifyCode','gateVerifyMsg','gateVerifyBtn')}" />
+            <button class="btn" id="gateVerifyBtn" onclick="doVerify('gateVerifyCode','gateVerifyMsg','gateVerifyBtn')" data-i18n="verifyBtn">توثيق</button>
+          </div>
+          <div id="gateVerifyMsg" style="display:none; font-size:.78rem; margin-top:8px;"></div>
+        </div>
+        <div class="item-meta" style="text-align:center; margin-bottom:10px;" data-i18n="gateOrManual">أو أكمل بياناتك يدويًا:</div>
+
         <div class="form-field"><input id="cpFullName" type="text" placeholder="الاسم الثلاثي" data-i18n-placeholder="threeDigitName" /></div>
         <div class="form-field"><input id="cpPhone" type="tel" placeholder="رقم الهاتف (اختياري)" data-i18n-placeholder="phoneOptional" /></div>
         <div class="form-field"><select id="cpSection" onchange="onCpSectionChange()"><option value="" data-i18n="selectCollege">اختر التخصص/الكلية</option></select></div>
@@ -2908,6 +2931,8 @@
       landingBankDesc:'أسئلة بأسلوب الامتحانات الحقيقي، مقسّمة حسب مادتك ومرحلتك، مع شرح لكل إجابة.',
       landingVideoDesc:'محاضرات مصوّرة يرفعها دكاترتك أنفسهم، مع حفظ موضع توقّفك لتكمل من نفس النقطة.',
       landingProfDesc:'صفحة لكل دكتور فيها ملازمه وامتحاناته — تعرف بالضبط مين يدرّسك شنو.',
+      gateVerifyTitle:'لديك كود توثيق؟', gateVerifySub:'أدخله وتُربط جامعتك ومرحلتك تلقائيًا — بدون تعبئة البيانات بالأسفل.', gateOrManual:'أو أكمل بياناتك يدويًا:',
+      verifyTitle:'وثّق حسابك', verifySub:'أدخل الكود الذي استلمته من ممثل دفعتك، فتُربط جامعتك ومرحلتك بحسابك تلقائيًا.', verifyBtn:'توثيق', verifyEnter:'أدخل الكود', verifyFailed:'تعذّر التوثيق — حاول مرة أخرى', verifiedOk:'تم توثيق حسابك ✓', verifiedBadge:'موثّق',
       aiTrained:'مدرَّب على', aiQuestions:'سؤال', aiSources:'من بنك الأسئلة',
       aiTitle:'✨ مساعد Kiur الدراسي', aiPlaceholder:'اسألني عن أي مفهوم أو سؤال...', aiSend:'إرسال', aiIntro:'أهلاً! أنا مساعدك الدراسي. اشرح لي أي موضوع، أو افتح سؤالاً واضغط «اشرح لي هذا السؤال».',
       aiSugg1:'لخّص لي موضوعًا', aiSugg2:'اختبرني بـ 3 أسئلة', aiSugg3:'كيف أنظم مراجعتي؟', aiExplainQ:'اشرح لي هذا السؤال', aiUnavailable:'المساعد الذكي غير متاح حاليًا',
@@ -3031,6 +3056,8 @@
       landingBankDesc:'Exam-style questions split by your subject and stage, with an explanation for every answer.',
       landingVideoDesc:'Recorded lectures uploaded by your own professors, resuming exactly where you stopped.',
       landingProfDesc:'A page per professor with their booklets and exams — you know exactly who teaches what.',
+      gateVerifyTitle:'Have a verification code?', gateVerifySub:'Enter it and your university and stage are linked automatically — no need to fill in the form below.', gateOrManual:'Or fill in your details manually:',
+      verifyTitle:'Verify your account', verifySub:'Enter the code your class representative gave you — your university and stage are linked to your account automatically.', verifyBtn:'Verify', verifyEnter:'Enter the code', verifyFailed:'Could not verify — try again', verifiedOk:'Your account is verified ✓', verifiedBadge:'Verified',
       aiTrained:'Trained on', aiQuestions:'questions', aiSources:'From the question bank',
       aiTitle:'✨ Kiur study assistant', aiPlaceholder:'Ask me about any concept or question...', aiSend:'Send', aiIntro:'Hi! I am your study assistant. Ask me to explain any topic, or open a question and tap "Explain this question".',
       aiSugg1:'Summarize a topic', aiSugg2:'Quiz me with 3 questions', aiSugg3:'How should I organize my revision?', aiExplainQ:'Explain this question', aiUnavailable:'The AI assistant is not available right now',
@@ -3154,6 +3181,8 @@
       landingBankDesc:'پرسیار بە شێوازی تاقیکردنەوەی ڕاستەقینە، بەپێی بابەت و قۆناغەکەت، لەگەڵ ڕوونکردنەوە بۆ هەر وەڵامێک.',
       landingVideoDesc:'وانەی تۆمارکراو کە مامۆستاکانت خۆیان باریان دەکەن، لەگەڵ پاراستنی شوێنی وەستانت.',
       landingProfDesc:'لاپەڕەیەک بۆ هەر مامۆستایەک بە مەلزەمە و تاقیکردنەوەکانی — بە تەواوی دەزانیت کێ چیت فێر دەکات.',
+      gateVerifyTitle:'کۆدی پشتڕاستکردنەوەت هەیە؟', gateVerifySub:'بینووسە و زانکۆ و قۆناغەکەت خۆکارانە دەبەسترێت — پێویست ناکات خوارەوە پڕ بکەیتەوە.', gateOrManual:'یان زانیارییەکانت بە دەست پڕ بکەرەوە:',
+      verifyTitle:'هەژمارەکەت پشتڕاست بکەرەوە', verifySub:'ئەو کۆدەی لە نوێنەری دەستەکەتەوە وەرتگرتووە بنووسە — زانکۆ و قۆناغەکەت خۆکارانە بە هەژمارەکەتەوە دەبەسترێت.', verifyBtn:'پشتڕاستکردنەوە', verifyEnter:'کۆدەکە بنووسە', verifyFailed:'نەتوانرا پشتڕاست بکرێتەوە', verifiedOk:'هەژمارەکەت پشتڕاستکرایەوە ✓', verifiedBadge:'پشتڕاستکراو',
       aiTrained:'فێربووە لە', aiQuestions:'پرسیار', aiSources:'لە بانکی پرسیارەکان',
       aiTitle:'✨ یاریدەدەری خوێندنی Kiur', aiPlaceholder:'لەمن بپرسە دەربارەی هەر چەمکێک یان پرسیارێک...', aiSend:'ناردن', aiIntro:'سڵاو! من یاریدەدەری خوێندنتم. هەر بابەتێک بپرسە، یان پرسیارێک بکەرەوە.',
       aiSugg1:'بابەتێک کورت بکەرەوە', aiSugg2:'بە ٣ پرسیار تاقیم بکەرەوە', aiSugg3:'چۆن پێداچوونەوەم ڕێک بخەم؟', aiExplainQ:'ئەم پرسیارە ڕوون بکەرەوە', aiUnavailable:'یاریدەدەری زیرەک ئێستا بەردەست نییە',
@@ -3363,7 +3392,38 @@
   // Read-only summary of the student's real section/university/stage on
   // the home screen — editing it lives in the profile-edit screen, this is
   // just an honest at-a-glance display, not a duplicate editable widget.
+  // ---------- التوثيق بالكود ----------
+  function renderVerifyCard(){
+    const card = document.getElementById('verifyCard');
+    if (!card) return;
+    card.style.display = (currentUser && currentUser.role === 'student' && !currentUser.verified_at) ? 'block' : 'none';
+  }
+  function submitVerify(){ return doVerify('verifyCode', 'verifyMsg', 'verifyBtn'); }
+  async function doVerify(inputId, msgId, btnId){
+    const input = document.getElementById(inputId);
+    const msg = document.getElementById(msgId);
+    const btn = document.getElementById(btnId);
+    const code = input.value.trim();
+    msg.style.display = 'block';
+    if (code.length < 4){ msg.style.color = 'var(--danger)'; msg.textContent = t('verifyEnter'); return; }
+    btn.disabled = true; msg.style.color = 'var(--ink-faint)'; msg.textContent = '…';
+    try {
+      const res = await apiFetch('/api/verify/redeem', {method: 'POST', body: JSON.stringify({code})});
+      currentUser = await apiFetch('/auth/me');          // now carries the verified university / stage
+      apiSubjectId = null; apiProfessorsNormalized = null; catalogTreeCache = null;
+      input.value = '';
+      showToast(t('verifiedOk') + ' ' + (res.verified_name || ''));
+      renderVerifyCard(); renderSidebarContext(); renderHomePathCard();
+      // On the sign-in gate: carry on into the app (or, if the roster named no
+      // stage, back to the form with everything else already filled in).
+      if (currentViewId === 'view-complete-profile') proceedAfterAuth();
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || t('verifyFailed');
+    } finally { btn.disabled = false; }
+  }
+
   async function renderHomePathCard(){
+    renderVerifyCard();
     const card = document.getElementById('homePathCard');
     if (!currentUser?.section_id || !currentUser?.university_id){ card.style.display = 'none'; return; }
     try {
@@ -3376,6 +3436,7 @@
       if (uni) tags.push(uni.name);
       if (currentUser.is_graduate) tags.push(t('graduated'));
       else if (stage) tags.push(stage.name);
+      if (currentUser.verified_at) tags.push('✓ ' + t('verifiedBadge'));
       if (!tags.length){ card.style.display = 'none'; return; }
       document.getElementById('homePathTags').innerHTML = tags.map(tg => `<span class="prof-tag">${tg}</span>`).join('');
       card.style.display = 'block';
@@ -5654,6 +5715,13 @@
     document.getElementById('cpUniversity').innerHTML = `<option value="">${t('selectUniversity')}</option>`;
     document.getElementById('cpUniversity').disabled = true;
     document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>`;
+    // Already tied to a college/university (e.g. verified by code)? Start from there.
+    if (currentUser?.section_id && currentUser?.university_id){
+      document.getElementById('cpSection').value = currentUser.section_id; onCpSectionChange();
+      document.getElementById('cpUniversity').value = currentUser.university_id; onCpUniversityChange();
+      document.getElementById('cpGraduate').value = '0'; onCpGraduateChange();
+      if (currentUser.stage_id) document.getElementById('cpStage').value = currentUser.stage_id;
+    }
   }
 
   function onCpSectionChange(){
