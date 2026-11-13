@@ -24,7 +24,12 @@ _is_sqlite = DATABASE_URL.startswith("sqlite")
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
+    # Postgres: no server-side prepared statements. Hosted databases (Neon,
+    # Supabase, PgBouncer-style poolers) route each statement to any backend
+    # connection, where a prepared statement from an earlier one doesn't
+    # exist — psycopg 3's default would then fail with "prepared statement
+    # does not exist". Turning it off is harmless on a direct connection.
+    connect_args={"check_same_thread": False} if _is_sqlite else {"prepare_threshold": None},
     # A managed Postgres (and anything behind a proxy) drops connections that
     # have been idle a while. Without pre-ping the pool hands out a dead
     # connection and the request fails with "server closed the connection
