@@ -1,0 +1,8 @@
+# Files that run on Linux must keep LF line endings — a CRLF checkout on
+# Windows would otherwise break them ("bad interpreter: /bin/sh^M").
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+Caddyfile   text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+.env.production.example text eol=lf

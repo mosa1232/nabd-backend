@@ -5,3 +5,5 @@ venv/
 nabd.db
 uploads/
 *.log
+backups/
+.env.production

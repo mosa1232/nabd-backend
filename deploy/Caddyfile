@@ -1,0 +1,26 @@
+# {$DOMAIN::80}: with a real domain Caddy gets and renews a free HTTPS
+# certificate by itself; with no domain set it just serves plain HTTP on :80
+# (useful for a first test by IP address).
+{$DOMAIN::80} {
+	encode zstd gzip
+
+	# The biggest upload the app accepts is a 150 MB lecture video.
+	request_body {
+		max_size 160MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy app:8000 {
+		# a sleepy first request after a restart should not become a 502
+		lb_try_duration 10s
+		health_uri /health
+		health_interval 15s
+	}
+}

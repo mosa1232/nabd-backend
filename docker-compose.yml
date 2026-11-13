@@ -1,0 +1,77 @@
+# The whole platform on one server: app + PostgreSQL + HTTPS proxy + daily
+# compressed backups. Start it with:   docker compose up -d --build
+# Everything it needs is read from the .env file next to this one.
+services:
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nabd
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: nabd
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nabd -d nabd"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Never published to the internet — only the other containers can reach it.
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Set DATABASE_URL in .env to use an outside database (e.g. Neon);
+      # otherwise the bundled PostgreSQL above is used.
+      DATABASE_URL: "${DATABASE_URL:-postgresql+psycopg://nabd:${POSTGRES_PASSWORD}@db:5432/nabd}"
+      DEBUG: "false"
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads      # booklets, videos and photos survive redeploys
+    expose:
+      - "8000"                    # reachable by caddy only, never from outside
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # the HTTPS certificates
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: nabd
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: nabd
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - ./deploy/backup-loop.sh:/backup-loop.sh:ro
+    entrypoint: ["/bin/sh", "/backup-loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:
