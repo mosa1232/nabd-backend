@@ -7,6 +7,7 @@ from ..database import get_db
 from ..deps import get_current_user, user_permissions
 from ..permissions import PERMISSIONS, PROF_PERMS, parse_permissions, serialize_permissions
 from ..security import hash_password
+from ..compress import optimize_upload
 from ..storage import media_url, storage
 from .admin import (
     DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES,
@@ -157,7 +158,8 @@ async def upload_my_photo(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
-    storage.save(stored_name, contents, file.content_type or "")
+    stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 640)
+    storage.save(stored_name, contents, ctype)
     delete_stored_upload(profile.photo_url)  # don't strand the photo being replaced
     profile.photo_url = media_url(stored_name)
     db.commit()
@@ -335,7 +337,8 @@ async def upload_booklet_file(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
-    storage.save(stored_name, contents, file.content_type or "")
+    stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 1600)
+    storage.save(stored_name, contents, ctype)
     delete_stored_upload(b.file_url)  # replacing a file shouldn't strand the old one
     b.file_url = media_url(stored_name)
     db.commit()

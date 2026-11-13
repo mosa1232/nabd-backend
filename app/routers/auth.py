@@ -19,6 +19,7 @@ from ..security import (
     generate_totp_secret, hash_password, hash_reset_token, set_session_cookie,
     start_new_session, totp_provisioning_uri, verify_password, verify_totp,
 )
+from ..compress import optimize_upload
 from ..storage import media_url, storage
 from .admin import IMAGE_EXTS, MAX_UPLOAD_BYTES, delete_stored_upload, safe_upload_name
 
@@ -472,7 +473,8 @@ async def upload_my_photo(
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "photo")
-    storage.save(stored_name, contents, file.content_type or "")
+    stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 640)
+    storage.save(stored_name, contents, ctype)
     delete_stored_upload(user.photo_url)  # don't strand the photo being replaced
     user.photo_url = media_url(stored_name)
     db.commit()

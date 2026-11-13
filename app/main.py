@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
@@ -23,6 +24,10 @@ app = FastAPI(title="Nabd API", version="0.1.0")
 # Required by Authlib to stash the OAuth `state` between the redirect to
 # Google and the callback.
 app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret)
+
+# Compress responses over 1 KB: the two single-file apps are ~400 KB of HTML/JS
+# each and shrink to a fraction of that on the wire (Cloudflare adds brotli on top).
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,

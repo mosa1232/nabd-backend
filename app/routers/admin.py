@@ -14,6 +14,7 @@ from ..permissions import (
     PERMISSIONS, PROF_PERMS, RESELLER_PERMS, STAFF_PERMS, parse_permissions, serialize_permissions,
 )
 from ..security import hash_password
+from ..compress import optimize_upload
 from ..storage import media_url, name_from_url, storage
 from .store import issue_codes_for_paid_order
 
@@ -1215,7 +1216,8 @@ async def upload_media(
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
 
     stored_name = safe_upload_name(file.filename, IMAGE_EXTS | DOC_EXTS | VIDEO_EXTS, "file")
-    storage.save(stored_name, contents, file.content_type or "")
+    stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 1600)
+    storage.save(stored_name, contents, ctype)
 
     m = models.MediaFile(
         filename=stored_name,
