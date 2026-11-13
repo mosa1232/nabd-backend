@@ -22,8 +22,12 @@ stored URL never goes stale and the object store needs no public bucket.
 from __future__ import annotations
 
 import logging
+import mimetypes
+import os
 import threading
 from pathlib import Path
+
+from fastapi import HTTPException
 
 from .config import get_settings
 
@@ -79,6 +83,95 @@ class LocalStorage:
 
     def signed_url(self, name: str) -> str | None:
         return None  # nothing to redirect to; the bytes are served directly
+
+    def read(self, name: str):
+        return None  # served through local_path()
+
+
+class DbStorage:
+    """Files inside the database (a `stored_files` table).
+
+    The point is persistence on a host whose disk is wiped on every deploy
+    (Render's free plan) without paying for or configuring an object store.
+    Uploaded photos are already shrunk to ~100 KB WebP, so thousands fit in a
+    free database. Two caps protect it: one per file, one for the total — a
+    full database would take the whole platform down, not just uploads.
+    """
+
+    kind = "db"
+
+    @staticmethod
+    def _session():
+        from .database import SessionLocal  # late: database imports config, not us
+        return SessionLocal()
+
+    def save(self, name: str, data: bytes, content_type: str = "") -> None:
+        from . import models
+        from sqlalchemy import func
+
+        max_file = settings.db_storage_max_file_mb * 1024 * 1024
+        if len(data) > max_file:
+            raise HTTPException(
+                413,
+                f"الملف أكبر من الحد المسموح للتخزين داخل قاعدة البيانات ({settings.db_storage_max_file_mb} ميغابايت) — "
+                "الملفات والفيديوهات الكبيرة تحتاج تخزينًا خارجيًا (S3 / Cloudflare R2)",
+            )
+        db = self._session()
+        try:
+            used = db.query(func.coalesce(func.sum(models.StoredFile.size), 0)).scalar() or 0
+            if used + len(data) > settings.db_storage_total_mb * 1024 * 1024:
+                raise HTTPException(
+                    507,
+                    "امتلأت مساحة تخزين الملفات داخل قاعدة البيانات — احذف ملفات قديمة أو فعّل تخزينًا خارجيًا (S3 / R2)",
+                )
+            # The type is derived from the file name (which the upload code has
+            # already restricted to images / PDF / video), NEVER from the
+            # client-supplied header: a "booklet.pdf" sent as text/html would
+            # otherwise be served back as a web page on this origin.
+            ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+            existing = db.get(models.StoredFile, name)
+            if existing:
+                existing.data, existing.size, existing.content_type = data, len(data), ctype
+            else:
+                db.add(models.StoredFile(name=name, data=data, size=len(data), content_type=ctype))
+            db.commit()
+        finally:
+            db.close()
+
+    def delete(self, name: str) -> None:
+        from . import models
+        db = self._session()
+        try:
+            db.query(models.StoredFile).filter(models.StoredFile.name == name).delete()
+            db.commit()
+        except Exception:
+            db.rollback()  # a failed cleanup must never block the row delete itself
+        finally:
+            db.close()
+
+    def exists(self, name: str) -> bool:
+        from . import models
+        db = self._session()
+        try:
+            return db.query(models.StoredFile.name).filter(models.StoredFile.name == name).first() is not None
+        finally:
+            db.close()
+
+    def read(self, name: str):
+        """(bytes, content_type) or None."""
+        from . import models
+        db = self._session()
+        try:
+            row = db.get(models.StoredFile, name)
+            return (bytes(row.data), row.content_type) if row else None
+        finally:
+            db.close()
+
+    def local_path(self, name: str) -> Path | None:
+        return None
+
+    def signed_url(self, name: str) -> str | None:
+        return None
 
 
 class S3Storage:
@@ -140,6 +233,9 @@ class S3Storage:
     def local_path(self, name: str) -> Path | None:
         return None  # not on this machine
 
+    def read(self, name: str):
+        return None  # served through a signed redirect
+
     def signed_url(self, name: str) -> str | None:
         """A short-lived URL the browser can fetch directly.
 
@@ -159,7 +255,16 @@ class S3Storage:
 
 
 def _build_storage():
-    if settings.storage_backend.strip().lower() == "s3":
+    backend = settings.storage_backend.strip().lower()
+    # Render sets RENDER=true on its services. Its disk is wiped on every
+    # deploy, so "local" there silently loses every upload — keep files in the
+    # database instead (set STORAGE_BACKEND=s3 for large files).
+    if backend == "local" and os.environ.get("RENDER"):
+        logger.warning("Running on Render: keeping uploaded files in the database (its disk is wiped on every deploy).")
+        return DbStorage()
+    if backend == "db":
+        return DbStorage()
+    if backend == "s3":
         missing = [
             key for key, value in {
                 "S3_BUCKET": settings.s3_bucket,
@@ -173,11 +278,11 @@ def _build_storage():
             # (Local files are lost on every Render deploy, so set the S3_*
             # variables to make uploads permanent.)
             logger.warning(
-                "STORAGE_BACKEND=s3 but these are not set: %s — falling back to "
-                "LOCAL storage; uploaded files will NOT survive a redeploy.",
+                "STORAGE_BACKEND=s3 but these are not set: %s — keeping uploaded files in "
+                "the database instead (small files only).",
                 ", ".join(missing),
             )
-            return LocalStorage()
+            return DbStorage()
         return S3Storage()
     return LocalStorage()
 

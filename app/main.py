@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -83,6 +83,14 @@ def serve_media(name: str):
     path = storage.local_path(safe)
     if path is not None:
         return FileResponse(path)
+
+    stored = storage.read(safe)
+    if stored is not None:   # kept in the database
+        data, ctype = stored
+        return Response(content=data, media_type=ctype, headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        })
 
     url = storage.signed_url(safe)
     if url and storage.exists(safe):

@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     # which is the right default for paid booklets and lecture videos.
     s3_public_base_url: str = ""
     s3_url_expiry_seconds: int = 3600
+    # STORAGE_BACKEND=db keeps files inside the database — they survive every
+    # deploy with no extra service, which is what makes a free host usable.
+    # Meant for photos and small PDFs: the caps below keep it from filling a
+    # small database. Large lecture videos need s3.
+    db_storage_max_file_mb: int = 15
+    db_storage_total_mb: int = 350
 
     @property
     def allowed_domains_list(self) -> list[str]:

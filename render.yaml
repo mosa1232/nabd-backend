@@ -44,12 +44,13 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
-      # Uploads go to an S3-compatible bucket, because the instance disk is
-      # wiped on every deploy the same way the SQLite file was. Cloudflare R2
-      # is the cheap choice for this workload — lecture video is mostly
-      # egress, and R2 doesn't charge for it. Set these in the dashboard.
+      # The instance disk is wiped on every deploy, so uploads are kept in the
+      # database ("db"): photos and small PDFs (15 MB each) survive every
+      # deploy with nothing else to set up. For large lecture videos switch to
+      # "s3" and fill in the S3_* values below (Cloudflare R2 is the cheap
+      # choice — lecture video is mostly egress, which R2 doesn't charge for).
       - key: STORAGE_BACKEND
-        value: "s3"
+        value: "db"
       - key: S3_BUCKET
         sync: false
       - key: S3_ENDPOINT_URL

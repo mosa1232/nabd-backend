@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+    Boolean, Column, DateTime, Enum, ForeignKey, Integer, LargeBinary, String, Text
 )
 from sqlalchemy.orm import relationship
 
@@ -482,6 +482,16 @@ class ClinicalPearl(Base):
     professor_id = Column(String, ForeignKey("professor_profiles.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+
+class StoredFile(Base):
+    """An uploaded file kept in the database (STORAGE_BACKEND=db)."""
+    __tablename__ = "stored_files"
+    name = Column(String, primary_key=True)
+    content_type = Column(String, default="application/octet-stream")
+    size = Column(Integer, default=0)
+    data = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class SummerTraining(Base):
