@@ -1,7 +1,10 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
-from .. import ai, knowledge, models, schemas
+from .. import ai, knowledge, models, qimport, schemas
 from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user, user_permissions
@@ -861,3 +864,52 @@ async def ai_generate_pearls(
     if not pearls:
         raise HTTPException(502, "لم يستطع المساعد توليد لمحات — جرّب موضوعًا أوضح")
     return {"pearls": pearls}
+
+
+# ------------------------------------------------- question import (Excel / Word)
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _download(data: bytes, media: str, ascii_name: str, filename: str) -> Response:
+    return Response(data, media_type=media, headers={
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"})
+
+
+@router.get("/me/questions/template/excel")
+def questions_template_excel(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "prof.questions")
+    return _download(qimport.build_excel_template(), _XLSX, "questions.xlsx", "قالب الأسئلة.xlsx")
+
+
+@router.get("/me/questions/template/word")
+def questions_template_word(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "prof.questions")
+    return _download(qimport.build_docx_template(), _DOCX, "questions.docx", "قالب الأسئلة.docx")
+
+
+@router.post("/me/questions/import")
+async def import_questions_file(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Reads an Excel/Word file into question drafts. Nothing is saved: the
+    doctor reviews the preview and saves what they want via /me/questions/bulk."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    data = await file.read(qimport.MAX_BYTES + 1)
+    name = (file.filename or "").lower()
+    try:
+        if name.endswith(".xlsx"):
+            drafts, errors = qimport.parse_excel(data)
+        elif name.endswith(".docx"):
+            drafts, errors = qimport.parse_docx(data)
+        elif name.endswith((".doc", ".xls")):
+            raise HTTPException(400, "الصيغة القديمة غير مدعومة — احفظ الملف بصيغة .docx أو .xlsx ثم ارفعه")
+        else:
+            raise HTTPException(400, "ارفع ملف Excel (.xlsx) أو Word (.docx)")
+    except qimport.ImportFileError as e:
+        raise HTTPException(400, str(e))
+    for d in drafts:
+        d["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, d["text"])
+    return {"questions": drafts, "errors": errors, "filename": (file.filename or "")[:120]}

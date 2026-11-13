@@ -612,7 +612,7 @@
               <div id="importDropLabel">اسحب ملف Excel هنا أو اضغط للاختيار</div>
             </div>
             <input type="file" id="importFileInput" accept=".xlsx" style="display:none;" onchange="handleImportFileSelect(this.files[0])" />
-            <div style="margin-top:14px; font-size:.78rem; color:var(--ink-faint);">تنزيل قالب فارغ: <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('questions')">قالب أسئلة.xlsx</span> · <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('students')">قالب طلاب.xlsx</span></div>
+            <div style="margin-top:14px; font-size:.78rem; color:var(--ink-faint);">تنزيل قالب فارغ: <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('students')">قالب طلاب.xlsx</span></div>
             <button class="btn" style="width:100%; justify-content:center; margin-top:16px;" onclick="submitImport()">استيراد</button>
             <div id="importStatus" style="display:none; margin-top:10px; font-size:.8rem;"></div>
           </div>
@@ -779,6 +779,7 @@
           <div class="dash-card-head">
             <span class="dash-card-title">بنك أسئلتي</span>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="openAiGen('import')">📥 رفع أسئلة من Excel / Word</button>
             <button class="btn btn-ghost" onclick="openAiGen('questions')">✨ توليد من ملف بالذكاء الاصطناعي</button>
             <button class="btn" onclick="openProfQuestionEditor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>سؤال جديد</button>
             </div>
@@ -3907,12 +3908,16 @@
   async function openAiGen(mode){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
     aiGenMode = mode; aiGenDrafts = [];
-    document.getElementById('aiGenTitle').textContent = mode === 'questions' ? '✨ توليد أسئلة من ملف' : '✨ توليد لمحات سريرية';
+    document.getElementById('aiGenTitle').textContent = mode === 'import' ? '📥 رفع أسئلة من ملف' : (mode === 'questions' ? '✨ توليد أسئلة من ملف' : '✨ توليد لمحات سريرية');
     const msg = document.getElementById('aiGenMsg'); msg.style.display = 'none';
     document.getElementById('aiGenResults').style.display = 'none';
     const form = document.getElementById('aiGenForm'); form.style.display = 'block';
     const field = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;';
-    form.innerHTML = mode === 'questions' ? `
+    form.innerHTML = mode === 'import' ? `
+      <div class="item-meta" style="margin-bottom:10px;">ارفع ملف Excel (.xlsx) أو Word (.docx) فيه أسئلتك. <b>ستظهر لك معاينة</b> بالأسئلة المقروءة وأي سطر فيه مشكلة قبل الحفظ.</div>
+      <div class="form-field"><input type="file" id="aiFile" accept=".xlsx,.docx" style="${field}" /></div>
+      <div class="item-meta" style="font-size:.78rem;">تنزيل قالب جاهز: <span style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadQTemplate('excel')">قالب Excel</span> · <span style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadQTemplate('word')">قالب Word</span></div>
+      <div class="item-meta" style="font-size:.76rem; margin-top:8px; line-height:1.8;">في Word: رقّم الأسئلة (1. 2. 3.) وخياراتها (أ) ب) ج) د)) وعلّم الصحيح بـ <b>*</b> أو ✓ أو اجعله <b>غامقاً</b>، أو اكتب «الإجابة: ب». أضف «الشرح:» و«الإجابة النموذجية:» عند الحاجة. حتى 300 سؤال.</div>` : mode === 'questions' ? `
       <div class="item-meta" style="margin-bottom:10px;">ارفع المحاضرة أو الملزمة (PDF أو Word أو نص أو صورة) وسيصيغ الذكاء الاصطناعي الأسئلة منها. <b>تراجعها أنت قبل الحفظ</b> — لا يُحفظ شيء تلقائياً.</div>
       <div class="form-field"><input type="file" id="aiFile" accept="${AI_FILE_ACCEPT}" style="${field}" /></div>
       <div style="display:flex; gap:10px;">
@@ -3930,7 +3935,8 @@
       <div class="form-field"><input type="text" id="aiTopic" placeholder="الموضوع (مثال: الحصبة عند الأطفال)" style="${field}" /></div>
       <div class="form-field"><input type="file" id="aiFile" accept="${AI_FILE_ACCEPT}" style="${field}" /></div>
       <div class="form-field"><label style="font-size:.75rem; color:var(--ink-faint);">عدد اللمحات</label><input type="number" id="aiCount" value="3" min="1" max="10" style="${field}" /></div>`;
-    setAiGenButtons([['ولّد', 'aiGenRun()', true], ['إلغاء', 'closeAiGen()']]);
+    setAiGenButtons([[mode === 'import' ? 'اقرأ الملف' : 'ولّد', 'aiGenRun()', true], ['إلغاء', 'closeAiGen()']]);
+    if (mode === 'import'){ document.getElementById('aiGenOverlay').style.display = 'flex'; return; }
     try {
       const st = await apiFetch('/api/ai/status');
       if (!st.enabled){
@@ -3944,13 +3950,20 @@
     document.getElementById('aiGenButtons').innerHTML = list.map(([label, fn, primary]) =>
       `<button class="btn ${primary ? '' : 'btn-ghost'}" style="flex:1; justify-content:center;" onclick="${fn}" ${primary ? 'id="aiPrimaryBtn"' : ''}>${label}</button>`).join('');
   }
+  async function downloadQTemplate(kind){
+    try { await downloadWithAuth('/api/professors/me/questions/template/' + kind, kind === 'excel' ? 'قالب الأسئلة.xlsx' : 'قالب الأسئلة.docx'); }
+    catch (e) { showToast(e.message || 'تعذّر تنزيل القالب'); }
+  }
   function closeAiGen(){ document.getElementById('aiGenOverlay').style.display = 'none'; }
 
   async function aiGenRun(){
     const msg = document.getElementById('aiGenMsg');
     const file = document.getElementById('aiFile').files[0];
     const fd = new FormData();
-    if (aiGenMode === 'questions'){
+    if (aiGenMode === 'import'){
+      if (!file){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اختر ملفًا أولاً'; return; }
+      fd.append('file', file);
+    } else if (aiGenMode === 'questions'){
       if (!file){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اختر ملفًا أولاً'; return; }
       const types = [...document.querySelectorAll('.aiType:checked')].map(i => i.value);
       if (!types.length){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اختر نوع سؤال واحدًا على الأقل'; return; }
@@ -3963,25 +3976,27 @@
       if (file) fd.append('file', file);
       fd.append('topic', topic); fd.append('count', document.getElementById('aiCount').value);
     }
-    const btn = document.getElementById('aiPrimaryBtn'); btn.disabled = true; btn.textContent = 'جارٍ التوليد… قد يستغرق دقيقة';
-    msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)'; msg.textContent = 'يقرأ المساعد الملف ويصوغ المحتوى…';
+    const btn = document.getElementById('aiPrimaryBtn'); btn.disabled = true; btn.textContent = aiGenMode === 'import' ? 'جارٍ القراءة…' : 'جارٍ التوليد… قد يستغرق دقيقة';
+    msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)'; msg.textContent = aiGenMode === 'import' ? 'نقرأ الملف…' : 'يقرأ المساعد الملف ويصوغ المحتوى…';
     try {
-      const path = aiGenMode === 'questions' ? '/api/professors/me/ai/generate-questions' : '/api/professors/me/ai/generate-pearls';
+      const path = aiGenMode === 'import' ? '/api/professors/me/questions/import' : (aiGenMode === 'questions' ? '/api/professors/me/ai/generate-questions' : '/api/professors/me/ai/generate-pearls');
       const res = await apiForm(path, fd);
-      aiGenDrafts = aiGenMode === 'questions' ? res.questions : res.pearls;
-      renderAiDrafts(res.skipped || 0);
+      aiGenDrafts = aiGenMode === 'pearls' ? res.pearls : res.questions;
+      renderAiDrafts(res.skipped || 0, res.errors || []);
     } catch (e) {
-      btn.disabled = false; btn.textContent = 'ولّد';
+      btn.disabled = false; btn.textContent = aiGenMode === 'import' ? 'اقرأ الملف' : 'ولّد';
       msg.style.color = 'var(--danger)'; msg.textContent = e.detail || e.message || 'تعذّر التوليد';
     }
   }
 
-  function renderAiDrafts(skipped){
+  function renderAiDrafts(skipped, errors){
+    errors = errors || [];
     document.getElementById('aiGenForm').style.display = 'none';
     const box = document.getElementById('aiGenResults'); box.style.display = 'block';
     const msg = document.getElementById('aiGenMsg'); msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)';
-    msg.textContent = `تم توليد ${aiGenDrafts.length} ${aiGenMode === 'questions' ? 'سؤال' : 'لمحة'}` + (skipped ? ` (استُبعد ${skipped} غير صالح)` : '') + ' — ألغِ تحديد ما لا تريده، ويمكنك تعديل أي شيء بعد الحفظ.';
-    box.innerHTML = aiGenDrafts.map((d, i) => {
+    msg.textContent = (aiGenMode === 'import' ? `تمت قراءة ${aiGenDrafts.length} سؤال` : `تم توليد ${aiGenDrafts.length} ${aiGenMode === 'questions' ? 'سؤال' : 'لمحة'}`) + (skipped ? ` (استُبعد ${skipped} غير صالح)` : '') + (errors.length ? ` — ${errors.length} سطر به مشكلة (تحت)` : '') + ' — ألغِ تحديد ما لا تريده، ويمكنك تعديل أي شيء بعد الحفظ.';
+    const errHtml = errors.length ? `<div class="ai-draft" style="display:block; border-color:var(--danger);"><div class="cell-name" style="color:var(--danger);">⚠ لم تُقرأ هذه الأسطر — صحّحها في الملف وأعد رفعه إن أردتها</div>${errors.map(er => `<div class="cell-sub" style="margin-top:4px;"><b>${esc(er.where)}:</b> ${esc(er.message)}</div>`).join('')}</div>` : '';
+    box.innerHTML = errHtml + aiGenDrafts.map((d, i) => {
       if (aiGenMode === 'pearls'){
         return `<label class="ai-draft"><input type="checkbox" checked data-i="${i}" /><div><div class="cell-name">${d.tag ? `<span class="badge badge-active" style="margin-inline-end:6px;">${esc(d.tag)}</span>` : ''}${esc(d.title)}</div><div class="cell-sub" style="margin-top:4px; white-space:pre-line;">${esc(d.body)}</div></div></label>`;
       }
@@ -4000,14 +4015,16 @@
     const picked = [...document.querySelectorAll('#aiGenResults input[type=checkbox]:checked')].map(i => aiGenDrafts[+i.dataset.i]);
     const msg = document.getElementById('aiGenMsg');
     if (!picked.length){ msg.style.color = 'var(--danger)'; msg.textContent = 'لم تحدد شيئاً'; return; }
+    if (aiGenMode !== 'pearls' && picked.length > 300){ msg.style.color = 'var(--danger)'; msg.textContent = 'الحد الأقصى 300 سؤال في المرة'; return; }
     const btn = document.getElementById('aiPrimaryBtn'); btn.disabled = true;
     try {
-      const url = aiGenMode === 'questions' ? '/api/professors/me/questions/bulk' : '/api/professors/me/pearls/bulk';
-      const body = aiGenMode === 'questions' ? {questions: picked} : {pearls: picked};
+      const isQ = aiGenMode !== 'pearls';
+      const url = isQ ? '/api/professors/me/questions/bulk' : '/api/professors/me/pearls/bulk';
+      const body = isQ ? {questions: picked} : {pearls: picked};
       const res = await apiFetch(url, {method: 'POST', body: JSON.stringify(body)});
       closeAiGen();
-      showToast(`تم حفظ ${res.saved} ${aiGenMode === 'questions' ? 'سؤال' : 'لمحة'}`);
-      aiGenMode === 'questions' ? loadProfessorQuestions() : loadProfessorPearls();
+      showToast(`تم حفظ ${res.saved} ${isQ ? 'سؤال' : 'لمحة'}`);
+      isQ ? loadProfessorQuestions() : loadProfessorPearls();
     } catch (e) { btn.disabled = false; msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'تعذّر الحفظ'; }
   }
 

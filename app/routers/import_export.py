@@ -13,7 +13,7 @@ from ..deps import admin_gate
 router = APIRouter(prefix="/api/admin", tags=["import-export"], dependencies=[Depends(admin_gate)])
 
 STUDENT_HEADERS = ["الاسم الكامل", "البريد الإلكتروني", "الجامعة", "المرحلة"]
-QUESTION_HEADERS = ["المادة", "نص السؤال", "الخيار 1", "الخيار 2", "الخيار 3", "الخيار 4", "رقم الإجابة الصحيحة (1-4)", "الشرح", "العنوان الفرعي"]
+QUESTION_HEADERS = ["المادة", "نص السؤال"]   # only used to recognise (and refuse) an old questions sheet
 
 
 def _xlsx_response(wb: Workbook, filename: str) -> StreamingResponse:
@@ -38,20 +38,6 @@ def students_template():
     ws.append(STUDENT_HEADERS)
     ws.append(["مثال: زهراء علي", "zahra.example@uob.edu.iq", "جامعة بغداد", "المرحلة الثانية"])
     return _xlsx_response(wb, "قالب طلاب.xlsx")
-
-
-@router.get("/import/template/questions")
-def questions_template():
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "أسئلة"
-    ws.append(QUESTION_HEADERS)
-    ws.append([
-        "التشريح", "مثال: أي عظم أطول عظم في جسم الإنسان؟",
-        "عظم الفخذ", "عظم العضد", "عظم الترقوة", "عظم الساق",
-        1, "عظم الفخذ هو أطول وأقوى عظم في جسم الإنسان.", "عام",
-    ])
-    return _xlsx_response(wb, "قالب أسئلة.xlsx")
 
 
 # ------------------------------------------------------------------- export
@@ -142,42 +128,6 @@ def _import_students(db: Session, rows) -> dict:
     return {"kind": "students", "created": created, "skipped": skipped, "errors": errors}
 
 
-def _import_questions(db: Session, rows) -> dict:
-    created, errors = 0, []
-    for i, row in enumerate(rows, start=2):
-        if not row or not any(row):
-            continue
-        padded = list(row) + [None] * 9
-        subject_name, text, c1, c2, c3, c4, correct_idx, rationale, eyebrow = padded[:9]
-        if not subject_name or not text or not c1 or not c2:
-            errors.append(f"صف {i}: بيانات ناقصة (المادة، نص السؤال، وخيارين على الأقل مطلوبة)")
-            continue
-        subject = db.query(models.Subject).filter(models.Subject.name == str(subject_name).strip()).first()
-        if not subject:
-            errors.append(f'صف {i}: المادة "{subject_name}" غير موجودة بالمنهج')
-            continue
-        try:
-            correct_idx = int(correct_idx) if correct_idx else 1
-        except (TypeError, ValueError):
-            correct_idx = 1
-        choices = [c for c in [c1, c2, c3, c4] if c]
-        q = models.Question(
-            subject_id=subject.id, text=str(text).strip(),
-            rationale=str(rationale).strip() if rationale else "",
-            eyebrow=str(eyebrow).strip() if eyebrow else "",
-        )
-        db.add(q)
-        db.flush()
-        for idx, choice_text in enumerate(choices, start=1):
-            db.add(models.Choice(
-                question_id=q.id, text=str(choice_text).strip(),
-                is_correct=(idx == correct_idx), order_index=idx - 1,
-            ))
-        created += 1
-    db.commit()
-    return {"kind": "questions", "created": created, "errors": errors}
-
-
 @router.post("/import")
 async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Single dropzone for both templates — detects which one was uploaded
@@ -195,6 +145,5 @@ async def import_data(file: UploadFile = File(...), db: Session = Depends(get_db
         rows = list(ws.iter_rows(min_row=2, values_only=True))
         return _import_students(db, rows)
     if header[:2] == QUESTION_HEADERS[:2]:
-        rows = list(ws.iter_rows(min_row=2, values_only=True))
-        return _import_questions(db, rows)
+        raise HTTPException(403, "رفع الأسئلة من اختصاص الدكاترة ومساعديهم — من صفحة «أسئلتي» في حساب الدكتور")
     raise HTTPException(400, "تنسيق الملف غير معروف — استخدمي أحد القوالب المتاحة للتنزيل")

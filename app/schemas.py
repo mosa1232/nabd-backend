@@ -107,7 +107,7 @@ class PearlProfIn(BaseModel):
 
 
 class QuestionBulkIn(BaseModel):
-    questions: list["QuestionProfIn"] = Field(min_length=1, max_length=50)
+    questions: list["QuestionProfIn"] = Field(min_length=1, max_length=300)
 
 
 class PearlBulkIn(BaseModel):
