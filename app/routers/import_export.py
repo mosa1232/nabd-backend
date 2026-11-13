@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
-from ..deps import require_role
+from ..deps import admin_gate
 
-router = APIRouter(prefix="/api/admin", tags=["import-export"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(prefix="/api/admin", tags=["import-export"], dependencies=[Depends(admin_gate)])
 
 STUDENT_HEADERS = ["الاسم الكامل", "البريد الإلكتروني", "الجامعة", "المرحلة"]
 QUESTION_HEADERS = ["المادة", "نص السؤال", "الخيار 1", "الخيار 2", "الخيار 3", "الخيار 4", "رقم الإجابة الصحيحة (1-4)", "الشرح", "العنوان الفرعي"]

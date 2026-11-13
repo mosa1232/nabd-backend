@@ -76,6 +76,17 @@ class Settings(BaseSettings):
     password_reset_ttl_minutes: int = 60
     password_reset_cooldown_seconds: int = 120
 
+    # ------------------------------------------------------------------ AI
+    # The built-in assistant and the question generator call the Claude API.
+    # Without a key the AI features report themselves as unavailable and the
+    # rest of the platform is unaffected.
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-sonnet-5-5"
+    ai_timeout_seconds: int = 120
+    ai_rate_limit_per_hour: int = 40       # chat messages per user per hour
+    ai_generate_per_hour: int = 12         # file/question generations per user per hour
+    ai_max_upload_mb: int = 15
+
     # ---------------------------------------------------------- uploads
     # "local" writes to ./uploads (fine for development, but that directory
     # is wiped on every deploy on a host with an ephemeral disk). "s3" uses

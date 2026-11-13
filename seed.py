@@ -132,6 +132,19 @@ def _seed(db: Session) -> None:
         role=models.Role.reseller, password_hash=hash_password(DEMO_PASSWORD),
     )
     db.add(reseller_user)
+    # Demo back-office accounts for the new roles (same demo password).
+    db.add(models.User(
+        email="supervisor@nabd.app", full_name="سوبر فايزر المنصة",
+        role=models.Role.supervisor, password_hash=hash_password(DEMO_PASSWORD),
+    ))
+    db.add(models.User(
+        email="store@nabd.app", full_name="مدير المتجر",
+        role=models.Role.store_manager, password_hash=hash_password(DEMO_PASSWORD),
+    ))
+    reseller_user.permissions = "codes.generate,codes.view"
+    # Store sections.
+    for i, cat in enumerate(["ملازم", "أكواد التفعيل", "كتب ومستلزمات"]):
+        db.add(models.StoreCategory(name=cat, sort_order=i))
     db.flush()
 
     student_names = ["زهراء علي", "حسين كاظم", "مريم صالح", "علي حيدر", "دعاء ياسين"]
@@ -139,7 +152,7 @@ def _seed(db: Session) -> None:
     for name in student_names:
         u = models.User(
             email=f"{name.replace(' ', '.')}@uob.edu.iq", full_name=name,
-            role=models.Role.student, university_id=university.id, stage_id=stage.id,
+            role=models.Role.student, section_id=section.id, university_id=university.id, stage_id=stage.id,
         )
         db.add(u)
         db.flush()

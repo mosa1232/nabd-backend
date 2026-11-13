@@ -207,6 +207,50 @@
   .empty-row{text-align:center; padding:30px; color:var(--ink-faint); font-size:.82rem;}
 
   /* ---------- Hierarchy (catalog) ---------- */
+  /* AI assistant widget */
+  .ai-fab{position:fixed; bottom:20px; left:20px; z-index:900; width:54px; height:54px; border-radius:50%; display:grid; place-items:center; background:linear-gradient(145deg,var(--accent),var(--accent-2,#7b6ef6)); color:#fff; box-shadow:0 10px 26px rgba(76,95,224,.4); cursor:pointer; border:none;}
+  .ai-fab svg{width:24px; height:24px;}
+  .ai-panel{position:fixed; bottom:84px; left:20px; z-index:900; width:min(360px, calc(100vw - 32px)); height:min(500px, calc(100vh - 120px)); display:none; flex-direction:column; border-radius:20px; overflow:hidden; background:var(--glass-bg-strong); border:1px solid var(--glass-border); box-shadow:0 20px 50px rgba(10,15,30,.25); backdrop-filter:blur(18px);}
+  .ai-panel.open{display:flex;}
+  .ai-head{display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--glass-border); font-weight:800; font-size:.88rem;}
+  .ai-msgs{flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;}
+  .ai-msg{max-width:88%; padding:9px 12px; border-radius:14px; font-size:.82rem; line-height:1.8; white-space:pre-wrap; word-break:break-word;}
+  .ai-msg.user{align-self:flex-start; background:var(--accent); color:#fff;}
+  .ai-msg.bot{align-self:flex-end; background:var(--track);}
+  .ai-src{align-self:flex-end; max-width:88%; font-size:.68rem; color:var(--ink-faint); line-height:1.7; padding:0 6px;}
+  .ai-msg.err{align-self:center; background:var(--danger-soft,#fde8e8); color:var(--danger); font-size:.76rem;}
+  .ai-sugg{display:flex; flex-wrap:wrap; gap:6px; padding:0 12px 8px;}
+  .ai-sugg button{font-size:.7rem; padding:6px 10px; border-radius:999px; background:var(--track); color:var(--ink-soft); border:none; cursor:pointer;}
+  .ai-input{display:flex; gap:6px; padding:10px; border-top:1px solid var(--glass-border);}
+  .ai-input textarea{flex:1; resize:none; height:42px; padding:10px 12px; border-radius:14px; border:1.5px solid var(--glass-border); background:var(--glass-bg); color:var(--ink); font:inherit; font-size:.82rem;}
+  .ai-draft{border:1px solid var(--glass-border); border-radius:14px; padding:10px 12px; margin-bottom:8px; display:flex; gap:10px; align-items:flex-start;}
+  .ai-draft input[type=checkbox]{width:18px; height:18px; margin-top:3px; flex:none; padding:0;}
+  /* curriculum page */
+  .cat-search{width:100%; max-width:340px;}
+  .cat-add-root{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .cat-add-root input{flex:1; min-width:200px;}
+  .cat-sec{border:1px solid var(--glass-border); border-radius:var(--radius-md,18px); padding:14px 16px; margin-bottom:14px; background:var(--glass-bg-strong);}
+  .cat-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .cat-title{font-weight:800; font-size:.95rem; flex:1; min-width:120px;}
+  .cat-count{font-size:.7rem; color:var(--ink-faint);}
+  .cat-uni{border:1px solid var(--glass-border); border-radius:14px; margin-top:10px; background:var(--glass-bg);}
+  .cat-uni > summary{list-style:none; cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:700; font-size:.86rem;}
+  .cat-uni > summary::-webkit-details-marker{display:none;}
+  .cat-uni > summary::before{content:'◂'; color:var(--ink-faint); transition:transform .15s;}
+  .cat-uni[open] > summary::before{transform:rotate(-90deg);}
+  .cat-body{padding:2px 12px 12px;}
+  .cat-stage{border-top:1px dashed var(--glass-border); padding:10px 0;}
+  .cat-stage:first-child{border-top:none;}
+  .cat-stage-name{font-weight:700; font-size:.8rem; display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+  .cat-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .cat-chip{display:inline-flex; align-items:center; gap:4px; padding:5px 6px 5px 11px; border-radius:999px; background:var(--track); font-size:.76rem; font-weight:600;}
+  .cat-chip button, .cat-mini{width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:.7rem; line-height:1; color:var(--ink-faint); background:transparent;}
+  .cat-chip button:hover, .cat-mini:hover{background:var(--glass-border); color:var(--ink);}
+  .cat-chip button.danger:hover, .cat-mini.danger:hover{color:var(--danger);}
+  .cat-add{display:flex; gap:6px; align-items:center;}
+  .cat-add input{flex:1; min-width:0; padding:8px 12px; font-size:.78rem; border-radius:999px; border:1.5px dashed var(--glass-border); background:transparent; color:var(--ink); font-family:inherit;}
+  .cat-add input:focus{border-style:solid; border-color:var(--accent); outline:none;}
+  .cat-add button{padding:7px 14px; font-size:.74rem;}
   .hier-row{display:flex; align-items:center; gap:10px; padding:10px 8px; border-bottom:1px solid var(--glass-border); font-size:.82rem;}
   .hier-row:last-child{border-bottom:none;}
   .hier-icon{width:26px; height:26px; border-radius:8px; display:grid; place-items:center; flex:none; background:var(--track); color:var(--accent);}
@@ -416,11 +460,11 @@
           </div>
           <div class="toolbar">
             <div class="filter-chips" id="accountFilters"></div>
-            <input class="search-input" placeholder="ابحث بالاسم أو البريد..." id="accountSearch" oninput="renderAccountsTable()" />
+            <input class="search-input" placeholder="ابحث بالاسم أو البريد أو الهاتف..." id="accountSearch" oninput="renderAccountsTable()" />
           </div>
           <div class="table-wrap">
             <table class="dash-table">
-              <thead><tr><th>المستخدم</th><th>الدور</th><th>الجامعة</th><th>الحالة</th><th></th></tr></thead>
+              <thead><tr><th>المستخدم</th><th>الهاتف</th><th>الدور</th><th>الحالة</th><th>انضم / آخر دخول</th><th></th></tr></thead>
               <tbody id="accountsBody"></tbody>
             </table>
           </div>
@@ -456,42 +500,26 @@
       <section class="dash-section" id="sec-catalog">
         <div class="dash-card glass">
           <div class="dash-card-head">
-            <span class="dash-card-title">إدارة المناهج</span>
+            <span class="dash-card-title">المناهج</span>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn" onclick="openCatalogImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>استيراد المنهج كامل</button>
-            <button class="btn btn-ghost" onclick="promptAddSection()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة قسم</button>
+              <button class="btn" onclick="promptQuickCatalog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>إعداد سريع</button>
+              <button class="btn btn-ghost" onclick="openCatalogImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>استيراد من ملف</button>
             </div>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">الترتيب: <b>القسم</b> ← <b>الجامعة</b> ← <b>المرحلة</b> ← <b>المادة</b>. اكتب الاسم في الخانة واضغط Enter — ويمكنك كتابة عدة أسماء مفصولة بفاصلة.</div>
+          <div class="cat-add-root">
+            <div class="cat-add" style="flex:1; min-width:220px;">
+              <input id="add-root-" onpaste="catalogPaste(event)" placeholder="+ قسم جديد (مثال: طب بشري، صيدلة)" onkeydown="if(event.key==='Enter'){catalogInlineAdd('root','')}" />
+              <button class="btn" onclick="catalogInlineAdd('root','')">أضف</button>
+            </div>
+            <input class="search-input cat-search" id="catalogSearch" placeholder="بحث في المناهج..." oninput="renderCatalogTree()" />
           </div>
           <div id="catalogTree"></div>
         </div>
       </section>
 
       <!-- ===== ADMIN: Question Bank ===== -->
-      <section class="dash-section" id="sec-questions">
-        <div class="dash-card glass" style="margin-bottom:16px;">
-          <div class="dash-card-head">
-            <span class="dash-card-title">بنك الأسئلة</span>
-            <button class="btn" onclick="openQuestionForm()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة سؤال</button>
-          </div>
-          <div class="form-field" style="max-width:320px;">
-            <select id="qbSubjectSelect" onchange="onQuestionBankSubjectChange()"></select>
-          </div>
-          <div id="questionBankList"></div>
-        </div>
-        <div class="dash-card glass" id="questionFormCard" style="display:none;">
-          <div class="dash-card-head"><span class="dash-card-title" id="questionFormTitle">سؤال جديد</span></div>
-          <div class="form-field"><input id="qText" type="text" placeholder="نص السؤال" /></div>
-          <div class="form-field"><input id="qEyebrow" type="text" placeholder="العنوان الفرعي (مثال: علم الأنسجة)" /></div>
-          <div id="qChoicesArea"></div>
-          <button class="btn btn-ghost" style="margin-top:6px; padding:8px 14px; font-size:.78rem;" onclick="addChoiceField()">+ إضافة خيار</button>
-          <div class="form-field" style="margin-top:14px;"><input id="qRationale" type="text" placeholder="الشرح (اختياري)" /></div>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button class="btn" onclick="submitQuestionForm()">حفظ</button>
-            <button class="btn btn-ghost" onclick="closeQuestionForm()">إلغاء</button>
-          </div>
-          <div id="questionFormMsg" style="display:none; margin-top:10px; font-size:.8rem;"></div>
-        </div>
-      </section>
+
 
       <!-- ===== ADMIN: Students ===== -->
       <section class="dash-section" id="sec-students">
@@ -547,23 +575,7 @@
 
       <!-- ===== ADMIN: Media ===== -->
       <!-- ===== ADMIN: Clinical pearls ===== -->
-      <section class="dash-section" id="sec-pearls">
-        <div class="dash-card glass">
-          <div class="dash-card-head">
-            <span class="dash-card-title">لمحات سريرية</span>
-            <button class="btn" onclick="promptAddPearl()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة لمحة</button>
-          </div>
-          <div class="item-meta" style="margin-bottom:12px;">
-            العنوان يظهر لأي زائر في الصفحة الرئيسية قبل تسجيل الدخول — التفاصيل لا تُرسل إطلاقاً إلا بعد الدخول.
-          </div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>التصنيف</th><th>العنوان</th><th>التفاصيل</th><th></th></tr></thead>
-              <tbody id="pearlsBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+
 
       <section class="dash-section" id="sec-media">
         <div class="dash-card glass">
@@ -749,12 +761,98 @@
       <!-- ===== RESELLER: Codes (self-service) ===== -->
       <section class="dash-section" id="sec-r-codes">
         <div class="dash-card glass">
-          <button class="btn" style="margin-bottom:12px;" onclick="promptTakeCode()">+ أخذ كود</button>
+          <div id="rQuotaInfo" class="item-meta" style="margin-bottom:10px;"></div>
+          <button class="btn" id="rTakeBtn" style="margin-bottom:12px;" onclick="promptTakeCode()">+ أخذ كود</button>
           <div class="dash-card-head"><span class="dash-card-title">الأكواد</span></div>
           <div class="table-wrap">
             <table class="dash-table">
               <thead><tr><th>الكود</th><th>المادة</th><th>الحالة</th><th>تاريخ البيع</th></tr></thead>
               <tbody id="rCodesFullBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PROFESSOR / ASSISTANT: question bank ===== -->
+      <section class="dash-section" id="sec-p-questions">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">بنك أسئلتي</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="openAiGen('questions')">✨ توليد من ملف بالذكاء الاصطناعي</button>
+            <button class="btn" onclick="openProfQuestionEditor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>سؤال جديد</button>
+            </div>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">الأسئلة تُضاف تلقائياً إلى مادتك وتظهر لطلابها في بنك الأسئلة.</div>
+          <div id="pQuestionsList"></div>
+        </div>
+      </section>
+
+      <!-- ===== PROFESSOR / ASSISTANT: clinical pearls ===== -->
+      <section class="dash-section" id="sec-p-pearls">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">لمحاتي السريرية</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-ghost" onclick="openAiGen('pearls')">✨ توليد بالذكاء الاصطناعي</button>
+              <button class="btn" onclick="promptPearl()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة لمحة</button>
+            </div>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">تظهر اللمحة لطلاب قسمك (الكلية) فقط. العنوان يراه الزائر قبل تسجيل الدخول، أما التفاصيل والتشخيص فلا تظهر إلا بعد الدخول.</div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>التصنيف</th><th>العنوان</th><th>التفاصيل</th><th></th></tr></thead>
+              <tbody id="pPearlsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PROFESSOR: assistants ===== -->
+      <section class="dash-section" id="sec-p-assistants">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">مساعدو الدكتور</span>
+            <button class="btn" onclick="promptAddAssistant()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة مساعد</button>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">أنت تنشئ حساب المساعد وتحدّد له ما يستطيع فعله داخل مادتك — ويمكنك تغيير ذلك أو حذف الحساب في أي وقت.</div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>المساعد</th><th>الصلاحيات</th><th></th></tr></thead>
+              <tbody id="pAssistantsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== ADMIN: summer training ===== -->
+      <section class="dash-section" id="sec-summer">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">التدريب الصيفي</span>
+            <button class="btn" onclick="promptSummer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة فرصة تدريب</button>
+          </div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>العنوان</th><th>القسم</th><th>المكان</th><th>الفترة</th><th>الحالة</th><th></th></tr></thead>
+              <tbody id="summerBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== STORE MANAGER: resellers ===== -->
+      <section class="dash-section" id="sec-resellers">
+        <div class="dash-card glass">
+          <div class="dash-card-head">
+            <span class="dash-card-title">المندوبون وصلاحياتهم</span>
+            <button class="btn" onclick="promptAddReseller()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>مندوب جديد</button>
+          </div>
+          <div class="item-meta" style="margin-bottom:12px;">لكل مندوب صلاحياته الخاصة (عرض الأكواد / توليد أكواد) وحصة قصوى من الأكواد تحددها أنت.</div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>المندوب</th><th>الصلاحيات</th><th>الحصة</th><th>الأكواد</th><th></th></tr></thead>
+              <tbody id="resellersBody"></tbody>
             </table>
           </div>
         </div>
@@ -766,6 +864,7 @@
           <div class="tabs">
             <button class="tab-btn active" data-stab="orders" onclick="switchStoreTab('orders')">الطلبات</button>
             <button class="tab-btn" data-stab="products" onclick="switchStoreTab('products')">المنتجات</button>
+            <button class="tab-btn" data-stab="categories" onclick="switchStoreTab('categories')">أقسام المتجر</button>
           </div>
           <div class="tab-panel active" id="stab-orders">
             <div class="table-wrap">
@@ -779,8 +878,17 @@
             <button class="btn" style="margin-bottom:12px;" onclick="promptAddProduct()">+ إضافة منتج</button>
             <div class="table-wrap">
               <table class="dash-table">
-                <thead><tr><th>المنتج</th><th>النوع</th><th>السعر</th><th></th></tr></thead>
+                <thead><tr><th>المنتج</th><th>القسم</th><th>النوع</th><th>السعر</th><th></th></tr></thead>
                 <tbody id="storeProductsBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tab-panel" id="stab-categories">
+            <button class="btn" style="margin-bottom:12px;" onclick="promptCategory()">+ إضافة قسم</button>
+            <div class="table-wrap">
+              <table class="dash-table">
+                <thead><tr><th>القسم</th><th>الترتيب</th><th>المنتجات</th><th></th></tr></thead>
+                <tbody id="storeCategoriesBody"></tbody>
               </table>
             </div>
           </div>
@@ -788,6 +896,79 @@
       </section>
 
     </div>
+  </div>
+</div>
+
+<!-- ============ QUESTION EDITOR (admin bank + professor bank) ============ -->
+<div id="qEditorOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:998; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:560px; width:100%; max-height:92vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="qeTitle">سؤال جديد</span></div>
+    <div class="tabs" id="qeTypeTabs" style="margin-bottom:12px;">
+      <button class="tab-btn active" data-qtype="mcq" onclick="qeSetType('mcq')">اختيارات</button>
+      <button class="tab-btn" data-qtype="true_false" onclick="qeSetType('true_false')">صح / خطأ</button>
+      <button class="tab-btn" data-qtype="essay" onclick="qeSetType('essay')">مقالي</button>
+    </div>
+    <div class="form-field"><textarea id="qeText" rows="3" placeholder="نص السؤال" style="width:100%; resize:vertical; font:inherit; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink);"></textarea></div>
+    <div id="qeMcq">
+      <div id="qeChoices"></div>
+      <button class="btn btn-ghost" style="margin-top:4px; padding:7px 14px; font-size:.76rem;" onclick="qeAddChoice()">+ خيار</button>
+      <div class="item-meta" style="margin-top:6px;">اضغط الدائرة بجانب الخيار الصحيح.</div>
+    </div>
+    <div id="qeTF" style="display:none;">
+      <div class="item-meta" style="margin-bottom:8px;">ما هي الإجابة الصحيحة؟</div>
+      <div style="display:flex; gap:10px;">
+        <label style="flex:1; text-align:center; padding:12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); cursor:pointer;"><input type="radio" name="qeTf" value="صح" checked style="margin-inline-end:6px; width:auto; padding:0;" />صح</label>
+        <label style="flex:1; text-align:center; padding:12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); cursor:pointer;"><input type="radio" name="qeTf" value="خطأ" style="margin-inline-end:6px; width:auto; padding:0;" />خطأ</label>
+      </div>
+    </div>
+    <div id="qeEssay" style="display:none;">
+      <textarea id="qeModelAnswer" rows="4" placeholder="الإجابة النموذجية (يراها الطالب بعد أن يكتب إجابته)" style="width:100%; resize:vertical; font:inherit; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink);"></textarea>
+    </div>
+    <div class="form-field" style="margin-top:12px;"><textarea id="qeRationale" rows="2" placeholder="الشرح (اختياري)" style="width:100%; resize:vertical; font:inherit; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink);"></textarea></div>
+    <div class="form-field"><input id="qeEyebrow" type="text" placeholder="التصنيف الفرعي (اختياري) — مثال: علم الأنسجة" /></div>
+    <div id="qeMsg" style="display:none; font-size:.8rem; margin-top:4px;"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn" style="flex:1; justify-content:center;" onclick="qeSave()">حفظ</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" onclick="qeClose()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACCOUNT DETAILS ============ -->
+<div id="acctOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:997; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:480px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="acctTitle">بيانات الحساب</span></div>
+    <div id="acctBody"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;" id="acctActions"></div>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:10px;" onclick="closeAccountDetails()">إغلاق</button>
+  </div>
+</div>
+
+<!-- ============ AI GENERATOR (questions / pearls from a file) ============ -->
+<div id="aiGenOverlay" style="display:none; position:fixed; inset:0; background:rgba(10,15,30,.55); z-index:998; align-items:center; justify-content:center; padding:16px;">
+  <div class="dash-card glass" style="max-width:600px; width:100%; max-height:92vh; overflow-y:auto;">
+    <div class="dash-card-head"><span class="dash-card-title" id="aiGenTitle">✨ توليد بالذكاء الاصطناعي</span></div>
+    <div id="aiGenForm"></div>
+    <div id="aiGenResults" style="display:none;"></div>
+    <div id="aiGenMsg" style="display:none; font-size:.8rem; margin-top:8px;"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;" id="aiGenButtons"></div>
+  </div>
+</div>
+
+<!-- ============ AI ASSISTANT ============ -->
+<button class="ai-fab" id="aiFab" style="display:none;" onclick="toggleAiChat()" aria-label="المساعد الذكي" title="المساعد الذكي">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+</button>
+<div class="ai-panel" id="aiPanel" role="dialog" aria-label="المساعد الذكي">
+  <div class="ai-head"><span style="flex:1;">✨ مساعد Kiur<br><span id="aiKnow" style="font-weight:600; font-size:.66rem; color:var(--ink-faint);"></span></span>
+    <button class="icon-btn" style="width:28px;height:28px;" onclick="aiClear()" title="محادثة جديدة" aria-label="محادثة جديدة">↺</button>
+    <button class="icon-btn" style="width:28px;height:28px;" onclick="toggleAiChat()" aria-label="إغلاق">✕</button>
+  </div>
+  <div class="ai-msgs" id="aiMsgs"></div>
+  <div class="ai-sugg" id="aiSugg"></div>
+  <div class="ai-input">
+    <textarea id="aiInput" placeholder="اسألني أي شيء عن المنصة أو عملك..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); aiSend();}"></textarea>
+    <button class="btn" onclick="aiSend()" id="aiSendBtn">إرسال</button>
   </div>
 </div>
 
@@ -973,6 +1154,15 @@
         const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
         return `<div class="form-field">${labelHtml}<select id="gm_${f.id}">${opts}</select></div>`;
       }
+      if (f.type === 'checks'){
+        // A group of checkboxes (permissions). Value = array of checked codes.
+        const checked = new Set(f.value || []);
+        return `<div class="form-field">${labelHtml}<div id="gm_${f.id}" data-checks="1" style="display:grid; gap:8px;">${f.options.map(o => `
+          <label style="display:flex; gap:8px; align-items:flex-start; font-size:.82rem; cursor:pointer;">
+            <input type="checkbox" value="${esc(o.value)}" ${checked.has(o.value) ? 'checked' : ''} style="width:16px; height:16px; margin-top:2px; flex:none; padding:0;" />
+            <span>${esc(o.label)}</span>
+          </label>`).join('')}</div></div>`;
+      }
       if (f.type === 'textarea'){
         // Used for pasting a whole list at once — one item per line.
         return `<div class="form-field">${labelHtml}<textarea id="gm_${f.id}" rows="${f.rows || 8}"
@@ -998,7 +1188,12 @@
   async function genericModalSubmit(){
     if (!genericModalOnSubmit) return;
     const values = {};
-    genericModalFieldsSpec.forEach(f => { values[f.id] = document.getElementById('gm_' + f.id).value; });
+    genericModalFieldsSpec.forEach(f => {
+      const el = document.getElementById('gm_' + f.id);
+      values[f.id] = f.type === 'checks'
+        ? [...el.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value)
+        : el.value;
+    });
     const msg = document.getElementById('genericModalMsg');
     msg.style.display = 'block';
     msg.style.color = 'var(--ink-faint)';
@@ -1302,6 +1497,7 @@
     // next page load would restore the session we just "logged out" of.
     if (authToken) apiFetch('/auth/logout', {method: 'POST'}).catch(() => {});
     authToken = null; currentUser = null; liveMode = false;
+    aiHistory = []; aiShowFab(false);
     document.getElementById('shell').classList.remove('active');
     document.getElementById('view-login').style.display = 'flex';
   }
@@ -1345,6 +1541,7 @@
     document.getElementById('miniName').textContent = currentUser.full_name;
     document.getElementById('miniAvatar').textContent = currentUser.full_name.trim().split(' ').map(w => w[0]).slice(0,2).join('');
     switchRole(role);
+    aiShowFab(liveMode);
   }
 
   // ---------- Roles / sidebar ----------
@@ -1363,34 +1560,94 @@
     bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   };
 
-  const roles = {
-    admin: {label:'سوبر أدمن', items:[
-      {id:'overview', label:'نظرة عامة', icon:'grid'},
-      {id:'accounts', label:'الحسابات', icon:'users'},
-      {id:'notifications', label:'الإشعارات', icon:'bell'},
-      {id:'catalog', label:'المناهج', icon:'book'},
-      {id:'questions', label:'بنك الأسئلة', icon:'pdf'},
-      {id:'pearls', label:'لمحات سريرية', icon:'book'},
-      {id:'students', label:'الطلاب', icon:'student'},
-      {id:'bans', label:'الحظر', icon:'ban'},
-      {id:'store', label:'المتجر', icon:'key'},
-      {id:'media', label:'الملفات', icon:'media'},
-      {id:'logs', label:'سجل النشاطات', icon:'log'},
-      {id:'importexport', label:'استيراد وتصدير', icon:'importexport'},
-    ], default:'overview'},
-    professor: {label:'لوحة الدكتور', items:[
-      {id:'p-overview', label:'نظرة عامة', icon:'grid'},
-      {id:'p-booklets', label:'ملازمي', icon:'pdf'},
-      {id:'p-exams', label:'امتحاناتي', icon:'exam'},
-      {id:'p-courses', label:'كورساتي', icon:'log'},
-      {id:'p-students', label:'طلابي', icon:'student'},
-    ], default:'p-overview'},
-    reseller: {label:'لوحة المندوب', items:[
-      {id:'r-overview', label:'رصيد الأكواد', icon:'key'},
-      {id:'r-codes', label:'الأكواد', icon:'pdf'},
-      {id:'r-sales', label:'سجل المبيعات', icon:'log'},
-    ], default:'r-overview'},
+  // ---------- Permissions ----------
+  // The server enforces every permission on its own; this only decides which
+  // pages and buttons are worth showing. Mirrors app/permissions.py.
+  const ALL_STAFF_PERMS = ['dashboard.analytics','users.manage','users.ban','catalog.manage','content.manage','store.manage','resellers.manage'];
+  const PROF_PERM_LIST = ['prof.questions','prof.exams','prof.courses','prof.booklets','prof.pearls','prof.students'];
+  const PERM_LABELS = {
+    'dashboard.analytics':'الإحصائيات ونظرة عامة وسجل النشاطات',
+    'users.manage':'إدارة الحسابات والأدوار',
+    'users.ban':'الحظر والطعون',
+    'catalog.manage':'إدارة المناهج',
+    'content.manage':'المحتوى: التدريب الصيفي والإشعارات والملفات',
+    'store.manage':'المتجر: المنتجات والأقسام والطلبات',
+    'resellers.manage':'إدارة المندوبين وصلاحياتهم',
+    'codes.view':'عرض الأكواد وسجل المبيعات',
+    'codes.generate':'توليد / أخذ أكواد جديدة',
+    'prof.questions':'رفع وتعديل الأسئلة',
+    'prof.exams':'إنشاء الامتحانات (الكوزات)',
+    'prof.courses':'الكورسات والمحاضرات',
+    'prof.booklets':'الملازم',
+    'prof.pearls':'اللمحات السريرية',
+    'prof.students':'مشاهدة الطلاب',
   };
+  function myPerms(){
+    if (liveMode && currentUser && currentUser.effective_permissions) return new Set(currentUser.effective_permissions);
+    // offline preview: show everything the previewed role would
+    if (currentRole === 'admin') return new Set([...ALL_STAFF_PERMS, 'codes.view', 'codes.generate', ...PROF_PERM_LIST]);
+    if (currentRole === 'professor') return new Set(PROF_PERM_LIST);
+    if (currentRole === 'reseller') return new Set(['codes.view', 'codes.generate']);
+    return new Set();
+  }
+  function can(p){ return myPerms().has(p); }
+  function canSee(item){
+    const p = myPerms();
+    if (item.perm === 'any') return PROF_PERM_LIST.some(x => p.has(x));
+    if (item.perm === 'owner') return currentRole === 'professor';
+    if (item.perm === 'codes.any') return p.has('codes.view') || p.has('codes.generate');
+    return p.has(item.perm);
+  }
+
+  const STAFF_NAV = [
+    {id:'overview', label:'نظرة عامة', icon:'grid', perm:'dashboard.analytics'},
+    {id:'accounts', label:'الحسابات والأدوار', icon:'users', perm:'users.manage'},
+    {id:'resellers', label:'المندوبون', icon:'key', perm:'resellers.manage'},
+    {id:'notifications', label:'الإشعارات', icon:'bell', perm:'content.manage'},
+    {id:'catalog', label:'المناهج', icon:'book', perm:'catalog.manage'},
+    {id:'summer', label:'التدريب الصيفي', icon:'exam', perm:'content.manage'},
+    {id:'students', label:'الطلاب', icon:'student', perm:'dashboard.analytics'},
+    {id:'bans', label:'الحظر', icon:'ban', perm:'users.ban'},
+    {id:'store', label:'المتجر', icon:'key', perm:'store.manage'},
+    {id:'media', label:'الملفات', icon:'media', perm:'content.manage'},
+    {id:'logs', label:'سجل النشاطات', icon:'log', perm:'dashboard.analytics'},
+    {id:'importexport', label:'استيراد وتصدير', icon:'importexport', perm:'content.manage'},
+  ];
+  const PROF_NAV = [
+    {id:'p-overview', label:'نظرة عامة', icon:'grid', perm:'any'},
+    {id:'p-questions', label:'بنك أسئلتي', icon:'pdf', perm:'prof.questions'},
+    {id:'p-pearls', label:'لمحات سريرية', icon:'book', perm:'prof.pearls'},
+    {id:'p-exams', label:'امتحاناتي (كوزات)', icon:'exam', perm:'prof.exams'},
+    {id:'p-booklets', label:'ملازمي', icon:'pdf', perm:'prof.booklets'},
+    {id:'p-courses', label:'كورساتي', icon:'log', perm:'prof.courses'},
+    {id:'p-students', label:'طلابي', icon:'student', perm:'prof.students'},
+    {id:'p-assistants', label:'مساعدو الدكتور', icon:'users', perm:'owner'},
+  ];
+  const RES_NAV = [
+    {id:'r-overview', label:'رصيد الأكواد', icon:'key', perm:'codes.view'},
+    {id:'r-codes', label:'الأكواد', icon:'pdf', perm:'codes.any'},
+    {id:'r-sales', label:'سجل المبيعات', icon:'log', perm:'codes.view'},
+  ];
+  const ROLE_NAV = {
+    admin: STAFF_NAV, supervisor: STAFF_NAV, store_manager: STAFF_NAV,
+    professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV,
+  };
+  const ROLE_LABELS = {
+    admin:'المشرف (أدمن)', supervisor:'سوبر فايزر', store_manager:'مدير المتجر',
+    professor:'لوحة الدكتور', assistant:'مساعد الدكتور', reseller:'لوحة المندوب',
+  };
+  // `roles[x]` stays the lookup the rest of this file already uses (existence
+  // check, label, items, default section) — items are now computed from the
+  // signed-in account's permissions instead of being a fixed list per role.
+  const roles = {};
+  Object.keys(ROLE_NAV).forEach(r => {
+    Object.defineProperty(roles, r, {enumerable: true, value: {
+      label: ROLE_LABELS[r],
+      get items(){ return ROLE_NAV[r].filter(canSee); },
+      get default(){ return (this.items[0] || {}).id; },
+    }});
+  });
+  const PREVIEW_ROLES = ['admin', 'professor', 'reseller'];
 
   function renderRoleSwitch(){
     const wrap = document.getElementById('roleSwitch');
@@ -1401,7 +1658,7 @@
       wrap.innerHTML = `<div class="role-pill active" style="cursor:default;">${roles[currentRole].label}</div>`;
       return;
     }
-    wrap.innerHTML = Object.keys(roles).map(r => `
+    wrap.innerHTML = PREVIEW_ROLES.map(r => `
       <button class="role-pill ${r === currentRole ? 'active' : ''}" onclick="switchRole('${r}')">${roles[r].label}</button>
     `).join('');
   }
@@ -1419,7 +1676,14 @@
     document.getElementById('miniRole').textContent = roles[role].label + (liveMode ? '' : ' · معاينة');
     renderRoleSwitch();
     renderSidebar();
-    showSection(roles[role].default);
+    const first = roles[role].default;
+    if (!first){
+      document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
+      document.getElementById('dashTitle').textContent = '';
+      showToast('لا توجد صلاحيات مفعّلة لحسابك بعد — تواصل مع مسؤولك', 'error');
+      return;
+    }
+    showSection(first);
   }
 
   function showSection(id){
@@ -1447,7 +1711,7 @@
   function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleDateString('ar-IQ', {day:'numeric', month:'short'}); }
   function initialsOf(name){ return (name||'').trim().split(' ').map(w=>w[0]).slice(0,2).join(''); }
   function roleBadge(role){
-    const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب'};
+    const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور'};
     return `<span class="badge badge-${role}">${map[role]||role}</span>`;
   }
   // Weekday label for a YYYY-MM-DD string, so a real per-day series can
@@ -1475,10 +1739,12 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, notifications: loadNotifHistory, catalog: loadCatalog, questions: loadQuestionBank,
-    students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs, pearls: loadPearls,
+    overview: loadOverview, accounts: loadAccounts, notifications: loadNotifHistory, catalog: loadCatalog,
+    students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
+    'p-questions': loadProfessorQuestions, 'p-pearls': loadProfessorPearls, 'p-assistants': loadAssistants,
+    summer: loadSummer, resellers: loadResellers,
     'r-overview': loadResellerOverview, 'r-sales': loadResellerSales, 'r-codes': loadResellerCodes,
     store: loadStore,
   };
@@ -1516,8 +1782,8 @@
   let allAccounts = [];
   let allCatalogRows = [];
   async function loadAccounts(){
-    const chips = ['all','admin','student','professor'];
-    const labels = {all:'الكل', admin:'أدمن', student:'طلاب', professor:'دكاترة'};
+    const chips = ['all','admin','supervisor','store_manager','professor','assistant','reseller','student'];
+    const labels = {all:'الكل', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', student:'طلاب'};
     document.getElementById('accountFilters').innerHTML = chips.map(c => `
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
@@ -1532,28 +1798,28 @@
       try {
         (await apiFetch('/api/admin/professors')).forEach(p => { profSubjectByUser[p.user_id] = p; });
         (await apiFetch('/api/admin/catalog'))
-          .filter(r => r.type === 'university')
-          .forEach(r => { universityNameById[r.id] = r.name; });
+          .forEach(r => { catalogNameById[r.id] = r.name; if (r.type === 'university') universityNameById[r.id] = r.name; });
       } catch (e) { /* table still renders, just without these extras */ }
     }
     renderAccountsTable();
   }
   let profSubjectByUser = {};
   let universityNameById = {};
+  let catalogNameById = {};
   let accountFilter = 'all';
   function filterAccounts(role){
     accountFilter = role;
     document.querySelectorAll('#accountFilters .filter-chip').forEach(c => c.classList.toggle('active', c.dataset.role === role));
     renderAccountsTable();
   }
-  function accountName(userId){
+  var accountName = function(userId){
     return (allAccounts.find(a => String(a.id) === String(userId)) || {}).full_name || '';
-  }
+  };
 
   function renderAccountsTable(){
     const q = (document.getElementById('accountSearch')?.value || '').trim().toLowerCase();
     let list = accountFilter === 'all' ? allAccounts : allAccounts.filter(a => a.role === accountFilter);
-    if (q) list = list.filter(a => a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
+    if (q) list = list.filter(a => a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.phone || '').includes(q));
     const editBtn = a => `<button class="icon-btn" aria-label="تعديل المستخدم" style="width:30px;height:30px;" title="تعديل" onclick="promptEditUser('${a.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
     const banBtn = a => a.is_banned
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="unbanUserAccount('${a.id}')">رفع الحظر</button>`
@@ -1561,24 +1827,21 @@
     const totpBtn = a => a.totp_enabled
       ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" title="يلغي التحقق بخطوتين عن هذا الحساب" onclick="promptReset2FA('${a.id}')">إعادة تعيين 2FA</button>`
       : '';
+    const when = iso => iso ? new Date(iso).toLocaleDateString('ar-IQ', {day: 'numeric', month: 'short', year: 'numeric'}) : '—';
     document.getElementById('accountsBody').innerHTML = list.map(a => `
-      <tr>
+      <tr style="cursor:pointer;" onclick="showAccountDetails('${a.id}')">
         <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${esc(a.full_name)}</div><div class="cell-sub mono">${esc(a.email)}</div></div></div></td>
+        <td class="mono" dir="ltr" style="text-align:end;">${esc(a.phone || '—')}</td>
         <td>${roleBadge(a.role)}${a.role === 'professor' ? professorSubjectCell(a) : ''}</td>
-        <td>${esc(universityNameById[a.university_id] || '—')}</td>
         <td>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
-        <td style="text-align:end;">${a.role === 'reseller'
-          ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
-              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}')">توليد أكواد</button>
-              <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${a.id}')">أخذ كود</button>
-              ${totpBtn(a)}
-              ${editBtn(a)}
-            </div>`
-          : a.role === 'admin'
-          ? `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${totpBtn(a)}${editBtn(a)}</div>`
-          : `<div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">${banBtn(a)}${totpBtn(a)}${editBtn(a)}</div>`}</td>
+        <td><div class="cell-sub">انضم ${when(a.created_at)}</div><div class="cell-sub">آخر دخول ${when(a.last_login)}</div></td>
+        <td style="text-align:end;" onclick="event.stopPropagation()"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="showAccountDetails('${a.id}')">التفاصيل</button>
+          ${a.role === 'reseller' ? `<button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${a.id}')">توليد أكواد</button>` : ''}
+          ${editBtn(a)}
+        </div></td>
       </tr>
-    `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد نتائج</td></tr>`;
+    `).join('') || `<tr><td colspan="6" class="empty-row">لا يوجد نتائج</td></tr>`;
   }
 
   // A professor with no profile can sign in but their whole dashboard 404s,
@@ -1763,9 +2026,21 @@
   const ROLE_OPTIONS = [
     {value: 'student', label: 'طالب'},
     {value: 'professor', label: 'دكتور'},
+    {value: 'assistant', label: 'مساعد دكتور'},
     {value: 'reseller', label: 'مندوب'},
-    {value: 'admin', label: 'أدمن'},
+    {value: 'store_manager', label: 'مدير المتجر'},
+    {value: 'supervisor', label: 'سوبر فايزر'},
+    {value: 'admin', label: 'أدمن (مشرف المنصة)'},
   ];
+  // Only a full admin may create or edit admins, supervisors and store
+  // managers — everyone else with account access sees just the other roles.
+  const roleOptionsForMe = () => currentRole === 'admin' ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
+  const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({value: c, label: PERM_LABELS[c]}));
+  async function professorOptions(){
+    const rows = await apiFetch('/api/admin/professors');
+    return [{value: '', label: 'لا ينطبق — ليس مساعداً'}].concat(rows.map(r => ({value: r.user_id, label: r.full_name})));
+  }
 
   // Every subject in the catalog, for the professor-subject pickers.
   async function subjectOptions(){
@@ -1777,11 +2052,16 @@
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     let subjects = [];
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
+    let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
+    try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
+      {id: 'phone', label: 'رقم الهاتف (اختياري)', type: 'tel', placeholder: '07xxxxxxxxx'},
       {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
-      {id: 'role', label: 'الصلاحية', type: 'select', value: 'student', options: ROLE_OPTIONS},
+      {id: 'role', label: 'الدور', type: 'select', value: 'student', options: roleOptionsForMe()},
+      {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: '', options: professors},
+      {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
       // dashboard 404s, so the subject is collected here rather than left
       // as a step an admin has no way of knowing they still owe.
@@ -1797,9 +2077,14 @@
         method: 'POST',
         body: JSON.stringify({
           full_name: v.fullName.trim(), email: v.email.trim(), role: v.role,
+          phone: v.phone.trim() || null,
           password: v.password || null,
           subject_id: v.role === 'professor' ? v.subjectId : null,
           title: v.role === 'professor' ? (v.title || '').trim() : null,
+          parent_user_id: v.role === 'assistant' ? (v.parentUserId || null) : null,
+          // a reseller made here can view + take codes unless the store manager says otherwise
+          permissions: v.role === 'reseller' ? ['codes.view', 'codes.generate']
+            : (['supervisor', 'store_manager'].includes(v.role) ? v.perms : []),
         }),
       });
       loadAccounts();
@@ -1828,20 +2113,30 @@
     });
   }
 
-  function promptEditUser(id){
+  async function promptEditUser(id){
     const current = allAccounts.find(a => a.id === id);
     if (!current) return;
+    let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
+    try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
+    const isStaff = ['supervisor', 'store_manager'].includes(current.role);
     openGenericModal('تعديل مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text', value: current.full_name},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text', value: current.email},
-      {id: 'password', label: 'كلمة مرور جديدة (اتركيه فارغاً للإبقاء عليها)', type: 'password'},
-      {id: 'role', label: 'الصلاحية', type: 'select', value: current.role, options: ROLE_OPTIONS},
+      {id: 'phone', label: 'رقم الهاتف', type: 'tel', value: current.phone || '', placeholder: '07xxxxxxxxx'},
+      {id: 'password', label: 'كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)', type: 'password'},
+      {id: 'role', label: 'الدور', type: 'select', value: current.role,
+       options: roleOptionsForMe().some(o => o.value === current.role) ? roleOptionsForMe() : ROLE_OPTIONS},
+      {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: current.parent_user_id || '', options: professors},
+      {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks',
+       value: current.extra_permissions || [], options: STAFF_PERM_OPTIONS},
     ], async (v) => {
       if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
-      await apiFetch('/api/admin/users/' + id, {
-        method: 'PUT',
-        body: JSON.stringify({full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, password: v.password || null}),
-      });
+      const body = {full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, phone: v.phone.trim(), password: v.password || null};
+      if (v.role === 'assistant') body.parent_user_id = v.parentUserId || null;
+      // staff grants are only sent for the roles that use them, so editing a
+      // reseller or professor here never wipes their own kind of grants
+      if (['supervisor', 'store_manager'].includes(v.role)) body.permissions = v.perms;
+      await apiFetch('/api/admin/users/' + id, {method: 'PUT', body: JSON.stringify(body)});
       loadAccounts();
     });
   }
@@ -1852,31 +2147,120 @@
   // adds ("+ مادة", "+ مرحلة", "+ جامعة") in a labelled button.
   const CATALOG_CHILD_NOUN = {section: 'جامعة', university: 'مرحلة', stage: 'مادة'};
 
+  const catalogOpen = new Set();   // universities the user has expanded
+  let catalogNested = [];
+
+  function nestCatalog(rows){
+    const secs = []; let sec = null, uni = null, st = null;
+    rows.forEach(r => {
+      if (!r.id) return;
+      if (r.type === 'section'){ sec = {...r, universities: []}; secs.push(sec); uni = st = null; }
+      else if (r.type === 'university' && sec){ uni = {...r, stages: []}; sec.universities.push(uni); st = null; }
+      else if (r.type === 'stage' && uni){ st = {...r, subjects: []}; uni.stages.push(st); }
+      else if (r.type === 'subject' && st){ st.subjects.push(r); }
+    });
+    return secs;
+  }
+
   async function loadCatalog(){
     const rows = await liveOrDemo('/api/admin/catalog', [], []);
     allCatalogRows = rows;
-    const typeIcon = {section:'book', university:'grid', stage:'log', subject:'pdf'};
-    const tree = document.getElementById('catalogTree');
-    if (!rows.length){
-      tree.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — ابدأ بـ "إضافة قسم" في الأعلى</div>`;
+    catalogNested = nestCatalog(rows);
+    renderCatalogTree();
+  }
+
+  const ic = {
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>',
+  };
+  const actions = (type, id, withCopy) => `
+    <button class="cat-mini" title="تعديل الاسم" onclick="event.preventDefault(); event.stopPropagation(); promptRenameCatalog('${type}','${id}')">${ic.edit}</button>
+    ${withCopy ? `<button class="cat-mini" title="نسخ مع كل ما تحته" onclick="event.preventDefault(); event.stopPropagation(); promptDuplicateCatalog('${type}','${id}')">${ic.copy}</button>` : ''}
+    <button class="cat-mini danger" title="حذف" onclick="event.preventDefault(); event.stopPropagation(); deleteCatalogNode('${type}','${id}')">${ic.del}</button>`;
+  // A single-line box silently joins pasted lines into one name; turn each
+  // pasted line into its own name instead (so a column copied from Excel works).
+  function catalogPaste(e){
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/[\r\n]/.test(text)) return;
+    e.preventDefault();
+    const el = e.target;
+    const add = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean).join('، ');
+    el.value = (el.value ? el.value.replace(/[،,\s]+$/, '') + '، ' : '') + add;
+  }
+  const addBox = (parentType, parentId, placeholder) => `
+    <div class="cat-add">
+      <input id="add-${parentType}-${parentId}" placeholder="${placeholder}" onpaste="catalogPaste(event)" onkeydown="if(event.key==='Enter'){catalogInlineAdd('${parentType}','${parentId}')}" />
+      <button class="btn btn-ghost" onclick="catalogInlineAdd('${parentType}','${parentId}')">أضف</button>
+    </div>`;
+
+  function renderCatalogTree(){
+    const el = document.getElementById('catalogTree');
+    if (!catalogNested.length){
+      el.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — اكتب اسم أول قسم في الخانة بالأعلى، أو استخدم «إعداد سريع»</div>`;
       return;
     }
-    tree.innerHTML = rows.map(r => {
-      const noun = CATALOG_CHILD_NOUN[r.type];
+    const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
+    const has = t => t.toLowerCase().includes(q);
+    const html = catalogNested.map(sec => {
+      const secHit = !q || has(sec.name);
+      const unis = sec.universities.map(uni => {
+        const uniHit = secHit || has(uni.name);
+        const stages = uni.stages.filter(st => uniHit || has(st.name) || st.subjects.some(sb => has(sb.name)));
+        if (q && !uniHit && !stages.length) return '';
+        const stageHtml = stages.map(st => `
+          <div class="cat-stage">
+            <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
+            <div class="cat-chips">${st.subjects.map(sb => `
+              <span class="cat-chip">${esc(sb.name)}
+                <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
+                <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
+              </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
+            ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
+          </div>`).join('');
+        const open = q || catalogOpen.has(uni.id) ? 'open' : '';
+        return `
+          <details class="cat-uni" ${open} ontoggle="this.open ? catalogOpen.add('${uni.id}') : catalogOpen.delete('${uni.id}')">
+            <summary><span style="flex:1;">${esc(uni.name)} <span class="cat-count">· ${uni.stages.length} مراحل</span></span> ${actions('university', uni.id, true)}</summary>
+            <div class="cat-body">${stageHtml}
+              <div style="margin-top:8px;">${addBox('university', uni.id, '+ مرحلة (أو عدة مراحل مفصولة بفاصلة)')}</div>
+            </div>
+          </details>`;
+      }).join('');
+      if (q && !secHit && !unis) return '';
       return `
-      <div class="hier-row" style="padding-inline-start:${r.level*22 + 8}px;">
-        <span class="hier-icon">${ICONS[typeIcon[r.type]]}</span>
-        ${r.type === 'subject' && r.id
-          ? `<span class="hier-name" style="cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;" onclick="openQuestionBank('${r.id}')">${esc(r.name)}</span>`
-          : `<span class="hier-name">${esc(r.name)}</span>`}
-        <span class="hier-meta">${esc(r.meta)}</span>
-        ${noun && r.id ? `<button class="btn btn-ghost hier-add" onclick="promptAddCatalogChild('${r.type}', '${r.id}')" title="إضافة ${noun} داخل ${esc(r.name)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>${noun}</button>` : ''}
-        ${r.id && r.type !== 'subject' ? `<button class="icon-btn" aria-label="نسخ مع كل ما تحته" style="width:24px;height:24px;" title="نسخ ${esc(r.name)} مع كل ما تحته" onclick="promptDuplicateCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>` : ''}
-        ${r.id ? `
-          <button class="icon-btn" aria-label="تعديل الاسم" style="width:24px;height:24px;" title="تعديل الاسم" onclick="promptRenameCatalog('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-          <button class="icon-btn" aria-label="حذف" style="width:24px;height:24px;" title="حذف" onclick="deleteCatalogNode('${r.type}', '${r.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>` : ''}
-      </div>`;
+        <div class="cat-sec">
+          <div class="cat-head">
+            <span class="cat-title">${esc(sec.name)}</span>
+            <span class="cat-count">${sec.universities.length} جامعات</span>
+            ${actions('section', sec.id, true)}
+          </div>
+          ${unis}
+          <div style="margin-top:10px;">${addBox('section', sec.id, '+ جامعة (أو عدة جامعات مفصولة بفاصلة)')}</div>
+        </div>`;
     }).join('');
+    el.innerHTML = html || `<div class="empty-row">لا توجد نتائج لهذا البحث</div>`;
+  }
+
+  // One box adds one name or many ("بغداد، البصرة، الموصل"). The tree keeps
+  // its open/closed state and the focus returns to the same box, so adding a
+  // dozen subjects in a row is just typing.
+  const ADD_NOUN = {root: 'قسم', section: 'جامعة', university: 'مرحلة', stage: 'مادة'};
+  async function catalogInlineAdd(parentType, parentId){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const input = document.getElementById(`add-${parentType}-${parentId}`);
+    const names = (input.value || '').split(/[\n,،]+/).map(n => n.trim()).filter(Boolean);
+    if (!names.length) return;
+    try {
+      const res = await apiFetch('/api/admin/catalog/bulk', {
+        method: 'POST',
+        body: JSON.stringify({parent_type: parentType, parent_id: parentId || null, names}),
+      });
+      reportBulk(res, ADD_NOUN[parentType]);
+      if (parentType === 'section' || parentType === 'university') catalogOpen.add(parentId);
+      await loadCatalog();
+      document.getElementById(`add-${parentType}-${parentId}`)?.focus();
+    } catch (e) { showToast(e.detail || 'تعذّرت الإضافة', 'error'); }
   }
 
   // Everything below adds in bulk. A real curriculum is on the order of a
@@ -2118,146 +2502,140 @@
     } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
-  // ===== ADMIN: question bank =====
-  let currentQuestionBankSubject = null;
-  let currentQuestions = [];
-  let editingQuestionId = null;
+  // ===== Shared question editor =====
+  // One editor for the admin's bank and the professor's / assistant's bank.
+  // qeCtx says where to save; the type tabs keep it to the three styles the
+  // platform supports (multiple choice, true/false, essay).
+  let qeCtx = null;
+  let qeType = 'mcq';
+  const QTYPE_LABEL = {mcq: 'اختيارات', true_false: 'صح / خطأ', essay: 'مقالي'};
 
-  function openQuestionBank(subjectId){
-    currentQuestionBankSubject = subjectId;
-    showSection('questions');
+  function qeSetType(t){
+    qeType = t;
+    document.querySelectorAll('#qeTypeTabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.qtype === t));
+    document.getElementById('qeMcq').style.display = t === 'mcq' ? 'block' : 'none';
+    document.getElementById('qeTF').style.display = t === 'true_false' ? 'block' : 'none';
+    document.getElementById('qeEssay').style.display = t === 'essay' ? 'block' : 'none';
   }
 
-  async function loadQuestionBank(){
-    if (!allCatalogRows.length){ try { allCatalogRows = await apiFetch('/api/admin/catalog'); } catch (e) {} }
-    const subjects = allCatalogRows.filter(r => r.type === 'subject');
-    const select = document.getElementById('qbSubjectSelect');
-    select.innerHTML = subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-    if (currentQuestionBankSubject && subjects.some(s => s.id === currentQuestionBankSubject)){
-      select.value = currentQuestionBankSubject;
-    } else if (subjects.length){
-      currentQuestionBankSubject = subjects[0].id;
-      select.value = currentQuestionBankSubject;
-    } else {
-      currentQuestionBankSubject = null;
-    }
-    closeQuestionForm();
-    await renderQuestionList();
-  }
-
-  function onQuestionBankSubjectChange(){
-    currentQuestionBankSubject = document.getElementById('qbSubjectSelect').value;
-    closeQuestionForm();
-    renderQuestionList();
-  }
-
-  async function renderQuestionList(){
-    const listEl = document.getElementById('questionBankList');
-    if (!currentQuestionBankSubject){ listEl.innerHTML = '<div class="empty-row">أضف مادة أولاً من صفحة المناهج</div>'; return; }
-    if (!liveMode){ listEl.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الأسئلة</div>'; return; }
-    try {
-      currentQuestions = await apiFetch('/api/admin/questions?subject_id=' + currentQuestionBankSubject);
-      listEl.innerHTML = currentQuestions.map(q => `
-        <div class="item-card glass" style="align-items:flex-start;">
-          <div class="item-body">
-            <div class="item-title">${esc(q.text)}</div>
-            <div class="item-meta">${q.choices.map(c => (c.is_correct ? '✓ ' : '• ') + c.text).join(' · ')}</div>
-          </div>
-          <div style="display:flex; gap:6px; flex:none;">
-            <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="openQuestionForm('${q.id}')">تعديل</button>
-            <button class="icon-btn" title="حذف السؤال" aria-label="حذف السؤال" style="width:28px;height:28px;" onclick="deleteQuestionAdmin('${q.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
-          </div>
-        </div>
-      `).join('') || '<div class="empty-row">لا توجد أسئلة لهذه المادة بعد</div>';
-    } catch (e) { listEl.innerHTML = '<div class="empty-row">تعذّر تحميل الأسئلة</div>'; }
-  }
-
-  function addChoiceField(text, isCorrect){
-    const area = document.getElementById('qChoicesArea');
+  function qeAddChoice(text, isCorrect){
+    const area = document.getElementById('qeChoices');
     const idx = area.children.length;
     const row = document.createElement('div');
     row.className = 'form-field';
     row.style.cssText = 'display:flex; gap:8px; align-items:center;';
     row.innerHTML = `
-      <input type="radio" name="qCorrect" value="${idx}" ${isCorrect ? 'checked' : ''} style="flex:none; width:16px; height:16px; padding:0; border:none; background:none;" />
-      <input type="text" class="qChoiceText" placeholder="نص الخيار" style="flex:1; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);" />
-      <button type="button" class="icon-btn" style="width:26px;height:26px;flex:none;" onclick="this.closest('.form-field').remove()">✕</button>
-    `;
+      <input type="radio" name="qeCorrect" value="${idx}" ${isCorrect ? 'checked' : ''} title="الإجابة الصحيحة" style="flex:none; width:18px; height:18px; padding:0; border:none; background:none;" />
+      <input type="text" class="qeChoiceText" placeholder="الخيار ${idx + 1}" style="flex:1; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-family:inherit; font-size:.85rem; color:var(--ink);" />
+      <button type="button" class="icon-btn" style="width:26px;height:26px;flex:none;" onclick="this.closest('.form-field').remove()">✕</button>`;
     area.appendChild(row);
-    if (text) row.querySelector('.qChoiceText').value = text;
+    if (text) row.querySelector('.qeChoiceText').value = text;
   }
 
-  function openQuestionForm(questionId){
-    if (!currentQuestionBankSubject){ showToast('أضف مادة أولاً من صفحة المناهج'); return; }
-    editingQuestionId = questionId || null;
-    document.getElementById('questionFormCard').style.display = 'block';
-    document.getElementById('questionFormMsg').style.display = 'none';
-    document.getElementById('qChoicesArea').innerHTML = '';
-    if (questionId){
-      const q = currentQuestions.find(x => x.id === questionId);
-      if (!q) return;
-      document.getElementById('questionFormTitle').textContent = 'تعديل سؤال';
-      document.getElementById('qText').value = q.text;
-      document.getElementById('qEyebrow').value = q.eyebrow || '';
-      document.getElementById('qRationale').value = q.rationale || '';
-      q.choices.forEach(c => addChoiceField(c.text, c.is_correct));
+  function openQuestionEditor(ctx, q){
+    qeCtx = {...ctx, editingId: q ? q.id : null};
+    document.getElementById('qeTitle').textContent = q ? 'تعديل سؤال' : 'سؤال جديد';
+    document.getElementById('qeMsg').style.display = 'none';
+    document.getElementById('qeText').value = q ? q.text : '';
+    document.getElementById('qeRationale').value = q ? (q.rationale || '') : '';
+    document.getElementById('qeEyebrow').value = q ? (q.eyebrow || '') : '';
+    document.getElementById('qeModelAnswer').value = q ? (q.model_answer || '') : '';
+    document.getElementById('qeChoices').innerHTML = '';
+    const type = q ? (q.qtype || 'mcq') : 'mcq';
+    qeSetType(type);
+    if (type === 'mcq'){
+      if (q && q.choices.length) q.choices.forEach(c => qeAddChoice(c.text, c.is_correct));
+      else for (let i = 0; i < 4; i++) qeAddChoice();
     } else {
-      document.getElementById('questionFormTitle').textContent = 'سؤال جديد';
-      document.getElementById('qText').value = '';
-      document.getElementById('qEyebrow').value = '';
-      document.getElementById('qRationale').value = '';
-      addChoiceField();
-      addChoiceField();
+      for (let i = 0; i < 4; i++) qeAddChoice();
     }
+    if (type === 'true_false' && q){
+      const correct = (q.choices.find(c => c.is_correct) || {}).text === 'خطأ' ? 'خطأ' : 'صح';
+      document.querySelector(`input[name="qeTf"][value="${correct}"]`).checked = true;
+    }
+    document.getElementById('qEditorOverlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('qeText').focus(), 50);
   }
+  function qeClose(){ document.getElementById('qEditorOverlay').style.display = 'none'; qeCtx = null; }
 
-  function closeQuestionForm(){
-    editingQuestionId = null;
-    const card = document.getElementById('questionFormCard');
-    if (card) card.style.display = 'none';
-  }
-
-  async function submitQuestionForm(){
-    const msg = document.getElementById('questionFormMsg');
+  async function qeSave(){
+    if (!qeCtx) return;
+    const msg = document.getElementById('qeMsg');
     msg.style.display = 'block';
-    const text = document.getElementById('qText').value.trim();
-    const eyebrow = document.getElementById('qEyebrow').value.trim();
-    const rationale = document.getElementById('qRationale').value.trim();
-    const rows = [...document.getElementById('qChoicesArea').children];
-    const correctIdx = document.querySelector('input[name="qCorrect"]:checked')?.value;
-    const choices = rows.map((row, idx) => ({
-      text: row.querySelector('.qChoiceText').value.trim(),
-      is_correct: String(idx) === correctIdx,
-    })).filter(c => c.text);
-
-    if (!text || choices.length < 2){
-      msg.style.color = 'var(--danger)';
-      msg.textContent = 'أدخل نص السؤال وخيارين على الأقل';
-      return;
+    const fail = t => { msg.style.color = 'var(--danger)'; msg.textContent = t; };
+    const text = document.getElementById('qeText').value.trim();
+    if (!text) return fail('اكتب نص السؤال');
+    const body = {
+      ...(qeCtx.extra || {}), text, qtype: qeType,
+      rationale: document.getElementById('qeRationale').value.trim(),
+      eyebrow: document.getElementById('qeEyebrow').value.trim(),
+      model_answer: '', choices: [],
+    };
+    if (qeType === 'mcq'){
+      const rows = [...document.getElementById('qeChoices').children];
+      const correctIdx = document.querySelector('input[name="qeCorrect"]:checked')?.value;
+      body.choices = rows.map((row, idx) => ({
+        text: row.querySelector('.qeChoiceText').value.trim(),
+        is_correct: String(idx) === correctIdx,
+      })).filter(c => c.text);
+      if (body.choices.length < 2) return fail('أضف خيارين على الأقل');
+      if (!body.choices.some(c => c.is_correct)) return fail('حدّد الخيار الصحيح بالضغط على الدائرة');
+    } else if (qeType === 'true_false'){
+      body.choices = [{text: document.querySelector('input[name="qeTf"]:checked').value, is_correct: true}];
+    } else {
+      body.model_answer = document.getElementById('qeModelAnswer').value.trim();
+      if (!body.model_answer) return fail('اكتب الإجابة النموذجية');
     }
-    const body = {subject_id: currentQuestionBankSubject, text, eyebrow, rationale, choices};
+    msg.style.color = 'var(--ink-faint)'; msg.textContent = 'جارٍ الحفظ...';
     try {
-      if (editingQuestionId){
-        await apiFetch('/api/admin/questions/' + editingQuestionId, {method: 'PUT', body: JSON.stringify(body)});
-      } else {
-        await apiFetch('/api/admin/questions', {method: 'POST', body: JSON.stringify(body)});
-      }
-      closeQuestionForm();
-      await renderQuestionList();
-      loadCatalog();
-    } catch (e) {
-      msg.style.color = 'var(--danger)';
-      msg.textContent = e.detail || 'تعذّر الحفظ';
-    }
+      const url = qeCtx.editingId ? qeCtx.updateUrl(qeCtx.editingId) : qeCtx.createUrl;
+      await apiFetch(url, {method: qeCtx.editingId ? 'PUT' : 'POST', body: JSON.stringify(body)});
+      const done = qeCtx.onSaved;
+      qeClose();
+      if (done) done();
+    } catch (e) { fail(e.detail || 'تعذّر الحفظ'); }
   }
 
-  async function deleteQuestionAdmin(id){
-    if (!await confirmModal('حذف هذا السؤال نهائياً؟')) return;
+  function questionRowHtml(q, editFn, deleteFn){
+    const detail = q.qtype === 'essay'
+      ? 'إجابة نموذجية: ' + (q.model_answer || '').slice(0, 90)
+      : q.choices.map(c => (c.is_correct ? '✓ ' : '• ') + c.text).join(' · ');
+    return `
+      <div class="item-card glass" style="align-items:flex-start;">
+        <div class="item-body">
+          <div class="item-title"><span class="badge badge-idle" style="margin-inline-end:6px;">${QTYPE_LABEL[q.qtype] || 'اختيارات'}</span>${esc(q.text)}</div>
+          <div class="item-meta">${esc(detail)}</div>
+        </div>
+        <div style="display:flex; gap:6px; flex:none;">
+          <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="${editFn}('${q.id}')">تعديل</button>
+          <button class="icon-btn" title="حذف السؤال" aria-label="حذف السؤال" style="width:28px;height:28px;" onclick="${deleteFn}('${q.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div>
+      </div>`;
+  }
+
+  // ----- professor / assistant bank
+  let profQuestions = [];
+  function openProfQuestionEditor(questionId){
+    const q = questionId ? profQuestions.find(x => x.id === questionId) : null;
+    openQuestionEditor({
+      createUrl: '/api/professors/me/questions',
+      updateUrl: id => '/api/professors/me/questions/' + id,
+      onSaved: loadProfessorQuestions,
+    }, q);
+  }
+  async function loadProfessorQuestions(){
+    const el = document.getElementById('pQuestionsList');
+    if (!liveMode){ el.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لإدارة الأسئلة</div>'; return; }
     try {
-      await apiFetch('/api/admin/questions/' + id, {method: 'DELETE'});
-      renderQuestionList();
-      loadCatalog();
-    } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+      profQuestions = await apiFetch('/api/professors/me/questions');
+      el.innerHTML = profQuestions.map(q => questionRowHtml(q, 'openProfQuestionEditor', 'deleteProfQuestion')).join('')
+        || '<div class="empty-row">لا توجد أسئلة بعد — اضغط «سؤال جديد»</div>';
+    } catch (e) { el.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الأسئلة')}</div>`; }
+  }
+  async function deleteProfQuestion(id){
+    if (!await confirmModal('حذف هذا السؤال نهائياً؟')) return;
+    try { await apiFetch('/api/professors/me/questions/' + id, {method: 'DELETE'}); loadProfessorQuestions(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   async function loadStudents(){
@@ -2865,63 +3243,16 @@
     `).join('') || `<tr><td colspan="4" class="empty-row">لا يوجد طلاب نشطون بعد</td></tr>`;
   }
 
-  // ===== ADMIN: clinical pearls =====
-  let allPearls = [];
-  async function loadPearls(){
-    allPearls = await liveOrDemo('/api/admin/pearls', [], []);
-    document.getElementById('pearlsBody').innerHTML = allPearls.map(p => `
-      <tr>
-        <td>${p.tag ? `<span class="badge badge-active">${esc(p.tag)}</span>` : '<span class="cell-sub">—</span>'}</td>
-        <td><div class="cell-name">${esc(p.title)}</div></td>
-        <td><div class="cell-sub" style="max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(p.body || '—')}</div></td>
-        <td style="text-align:end;">
-          <div style="display:flex; gap:6px; justify-content:flex-end;">
-            <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptEditPearl('${p.id}')">تعديل</button>
-            <button class="icon-btn" aria-label="حذف اللمحة" style="width:30px;height:30px;" title="حذف" onclick="deletePearl('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
-          </div>
-        </td>
-      </tr>`).join('') || `<tr><td colspan="4" class="empty-row">لا توجد لمحات بعد — أضف واحدة وتظهر مباشرة للطلاب وفي الصفحة الرئيسية</td></tr>`;
+  // Sections (colleges) for the pickers (summer training can be limited to
+  // one college or shown to all of them).
+  async function sectionOptions(){
+    const rows = await apiFetch('/api/admin/catalog');
+    return [{value: '', label: 'كل الأقسام'}].concat(rows.filter(r => r.type === 'section').map(r => ({value: r.id, label: r.name})));
   }
-
-  const PEARL_FIELDS = (v = {}) => [
-    {id: 'tag', label: 'التصنيف (مثال: طوارئ، تشخيص، أطفال)', type: 'text', value: v.tag || ''},
-    {id: 'title', label: 'العنوان — يظهر للزائر قبل تسجيل الدخول', type: 'text', value: v.title || ''},
-    {id: 'body', label: 'التفاصيل والحل — لا تظهر إلا بعد تسجيل الدخول', type: 'text', value: v.body || ''},
-  ];
-
-  function promptAddPearl(){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    openGenericModal('إضافة لمحة سريرية', PEARL_FIELDS(), async (v) => {
-      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
-      await apiFetch('/api/admin/pearls', {
-        method: 'POST',
-        body: JSON.stringify({title: v.title.trim(), tag: v.tag.trim(), body: v.body.trim()}),
-      });
-      loadPearls();
-    });
-  }
-
-  function promptEditPearl(id){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const current = allPearls.find(p => p.id === id);
-    if (!current) return;
-    openGenericModal('تعديل لمحة سريرية', PEARL_FIELDS(current), async (v) => {
-      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
-      await apiFetch('/api/admin/pearls/' + id, {
-        method: 'PUT',
-        body: JSON.stringify({title: v.title.trim(), tag: v.tag.trim(), body: v.body.trim()}),
-      });
-      loadPearls();
-    });
-  }
-
-  async function deletePearl(id){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!await confirmModal('حذف هذه اللمحة نهائياً؟')) return;
-    try {
-      await apiFetch('/api/admin/pearls/' + id, {method: 'DELETE'});
-      loadPearls();
-    } catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  let sectionNameById = {};
+  async function loadSectionNames(){
+    try { sectionNameById = Object.fromEntries((await sectionOptions()).filter(o => o.value).map(o => [o.value, o.label])); }
+    catch (e) { /* the column just shows "الكل" */ }
   }
 
   // ===== RESELLER sections =====
@@ -2948,6 +3279,19 @@
 
   async function loadResellerCodes(){
     if (!liveMode){ document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي أولاً لعرض الأكواد</td></tr>`; return; }
+    // The store manager decides what each reseller may do — only show the
+    // controls this account was granted (the server enforces it regardless).
+    document.getElementById('rTakeBtn').style.display = can('codes.generate') ? '' : 'none';
+    try {
+      const me = await apiFetch('/api/reseller/me');
+      document.getElementById('rQuotaInfo').textContent = me.code_quota == null
+        ? `لديك ${me.codes_held} كود — بدون حد أقصى`
+        : `لديك ${me.codes_held} كود من أصل ${me.code_quota} — المتبقي لك ${me.quota_left}`;
+    } catch (e) { document.getElementById('rQuotaInfo').textContent = ''; }
+    if (!can('codes.view')){
+      document.getElementById('rCodesFullBody').innerHTML = `<tr><td colspan="4" class="empty-row">لا تملك صلاحية عرض الأكواد — يمكنك فقط أخذ أكواد جديدة</td></tr>`;
+      return;
+    }
     try {
       const codes = await apiFetch('/api/reseller/codes');
       const statusLabel = {active: 'مفعّل', idle: 'متاح', expired: 'منتهي'};
@@ -2996,16 +3340,18 @@
   // ===== ADMIN: store =====
   const PRODUCT_TYPE_LABEL = {digital: 'رقمي', physical: 'ملموس', course: 'كورس'};
   let storeProducts = [];
+  let storeCategories = [];
+  const storeCategoryName = id => (storeCategories.find(c => c.id === id) || {}).name || '—';
 
   function switchStoreTab(tab){
     document.querySelectorAll('#sec-store .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.stab === tab));
-    ['orders','products'].forEach(t => document.getElementById('stab-'+t).classList.toggle('active', t === tab));
+    ['orders','products','categories'].forEach(t => document.getElementById('stab-'+t).classList.toggle('active', t === tab));
   }
 
   async function loadStore(){
     if (!liveMode){
       document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً لعرض الطلبات</td></tr>`;
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي أولاً لعرض المنتجات</td></tr>`;
+      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="5" class="empty-row">سجّل دخول حقيقي أولاً لعرض المنتجات</td></tr>`;
       return;
     }
     try {
@@ -3033,10 +3379,13 @@
 
   async function loadStoreProducts(){
     try {
+      storeCategories = await apiFetch('/api/admin/store/categories');
+      renderStoreCategories();
       storeProducts = await apiFetch('/api/admin/store/products');
       document.getElementById('storeProductsBody').innerHTML = storeProducts.map(p => `
         <tr>
           <td>${esc(p.name)}</td>
+          <td>${esc(storeCategoryName(p.category_id))}</td>
           <td>${PRODUCT_TYPE_LABEL[p.type] || p.type}</td>
           <td class="mono">${fmtIQD(p.price)}</td>
           <td style="text-align:end;">
@@ -3046,9 +3395,9 @@
             </div>
           </td>
         </tr>
-      `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد منتجات بعد</td></tr>`;
+      `).join('') || `<tr><td colspan="5" class="empty-row">لا توجد منتجات بعد</td></tr>`;
     } catch (e) {
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="4" class="empty-row">${esc(e.detail || 'تعذّر تحميل المنتجات')}</td></tr>`;
+      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="5" class="empty-row">${esc(e.detail || 'تعذّر تحميل المنتجات')}</td></tr>`;
     }
   }
 
@@ -3092,6 +3441,7 @@
       {id: 'name', label: 'اسم المنتج', type: 'text'},
       {id: 'price', label: 'السعر (د.ع)', type: 'number', value: 0},
       {id: 'type', label: 'النوع', type: 'select', value: 'digital', options: PRODUCT_TYPE_OPTIONS},
+      {id: 'categoryId', label: 'قسم المتجر', type: 'select', value: '', options: [{value: '', label: '— بدون قسم'}].concat(storeCategories.map(c => ({value: c.id, label: c.name})))},
       {id: 'subjectId', label: 'كود تفعيل لأي مادة؟', type: 'select', value: '', options: subjectOptions},
     ], async (v) => {
       if (!v.name.trim()) throw {detail: 'اسم المنتج مطلوب'};
@@ -3101,6 +3451,7 @@
           name: v.name.trim(), price: parseInt(v.price, 10) || 0, type: v.type,
           is_activation_code: v.subjectId !== '',
           grants_subject_id: v.subjectId === '__vip__' ? null : (v.subjectId || null),
+          category_id: v.categoryId || null,
         }),
       });
       loadStoreProducts();
@@ -3116,6 +3467,7 @@
       {id: 'name', label: 'اسم المنتج', type: 'text', value: product.name},
       {id: 'price', label: 'السعر (د.ع)', type: 'number', value: product.price},
       {id: 'type', label: 'النوع', type: 'select', value: product.type, options: PRODUCT_TYPE_OPTIONS},
+      {id: 'categoryId', label: 'قسم المتجر', type: 'select', value: product.category_id || '', options: [{value: '', label: '— بدون قسم'}].concat(storeCategories.map(c => ({value: c.id, label: c.name})))},
       {id: 'subjectId', label: 'كود تفعيل لأي مادة؟', type: 'select', value: product.is_activation_code ? (product.grants_subject_id || '__vip__') : '', options: subjectOptions},
     ], async (v) => {
       if (!v.name.trim()) throw {detail: 'اسم المنتج مطلوب'};
@@ -3125,6 +3477,7 @@
           name: v.name.trim(), price: parseInt(v.price, 10) || 0, type: v.type,
           is_activation_code: v.subjectId !== '',
           grants_subject_id: v.subjectId === '__vip__' ? null : (v.subjectId || null),
+          category_id: v.categoryId || null,
         }),
       });
       loadStoreProducts();
@@ -3137,6 +3490,499 @@
       await apiFetch('/api/admin/store/products/' + id, {method: 'DELETE'});
       loadStoreProducts();
     } catch (e) { showToast(e.detail || 'تعذّر حذف المنتج', 'error'); }
+  }
+
+  function renderStoreCategories(){
+    const counts = {};
+    storeProducts.forEach(p => { if (p.category_id) counts[p.category_id] = (counts[p.category_id] || 0) + 1; });
+    document.getElementById('storeCategoriesBody').innerHTML = storeCategories.map(c => `
+      <tr>
+        <td class="cell-name">${esc(c.name)}</td>
+        <td>${c.sort_order}</td>
+        <td>${counts[c.id] || 0}</td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptCategory('${c.id}')">تعديل</button>
+          <button class="icon-btn" aria-label="حذف القسم" style="width:30px;height:30px;" onclick="deleteCategory('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div></td>
+      </tr>`).join('') || `<tr><td colspan="4" class="empty-row">لا توجد أقسام بعد — أضف أول قسم للمتجر</td></tr>`;
+  }
+  function promptCategory(id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const cur = id ? storeCategories.find(c => c.id === id) : null;
+    openGenericModal(cur ? 'تعديل قسم المتجر' : 'إضافة قسم للمتجر', [
+      {id: 'name', label: 'اسم القسم', type: 'text', value: cur ? cur.name : ''},
+      {id: 'order', label: 'الترتيب (الأصغر يظهر أولاً)', type: 'number', value: cur ? cur.sort_order : storeCategories.length},
+    ], async (v) => {
+      if (!v.name.trim()) throw {detail: 'اسم القسم مطلوب'};
+      await apiFetch(cur ? '/api/admin/store/categories/' + id : '/api/admin/store/categories', {
+        method: cur ? 'PUT' : 'POST', body: JSON.stringify({name: v.name.trim(), sort_order: parseInt(v.order, 10) || 0}),
+      });
+      loadStoreProducts();
+    });
+  }
+  async function deleteCategory(id){
+    if (!await confirmModal('حذف هذا القسم؟ المنتجات داخله لن تُحذف، بل تصبح بدون قسم.')) return;
+    try { await apiFetch('/api/admin/store/categories/' + id, {method: 'DELETE'}); loadStoreProducts(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  }
+
+  // ===== ADMIN: summer training =====
+  let allSummer = [];
+  async function loadSummer(){
+    if (!liveMode){ document.getElementById('summerBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    await loadSectionNames();
+    allSummer = await liveOrDemo('/api/admin/summer-trainings', [], []);
+    document.getElementById('summerBody').innerHTML = allSummer.map(t => `
+      <tr>
+        <td><div class="cell-name">${esc(t.title)}</div></td>
+        <td>${esc(sectionNameById[t.section_id] || 'كل الأقسام')}</td>
+        <td>${esc(t.location || '—')}</td>
+        <td>${esc([t.starts_on, t.ends_on].filter(Boolean).join(' → ') || '—')}</td>
+        <td>${t.is_active ? '<span class="badge badge-active">ظاهر للطلاب</span>' : '<span class="badge badge-disabled">مخفي</span>'}</td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptSummer('${t.id}')">تعديل</button>
+          <button class="icon-btn" aria-label="حذف" style="width:30px;height:30px;" onclick="deleteSummer('${t.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+        </div></td>
+      </tr>`).join('') || `<tr><td colspan="6" class="empty-row">لا توجد فرص تدريب — أضف واحدة وتظهر لطلاب القسم المختار</td></tr>`;
+  }
+  async function promptSummer(id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const cur = id ? allSummer.find(t => t.id === id) : null;
+    const sections = await sectionOptions().catch(() => [{value: '', label: 'كل الأقسام'}]);
+    openGenericModal(cur ? 'تعديل فرصة تدريب' : 'إضافة فرصة تدريب صيفي', [
+      {id: 'sectionId', label: 'القسم — يراها طلاب هذا القسم فقط', type: 'select', value: cur ? (cur.section_id || '') : '', options: sections},
+      {id: 'title', label: 'العنوان', type: 'text', value: cur ? cur.title : ''},
+      {id: 'location', label: 'المكان (مستشفى / مؤسسة)', type: 'text', value: cur ? cur.location : ''},
+      {id: 'startsOn', label: 'تاريخ البداية', type: 'text', value: cur ? cur.starts_on : '', placeholder: '2027-07-01'},
+      {id: 'endsOn', label: 'تاريخ النهاية', type: 'text', value: cur ? cur.ends_on : '', placeholder: '2027-08-15'},
+      {id: 'applyUrl', label: 'رابط التقديم (اختياري)', type: 'text', value: cur ? cur.apply_url : '', placeholder: 'https://'},
+      {id: 'description', label: 'التفاصيل', type: 'textarea', rows: 4, value: cur ? cur.description : ''},
+      {id: 'active', label: 'الحالة', type: 'select', value: cur && !cur.is_active ? '0' : '1', options: [{value: '1', label: 'ظاهر للطلاب'}, {value: '0', label: 'مخفي'}]},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      if (v.applyUrl.trim() && !/^https?:\/\//i.test(v.applyUrl.trim())) throw {detail: 'رابط التقديم يجب أن يبدأ بـ http:// أو https://'};
+      await apiFetch(cur ? '/api/admin/summer-trainings/' + id : '/api/admin/summer-trainings', {
+        method: cur ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          title: v.title.trim(), description: v.description.trim(), location: v.location.trim(),
+          starts_on: v.startsOn.trim(), ends_on: v.endsOn.trim(), apply_url: v.applyUrl.trim(),
+          section_id: v.sectionId || null, is_active: v.active === '1',
+        }),
+      });
+      loadSummer();
+    });
+  }
+  async function deleteSummer(id){
+    if (!await confirmModal('حذف فرصة التدريب نهائياً؟')) return;
+    try { await apiFetch('/api/admin/summer-trainings/' + id, {method: 'DELETE'}); loadSummer(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  }
+
+  // ===== STORE MANAGER: resellers =====
+  const RESELLER_PERM_OPTIONS = ['codes.view', 'codes.generate'].map(c => ({value: c, label: PERM_LABELS[c]}));
+  let allResellers = [];
+  async function loadResellers(){
+    if (!liveMode){ document.getElementById('resellersBody').innerHTML = `<tr><td colspan="5" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    allResellers = await liveOrDemo('/api/admin/resellers', [], []);
+    document.getElementById('resellersBody').innerHTML = allResellers.map(r => `
+      <tr>
+        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(r.full_name)}</div><div><div class="cell-name">${esc(r.full_name)}</div><div class="cell-sub mono">${esc(r.email)}</div></div></div></td>
+        <td>${r.permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join('') || '<span class="badge badge-disabled">لا صلاحيات</span>'}</td>
+        <td>${r.code_quota == null ? 'بلا حد' : r.code_quota}</td>
+        <td>${r.codes_held} <span class="cell-sub">(مباع ${r.codes_sold})</span></td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptEditReseller('${r.id}')">الصلاحيات والحصة</button>
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${r.id}')">توليد أكواد</button>
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${r.id}')">عرض أكواده</button>
+        </div></td>
+      </tr>`).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد مندوبون — اضغط «مندوب جديد»</td></tr>`;
+  }
+  // accountName() reads allAccounts, which the store manager never loads.
+  const _accountNameOrig = accountName;
+  accountName = function(userId){
+    const r = allResellers.find(x => String(x.id) === String(userId));
+    return r ? r.full_name : _accountNameOrig(userId);
+  };
+  function promptAddReseller(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    openGenericModal('مندوب جديد', [
+      {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
+      {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
+      {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
+      {id: 'perms', label: 'ماذا يستطيع هذا المندوب أن يفعل؟', type: 'checks', value: ['codes.view', 'codes.generate'], options: RESELLER_PERM_OPTIONS},
+      {id: 'quota', label: 'أقصى عدد أكواد يحملها (اتركه فارغاً = بلا حد)', type: 'number', value: ''},
+    ], async (v) => {
+      if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد مطلوبان'};
+      await apiFetch('/api/admin/resellers', {method: 'POST', body: JSON.stringify({
+        full_name: v.fullName.trim(), email: v.email.trim(), password: v.password,
+        permissions: v.perms, code_quota: v.quota === '' ? null : parseInt(v.quota, 10),
+      })});
+      loadResellers();
+    });
+  }
+  function promptEditReseller(id){
+    const r = allResellers.find(x => x.id === id);
+    if (!r) return;
+    openGenericModal('صلاحيات وحصة — ' + r.full_name, [
+      {id: 'perms', label: 'الصلاحيات', type: 'checks', value: r.permissions, options: RESELLER_PERM_OPTIONS},
+      {id: 'quota', label: 'أقصى عدد أكواد (فارغ = بلا حد)', type: 'number', value: r.code_quota == null ? '' : r.code_quota},
+    ], async (v) => {
+      await apiFetch('/api/admin/resellers/' + id, {method: 'PUT', body: JSON.stringify({
+        permissions: v.perms, code_quota: v.quota === '' ? null : parseInt(v.quota, 10),
+      })});
+      loadResellers();
+    });
+  }
+
+  // ===== PROFESSOR: assistants =====
+  const PROF_PERM_OPTIONS = PROF_PERM_LIST.map(c => ({value: c, label: PERM_LABELS[c]}));
+  let myAssistants = [];
+  async function loadAssistants(){
+    if (!liveMode){ document.getElementById('pAssistantsBody').innerHTML = `<tr><td colspan="3" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    myAssistants = await liveOrDemo('/api/professors/me/assistants', [], []);
+    document.getElementById('pAssistantsBody').innerHTML = myAssistants.map(a => `
+      <tr>
+        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent-2)">${initialsOf(a.full_name)}</div><div><div class="cell-name">${esc(a.full_name)}</div><div class="cell-sub mono">${esc(a.email)}</div></div></div></td>
+        <td>${a.permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join('') || '<span class="badge badge-disabled">بلا صلاحيات</span>'}</td>
+        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptEditAssistant('${a.id}')">الصلاحيات</button>
+          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem; color:var(--danger);" onclick="deleteAssistant('${a.id}')">حذف</button>
+        </div></td>
+      </tr>`).join('') || `<tr><td colspan="3" class="empty-row">لا يوجد مساعدون — اضغط «إضافة مساعد»</td></tr>`;
+  }
+  function promptAddAssistant(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    openGenericModal('إضافة مساعد', [
+      {id: 'fullName', label: 'اسم المساعد', type: 'text'},
+      {id: 'email', label: 'البريد الإلكتروني (لتسجيل دخوله)', type: 'text'},
+      {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
+      {id: 'perms', label: 'ماذا يستطيع المساعد أن يفعل؟', type: 'checks', value: ['prof.questions'], options: PROF_PERM_OPTIONS},
+    ], async (v) => {
+      if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد مطلوبان'};
+      await apiFetch('/api/professors/me/assistants', {method: 'POST', body: JSON.stringify({
+        full_name: v.fullName.trim(), email: v.email.trim(), password: v.password, permissions: v.perms,
+      })});
+      loadAssistants();
+    });
+  }
+  function promptEditAssistant(id){
+    const a = myAssistants.find(x => x.id === id);
+    if (!a) return;
+    openGenericModal('صلاحيات — ' + a.full_name, [
+      {id: 'perms', label: 'الصلاحيات', type: 'checks', value: a.permissions, options: PROF_PERM_OPTIONS},
+    ], async (v) => {
+      await apiFetch('/api/professors/me/assistants/' + id, {method: 'PUT', body: JSON.stringify({permissions: v.perms})});
+      loadAssistants();
+    });
+  }
+  async function deleteAssistant(id){
+    if (!await confirmModal('حذف حساب هذا المساعد؟ لن يستطيع الدخول بعد الآن (الأسئلة التي رفعها تبقى).')) return;
+    try { await apiFetch('/api/professors/me/assistants/' + id, {method: 'DELETE'}); loadAssistants(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  }
+
+  // ===== ADMIN: quick catalog setup =====
+  function promptQuickCatalog(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    openGenericModal('إعداد سريع لقسم كامل', [
+      {id: 'section', label: 'اسم القسم / الكلية', type: 'text', placeholder: 'طب بشري'},
+      {id: 'unis', label: 'الجامعات — اسم في كل سطر', type: 'textarea', rows: 4, placeholder: bulkPlaceholder(['جامعة بغداد', 'جامعة البصرة', 'جامعة الموصل'])},
+      {id: 'stages', label: 'المراحل — تُضاف لكل جامعة (اسم في كل سطر)', type: 'textarea', rows: 5, placeholder: bulkPlaceholder(['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'])},
+    ], async (v) => {
+      if (!v.section.trim()) throw {detail: 'اسم القسم مطلوب'};
+      const res = await apiFetch('/api/admin/catalog/quick', {method: 'POST', body: JSON.stringify({
+        section_name: v.section, universities: v.unis.split('\n'), stages: v.stages.split('\n'),
+      })});
+      const c = res.created;
+      showToast(`تم: ${c.sections} قسم، ${c.universities} جامعة، ${c.stages} مرحلة`);
+      loadCatalog();
+    });
+  }
+
+  // ===== ADMIN: full account details =====
+  const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', student: 'طالب'};
+  function showAccountDetails(id){
+    const a = allAccounts.find(x => x.id === id);
+    if (!a) return;
+    const fmt = iso => iso ? new Date(iso).toLocaleString('ar-IQ') : '—';
+    const parent = a.parent_user_id ? accountName(a.parent_user_id) : '';
+    const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--glass-border); font-size:.84rem;"><span style="width:118px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
+    document.getElementById('acctTitle').textContent = a.full_name;
+    document.getElementById('acctBody').innerHTML =
+      row('الاسم', esc(a.full_name)) +
+      row('البريد الإلكتروني', esc(a.email), true) +
+      row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
+      row('كلمة المرور', a.has_password
+        ? '<span class="mono">••••••••••</span><div class="cell-sub" style="margin-top:4px;">محفوظة بشكل مشفّر ولا يمكن لأحد قراءتها — لكن يمكنك إعطاؤه كلمة مرور مؤقتة جديدة.</div>'
+        : 'لا توجد (يدخل عبر Google فقط)') +
+      row('الدور', esc(ROLE_NAME[a.role] || a.role)) +
+      (parent ? row('يعمل مع الدكتور', esc(parent)) : '') +
+      (a.role === 'student' ? row('القسم', esc(catalogNameById[a.section_id] || '—')) + row('الجامعة', esc(catalogNameById[a.university_id] || '—')) + row('المرحلة', esc(a.is_graduate ? 'متخرج' : (catalogNameById[a.stage_id] || '—'))) : '') +
+      (a.role === 'reseller' ? row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) : '') +
+      ((a.extra_permissions || []).length ? row('صلاحيات إضافية', a.extra_permissions.map(p => esc(PERM_LABELS[p] || p)).join('، ')) : '') +
+      row('الحالة', a.is_banned ? 'محظور' : 'نشط') +
+      row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
+      row('تاريخ الانضمام', fmt(a.created_at)) +
+      row('آخر دخول', fmt(a.last_login));
+    const btn = (label, fn, style = '') => `<button class="btn btn-ghost" style="padding:8px 14px; font-size:.76rem; ${style}" onclick="${fn}">${label}</button>`;
+    document.getElementById('acctActions').innerHTML =
+      btn('تعديل', `closeAccountDetails(); promptEditUser('${a.id}')`) +
+      btn('كلمة مرور مؤقتة', `resetAccountPassword('${a.id}')`) +
+      (a.is_banned ? btn('رفع الحظر', `closeAccountDetails(); unbanUserAccount('${a.id}')`)
+        : (a.role === 'admin' ? '' : btn('حظر', `closeAccountDetails(); promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
+      (a.totp_enabled ? btn('إعادة تعيين 2FA', `closeAccountDetails(); promptReset2FA('${a.id}')`) : '');
+    document.getElementById('acctOverlay').style.display = 'flex';
+  }
+  function closeAccountDetails(){ document.getElementById('acctOverlay').style.display = 'none'; }
+
+  async function resetAccountPassword(id){
+    const a = allAccounts.find(x => x.id === id);
+    if (!a) return;
+    if (!await confirmModal(`سيتم تسجيل خروج ${a.full_name} من كل أجهزته وإنشاء كلمة مرور مؤقتة جديدة له. متابعة؟`)) return;
+    try {
+      const res = await apiFetch('/api/admin/users/' + id + '/reset-password', {method: 'POST'});
+      document.getElementById('acctBody').innerHTML = `
+        <div style="padding:14px; border-radius:14px; background:var(--track); text-align:center;">
+          <div class="item-meta" style="margin-bottom:6px;">كلمة المرور المؤقتة لـ ${esc(a.full_name)} — تظهر هذه المرة فقط</div>
+          <div class="mono" id="tempPw" style="font-size:1.25rem; font-weight:800; letter-spacing:.04em; direction:ltr; user-select:all;">${esc(res.temporary_password)}</div>
+          <div class="cell-sub" style="margin-top:8px;">أرسلها له بطريقة آمنة وانصحه بتغييرها من صفحة حسابه بعد الدخول.</div>
+        </div>`;
+      document.getElementById('acctActions').innerHTML =
+        `<button class="btn" onclick="copyText(document.getElementById('tempPw').textContent, this)">نسخ كلمة المرور</button>`;
+      showToast('تم إنشاء كلمة مرور مؤقتة');
+    } catch (e) { showToast(e.detail || 'تعذّر إعادة التعيين', 'error'); }
+  }
+  function copyText(text, btn){
+    navigator.clipboard?.writeText(text).catch(() => {});
+    const old = btn.textContent; btn.textContent = 'تم النسخ ✓'; setTimeout(() => { btn.textContent = old; }, 1500);
+  }
+
+  // ===== PROFESSOR / ASSISTANT: clinical pearls =====
+  let myPearls = [];
+  async function loadProfessorPearls(){
+    const body = document.getElementById('pPearlsBody');
+    if (!liveMode){ body.innerHTML = `<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    try {
+      myPearls = await apiFetch('/api/professors/me/pearls');
+      body.innerHTML = myPearls.map(p => `
+        <tr>
+          <td>${p.tag ? `<span class="badge badge-active">${esc(p.tag)}</span>` : '—'}</td>
+          <td><div class="cell-name">${esc(p.title)}</div></td>
+          <td><div class="cell-sub" style="max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(p.body || '—')}</div></td>
+          <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
+            <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptPearl('${p.id}')">تعديل</button>
+            <button class="icon-btn" aria-label="حذف" style="width:30px;height:30px;" onclick="deleteMyPearl('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          </div></td>
+        </tr>`).join('') || `<tr><td colspan="4" class="empty-row">لا توجد لمحات بعد — أضف واحدة أو ولّدها بالذكاء الاصطناعي</td></tr>`;
+    } catch (e) { body.innerHTML = `<tr><td colspan="4" class="empty-row">${esc(e.detail || 'تعذّر التحميل')}</td></tr>`; }
+  }
+  function promptPearl(id){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const cur = id ? myPearls.find(p => p.id === id) : null;
+    openGenericModal(cur ? 'تعديل لمحة سريرية' : 'إضافة لمحة سريرية', [
+      {id: 'tag', label: 'التصنيف (مثال: طوارئ، تشخيص، أطفال)', type: 'text', value: cur ? cur.tag : ''},
+      {id: 'title', label: 'الحالة — يظهر للزائر قبل تسجيل الدخول (بدون ذكر التشخيص)', type: 'text', value: cur ? cur.title : ''},
+      {id: 'body', label: 'التشخيص والتفاصيل — لا تظهر إلا بعد تسجيل الدخول', type: 'textarea', rows: 6, value: cur ? cur.body : ''},
+    ], async (v) => {
+      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
+      await apiFetch(cur ? '/api/professors/me/pearls/' + id : '/api/professors/me/pearls', {
+        method: cur ? 'PUT' : 'POST', body: JSON.stringify({title: v.title.trim(), tag: v.tag.trim(), body: v.body.trim()}),
+      });
+      loadProfessorPearls();
+    });
+  }
+  async function deleteMyPearl(id){
+    if (!await confirmModal('حذف هذه اللمحة نهائياً؟')) return;
+    try { await apiFetch('/api/professors/me/pearls/' + id, {method: 'DELETE'}); loadProfessorPearls(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
+  }
+
+  // ===== AI: generate questions / pearls from a file =====
+  // multipart upload — apiFetch always sends JSON, so this has its own call.
+  async function apiForm(path, formData){
+    const res = await fetch(API_BASE_URL + path, {
+      method: 'POST', body: formData, credentials: 'include',
+      headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {},
+    });
+    let data = null; try { data = await res.json(); } catch (e) { /* no body */ }
+    if (!res.ok){
+      if (res.status === 401 && authToken){ doLogout(); }
+      const err = new Error((data && data.detail) || ('API ' + res.status));
+      err.detail = (data && typeof data.detail === 'string') ? data.detail : '';
+      throw err;
+    }
+    return data;
+  }
+
+  let aiGenMode = 'questions';
+  let aiGenDrafts = [];
+  const AI_FILE_ACCEPT = '.pdf,.docx,.txt,.md,.png,.jpg,.jpeg,.webp';
+
+  async function openAiGen(mode){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    aiGenMode = mode; aiGenDrafts = [];
+    document.getElementById('aiGenTitle').textContent = mode === 'questions' ? '✨ توليد أسئلة من ملف' : '✨ توليد لمحات سريرية';
+    const msg = document.getElementById('aiGenMsg'); msg.style.display = 'none';
+    document.getElementById('aiGenResults').style.display = 'none';
+    const form = document.getElementById('aiGenForm'); form.style.display = 'block';
+    const field = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;';
+    form.innerHTML = mode === 'questions' ? `
+      <div class="item-meta" style="margin-bottom:10px;">ارفع المحاضرة أو الملزمة (PDF أو Word أو نص أو صورة) وسيصيغ الذكاء الاصطناعي الأسئلة منها. <b>تراجعها أنت قبل الحفظ</b> — لا يُحفظ شيء تلقائياً.</div>
+      <div class="form-field"><input type="file" id="aiFile" accept="${AI_FILE_ACCEPT}" style="${field}" /></div>
+      <div style="display:flex; gap:10px;">
+        <div class="form-field" style="flex:1;"><label style="font-size:.75rem; color:var(--ink-faint);">عدد الأسئلة</label><input type="number" id="aiCount" value="10" min="1" max="30" style="${field}" /></div>
+        <div class="form-field" style="flex:1;"><label style="font-size:.75rem; color:var(--ink-faint);">الصعوبة</label><select id="aiDifficulty" style="${field}"><option>سهل</option><option selected>متوسط</option><option>صعب</option></select></div>
+      </div>
+      <div class="form-field"><label style="font-size:.75rem; color:var(--ink-faint);">أنواع الأسئلة</label>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:4px; font-size:.84rem;">
+          <label><input type="checkbox" class="aiType" value="mcq" checked style="width:auto; padding:0; margin-inline-end:5px;" />اختيارات</label>
+          <label><input type="checkbox" class="aiType" value="true_false" checked style="width:auto; padding:0; margin-inline-end:5px;" />صح / خطأ</label>
+          <label><input type="checkbox" class="aiType" value="essay" style="width:auto; padding:0; margin-inline-end:5px;" />مقالي</label>
+        </div></div>
+      <div class="form-field"><textarea id="aiNotes" rows="2" placeholder="تعليمات إضافية (اختياري) — مثال: ركّز على الفصل الثاني" style="${field} resize:vertical;"></textarea></div>` : `
+      <div class="item-meta" style="margin-bottom:10px;">اكتب موضوعًا أو ارفع ملفًا (أو الاثنين) وسيكتب الذكاء الاصطناعي لمحات سريرية قصيرة تراجعها قبل الحفظ.</div>
+      <div class="form-field"><input type="text" id="aiTopic" placeholder="الموضوع (مثال: الحصبة عند الأطفال)" style="${field}" /></div>
+      <div class="form-field"><input type="file" id="aiFile" accept="${AI_FILE_ACCEPT}" style="${field}" /></div>
+      <div class="form-field"><label style="font-size:.75rem; color:var(--ink-faint);">عدد اللمحات</label><input type="number" id="aiCount" value="3" min="1" max="10" style="${field}" /></div>`;
+    setAiGenButtons([['ولّد', 'aiGenRun()', true], ['إلغاء', 'closeAiGen()']]);
+    try {
+      const st = await apiFetch('/api/ai/status');
+      if (!st.enabled){
+        msg.style.display = 'block'; msg.style.color = 'var(--danger)';
+        msg.textContent = 'الذكاء الاصطناعي غير مفعّل على هذا الخادم بعد — على مدير النظام ضبط المتغير ANTHROPIC_API_KEY.';
+      }
+    } catch (e) { /* the call itself will report it */ }
+    document.getElementById('aiGenOverlay').style.display = 'flex';
+  }
+  function setAiGenButtons(list){
+    document.getElementById('aiGenButtons').innerHTML = list.map(([label, fn, primary]) =>
+      `<button class="btn ${primary ? '' : 'btn-ghost'}" style="flex:1; justify-content:center;" onclick="${fn}" ${primary ? 'id="aiPrimaryBtn"' : ''}>${label}</button>`).join('');
+  }
+  function closeAiGen(){ document.getElementById('aiGenOverlay').style.display = 'none'; }
+
+  async function aiGenRun(){
+    const msg = document.getElementById('aiGenMsg');
+    const file = document.getElementById('aiFile').files[0];
+    const fd = new FormData();
+    if (aiGenMode === 'questions'){
+      if (!file){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اختر ملفًا أولاً'; return; }
+      const types = [...document.querySelectorAll('.aiType:checked')].map(i => i.value);
+      if (!types.length){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اختر نوع سؤال واحدًا على الأقل'; return; }
+      fd.append('file', file); fd.append('count', document.getElementById('aiCount').value);
+      fd.append('types', types.join(',')); fd.append('difficulty', document.getElementById('aiDifficulty').value);
+      fd.append('notes', document.getElementById('aiNotes').value);
+    } else {
+      const topic = document.getElementById('aiTopic').value.trim();
+      if (!file && !topic){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اكتب موضوعًا أو ارفع ملفًا'; return; }
+      if (file) fd.append('file', file);
+      fd.append('topic', topic); fd.append('count', document.getElementById('aiCount').value);
+    }
+    const btn = document.getElementById('aiPrimaryBtn'); btn.disabled = true; btn.textContent = 'جارٍ التوليد… قد يستغرق دقيقة';
+    msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)'; msg.textContent = 'يقرأ المساعد الملف ويصوغ المحتوى…';
+    try {
+      const path = aiGenMode === 'questions' ? '/api/professors/me/ai/generate-questions' : '/api/professors/me/ai/generate-pearls';
+      const res = await apiForm(path, fd);
+      aiGenDrafts = aiGenMode === 'questions' ? res.questions : res.pearls;
+      renderAiDrafts(res.skipped || 0);
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'ولّد';
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || e.message || 'تعذّر التوليد';
+    }
+  }
+
+  function renderAiDrafts(skipped){
+    document.getElementById('aiGenForm').style.display = 'none';
+    const box = document.getElementById('aiGenResults'); box.style.display = 'block';
+    const msg = document.getElementById('aiGenMsg'); msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)';
+    msg.textContent = `تم توليد ${aiGenDrafts.length} ${aiGenMode === 'questions' ? 'سؤال' : 'لمحة'}` + (skipped ? ` (استُبعد ${skipped} غير صالح)` : '') + ' — ألغِ تحديد ما لا تريده، ويمكنك تعديل أي شيء بعد الحفظ.';
+    box.innerHTML = aiGenDrafts.map((d, i) => {
+      if (aiGenMode === 'pearls'){
+        return `<label class="ai-draft"><input type="checkbox" checked data-i="${i}" /><div><div class="cell-name">${d.tag ? `<span class="badge badge-active" style="margin-inline-end:6px;">${esc(d.tag)}</span>` : ''}${esc(d.title)}</div><div class="cell-sub" style="margin-top:4px; white-space:pre-line;">${esc(d.body)}</div></div></label>`;
+      }
+      const detail = d.qtype === 'essay' ? 'الإجابة النموذجية: ' + d.model_answer
+        : d.choices.map(c => (c.is_correct ? '✓ ' : '• ') + c.text).join('\n');
+      return `<label class="ai-draft"><input type="checkbox" ${d.duplicate_of ? '' : 'checked'} data-i="${i}" /><div>
+        ${d.duplicate_of ? `<div class="cell-sub" style="color:var(--danger); font-weight:700; margin-bottom:4px;">⚠ مشابه لسؤال موجود في بنكك (${Math.round(d.duplicate_of.similarity * 100)}%): ${esc(d.duplicate_of.text.slice(0, 70))} — لم يُحدَّد تلقائياً</div>` : ''}
+        <div class="cell-name"><span class="badge badge-idle" style="margin-inline-end:6px;">${QTYPE_LABEL[d.qtype]}</span>${esc(d.text)}</div>
+        <div class="cell-sub" style="margin-top:4px; white-space:pre-line;">${esc(detail)}</div>
+        ${d.rationale ? `<div class="cell-sub" style="margin-top:4px; opacity:.8;">الشرح: ${esc(d.rationale)}</div>` : ''}</div></label>`;
+    }).join('');
+    setAiGenButtons([['حفظ المحدد', 'aiGenSave()', true], ['رجوع', 'openAiGen(aiGenMode)'], ['إلغاء', 'closeAiGen()']]);
+  }
+
+  async function aiGenSave(){
+    const picked = [...document.querySelectorAll('#aiGenResults input[type=checkbox]:checked')].map(i => aiGenDrafts[+i.dataset.i]);
+    const msg = document.getElementById('aiGenMsg');
+    if (!picked.length){ msg.style.color = 'var(--danger)'; msg.textContent = 'لم تحدد شيئاً'; return; }
+    const btn = document.getElementById('aiPrimaryBtn'); btn.disabled = true;
+    try {
+      const url = aiGenMode === 'questions' ? '/api/professors/me/questions/bulk' : '/api/professors/me/pearls/bulk';
+      const body = aiGenMode === 'questions' ? {questions: picked} : {pearls: picked};
+      const res = await apiFetch(url, {method: 'POST', body: JSON.stringify(body)});
+      closeAiGen();
+      showToast(`تم حفظ ${res.saved} ${aiGenMode === 'questions' ? 'سؤال' : 'لمحة'}`);
+      aiGenMode === 'questions' ? loadProfessorQuestions() : loadProfessorPearls();
+    } catch (e) { btn.disabled = false; msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'تعذّر الحفظ'; }
+  }
+
+  // ===== AI assistant (every role) =====
+  let aiHistory = [];
+  const AI_SUGGESTIONS = {
+    professor: ['اقترح 5 أسئلة اختيارات عن موضوع ...', 'كيف أرفع ملف وأولّد منه أسئلة؟', 'كيف أضيف مساعدًا وأحدد صلاحياته؟'],
+    assistant: ['ما الذي أستطيع فعله بصلاحياتي؟', 'ساعدني بصياغة سؤال صح/خطأ', 'كيف أضيف امتحانًا؟'],
+    reseller: ['كيف آخذ أكواد جديدة؟', 'كيف أسلّم الكود للطالب؟', 'ماذا أفعل إن وصلت للحد الأقصى؟'],
+    admin: ['كيف أضيف قسمًا وجامعات ومراحل بسرعة؟', 'كيف أنشئ حساب مشرف أو مدير متجر؟', 'اشرح لي الأدوار والصلاحيات'],
+  };
+  function aiSuggestionsFor(role){
+    return AI_SUGGESTIONS[role] || AI_SUGGESTIONS.admin;
+  }
+  function aiShowFab(on){ document.getElementById('aiFab').style.display = on ? 'grid' : 'none'; if (!on) document.getElementById('aiPanel').classList.remove('open'); }
+  async function toggleAiChat(){
+    const panel = document.getElementById('aiPanel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')){
+      if (!aiHistory.length) aiRenderIntro();
+      document.getElementById('aiInput').focus();
+      try {
+        const st = await apiFetch('/api/ai/status');
+        document.getElementById('aiKnow').textContent = `مدرَّب على ${st.knowledge.questions.toLocaleString('en-US')} سؤال من بنك المنصة` + (st.enabled ? '' : ' · وضع البحث (الكتابة الكاملة غير مفعّلة)');
+      } catch (e) { /* plain header */ }
+    }
+  }
+  function aiRenderIntro(){
+    const name = (currentUser?.full_name || '').split(' ')[0] || '';
+    document.getElementById('aiMsgs').innerHTML = `<div class="ai-msg bot">أهلاً ${esc(name)} 👋 أنا مساعد Kiur. أعرف المنصة ودورك فيها — اسألني أو اختر اقتراحًا.</div>`;
+    document.getElementById('aiSugg').innerHTML = aiSuggestionsFor(currentRole).map(t => `<button onclick="aiAsk(this.textContent)">${esc(t)}</button>`).join('');
+  }
+  function aiClear(){ aiHistory = []; aiRenderIntro(); }
+  function aiAsk(text){ document.getElementById('aiInput').value = text; aiSend(); }
+  function aiAppend(cls, text){
+    const box = document.getElementById('aiMsgs');
+    const d = document.createElement('div'); d.className = 'ai-msg ' + cls; d.textContent = text;
+    box.appendChild(d); box.scrollTop = box.scrollHeight; return d;
+  }
+  async function aiSend(){
+    const input = document.getElementById('aiInput'); const text = input.value.trim();
+    if (!text) return;
+    if (!liveMode){ aiAppend('err', 'سجّل دخول حقيقي لاستخدام المساعد'); return; }
+    input.value = ''; document.getElementById('aiSugg').innerHTML = '';
+    aiAppend('user', text); aiHistory.push({role: 'user', content: text});
+    const wait = aiAppend('bot', '…'); const btn = document.getElementById('aiSendBtn'); btn.disabled = true;
+    try {
+      const section = document.querySelector('.dash-section.active')?.id.replace('sec-', '') || '';
+      const res = await apiFetch('/api/ai/chat', {method: 'POST', body: JSON.stringify({
+        messages: aiHistory.slice(-12), context: 'الصفحة المفتوحة الآن في لوحة التحكم: ' + (document.getElementById('dashTitle')?.textContent || section),
+      })});
+      wait.textContent = res.reply; aiHistory.push({role: 'assistant', content: res.reply});
+      if (res.sources && res.sources.length && res.mode === 'ai'){
+        const src = document.createElement('div'); src.className = 'ai-src';
+        src.textContent = '📚 من بنك الأسئلة: ' + res.sources.map(s => s.text.slice(0, 60)).join(' · ');
+        document.getElementById('aiMsgs').appendChild(src);
+      }
+    } catch (e) {
+      wait.className = 'ai-msg err'; wait.textContent = e.detail || 'تعذّر الوصول إلى المساعد';
+      aiHistory.pop();
+    } finally { btn.disabled = false; document.getElementById('aiMsgs').scrollTop = 1e9; }
   }
 
   // Last statement in the file, so every const it reads (roles, ...) exists.

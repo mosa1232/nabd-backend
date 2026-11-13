@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
-from ..deps import require_role
+from .. import knowledge
+from ..deps import admin_gate, get_current_user
+from ..permissions import (
+    PERMISSIONS, PROF_PERMS, RESELLER_PERMS, STAFF_PERMS, parse_permissions, serialize_permissions,
+)
 from ..security import hash_password
 from ..storage import media_url, name_from_url, storage
 from .store import issue_codes_for_paid_order
@@ -51,7 +55,7 @@ def delete_stored_upload(media_ref: str | None) -> None:
         storage.delete(name)
 
 
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
+router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(admin_gate)])
 
 
 @router.get("/overview")
@@ -108,13 +112,60 @@ def list_users(role: str | None = None, db: Session = Depends(get_db)):
     q = db.query(models.User)
     if role:
         q = q.filter(models.User.role == role)
-    return q.all()
+    users = q.order_by(models.User.created_at.desc()).all()
+    # Last sign-in per account, from the session log (one grouped query).
+    last = dict(
+        db.query(models.UserSession.user_id, func.max(models.UserSession.created_at))
+        .group_by(models.UserSession.user_id).all()
+    )
+    for u in users:
+        u.last_login = last.get(u.id)
+    return users
+
+
+# Roles only a full admin may hand out or take away.
+PRIVILEGED_ROLES = {models.Role.admin.value, models.Role.supervisor.value, models.Role.store_manager.value}
+
+
+def _guard_role_change(actor: models.User, new_role: str, existing: models.User | None = None) -> None:
+    """A staff member who may manage accounts (users.manage) still must not be
+    able to mint admins or edit one — that would make the permission system
+    pointless."""
+    if actor.role == models.Role.admin:
+        return
+    if new_role in PRIVILEGED_ROLES or (existing is not None and existing.role.value in PRIVILEGED_ROLES):
+        raise HTTPException(403, "إنشاء أو تعديل المدراء والمشرفين ومدراء المتجر للمدير فقط")
+
+
+def _clean_permissions(role: str, perms: list[str]) -> str:
+    """Keep only grants that make sense for the role, so e.g. nobody ends up
+    with a reseller holding users.manage."""
+    allowed = {
+        "supervisor": STAFF_PERMS,
+        "store_manager": STAFF_PERMS,
+        "reseller": RESELLER_PERMS,
+        "assistant": PROF_PERMS,
+        "professor": PROF_PERMS,
+    }.get(role, set())
+    return serialize_permissions(p for p in perms if p in allowed)
+
+
+@router.get("/permissions")
+def list_permission_catalog():
+    """Every permission code with its Arabic label, for the editors."""
+    return [{"code": c, "label": l} for c, l in PERMISSIONS.items()]
 
 
 @router.post("/users", response_model=schemas.UserOut)
-def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db)):
+def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
     if body.role not in VALID_ROLES:
         raise HTTPException(400, "دور غير صالح")
+    _guard_role_change(actor, body.role)
+    parent = None
+    if body.role == models.Role.assistant.value:
+        parent = db.get(models.User, body.parent_user_id) if body.parent_user_id else None
+        if not parent or parent.role != models.Role.professor:
+            raise HTTPException(400, "اختر الدكتور الذي يعمل المساعد معه")
     if db.query(models.User).filter(models.User.email == body.email.strip()).first():
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
     # A professor is only usable once they have a teaching profile, so demand
@@ -130,6 +181,10 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db)):
         full_name=body.full_name.strip(),
         role=body.role,
         password_hash=hash_password(body.password) if body.password else None,
+        phone=(body.phone or "").strip() or None,
+        permissions=_clean_permissions(body.role, body.permissions),
+        parent_user_id=parent.id if parent else None,
+        code_quota=body.code_quota if body.role == models.Role.reseller.value else None,
     )
     db.add(user)
     db.flush()
@@ -197,23 +252,89 @@ def assign_professor_profile(user_id: str, body: schemas.ProfessorAssignIn, db: 
 
 
 @router.put("/users/{user_id}", response_model=schemas.UserOut)
-def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(get_db)):
+def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "المستخدم غير موجود")
     if body.role not in VALID_ROLES:
         raise HTTPException(400, "دور غير صالح")
+    _guard_role_change(actor, body.role, user)
+    if user.role == models.Role.admin and body.role != models.Role.admin.value:
+        if db.query(models.User).filter(models.User.role == models.Role.admin, models.User.id != user.id).count() == 0:
+            raise HTTPException(400, "لا يمكن إزالة آخر مدير في المنصة")
     dup = db.query(models.User).filter(models.User.email == body.email.strip(), models.User.id != user_id).first()
     if dup:
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً من حساب آخر")
     user.email = body.email.strip()
     user.full_name = body.full_name.strip()
     user.role = body.role
+    if body.phone is not None:
+        user.phone = body.phone.strip() or None
     if body.password:
         user.password_hash = hash_password(body.password)
+    if body.permissions is not None:
+        user.permissions = _clean_permissions(body.role, body.permissions)
+    if body.role == models.Role.assistant.value and body.parent_user_id:
+        parent = db.get(models.User, body.parent_user_id)
+        if not parent or parent.role != models.Role.professor:
+            raise HTTPException(400, "الدكتور المختار غير صالح")
+        user.parent_user_id = parent.id
+    if body.role == models.Role.reseller.value:
+        user.code_quota = body.code_quota
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/resellers")
+def list_resellers(db: Session = Depends(get_db)):
+    """The store manager's view of every reseller: their grants, quota and how
+    many codes they hold."""
+    out = []
+    for r in db.query(models.User).filter(models.User.role == models.Role.reseller).order_by(models.User.full_name).all():
+        held = db.query(models.ActivationCode).filter(models.ActivationCode.reseller_id == r.id).count()
+        sold = db.query(models.ActivationCode).filter(
+            models.ActivationCode.reseller_id == r.id, models.ActivationCode.sold_at.isnot(None)).count()
+        out.append({
+            "id": r.id, "full_name": r.full_name, "email": r.email, "is_banned": bool(r.is_banned),
+            "permissions": sorted(parse_permissions(r.permissions)), "code_quota": r.code_quota,
+            "codes_held": held, "codes_sold": sold,
+        })
+    return out
+
+
+@router.post("/resellers", response_model=schemas.UserOut)
+def create_reseller(body: schemas.ResellerCreateIn, db: Session = Depends(get_db)):
+    email = body.email.strip()
+    if not email or not body.full_name.strip():
+        raise HTTPException(400, "الاسم والبريد مطلوبان")
+    if len(body.password) < 8:
+        raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+    if db.query(models.User).filter(models.User.email == email).first():
+        raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
+    user = models.User(
+        email=email, full_name=body.full_name.strip(), role=models.Role.reseller,
+        password_hash=hash_password(body.password),
+        permissions=serialize_permissions(p for p in body.permissions if p in RESELLER_PERMS),
+        code_quota=body.code_quota,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/resellers/{reseller_id}")
+def update_reseller(reseller_id: str, body: schemas.PermissionsUpdateIn, db: Session = Depends(get_db)):
+    """Sets what this one reseller may do (view / generate codes) and how many
+    codes they may hold."""
+    reseller = db.get(models.User, reseller_id)
+    if not reseller or reseller.role != models.Role.reseller:
+        raise HTTPException(404, "المندوب غير موجود")
+    reseller.permissions = serialize_permissions(p for p in body.permissions if p in RESELLER_PERMS)
+    reseller.code_quota = body.code_quota
+    db.commit()
+    return {"id": reseller.id, "permissions": sorted(parse_permissions(reseller.permissions)), "code_quota": reseller.code_quota}
 
 
 @router.post("/resellers/{reseller_id}/codes")
@@ -293,6 +414,32 @@ def unban_user(user_id: str, db: Session = Depends(get_db)):
     ).update({"status": models.BanStatus.lifted})
     db.commit()
     return {"ok": True}
+
+
+@router.post("/users/{user_id}/reset-password")
+def reset_user_password(user_id: str, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """Sets a fresh temporary password and returns it ONCE.
+
+    Passwords are stored only as one-way hashes, so nobody — including an
+    admin — can read an existing one; that is deliberate. This is the
+    supported way to get someone back into their account: hand them the
+    temporary password and have them change it from their account page.
+    Any session the account already has is signed out."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    _guard_role_change(actor, user.role.value, user)
+    temp = secrets.token_urlsafe(9)  # 12 url-safe characters
+    user.password_hash = hash_password(temp)
+    user.password_changed_at = datetime.utcnow()
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.query(models.UserSession).filter(
+        models.UserSession.user_id == user.id, models.UserSession.is_active.is_(True)
+    ).update({"is_active": False})
+    db.add(models.ActivityLog(user_id=actor.id, action=f"إعادة تعيين كلمة مرور {user.email}", ip_address=""))
+    db.commit()
+    return {"temporary_password": temp, "email": user.email}
 
 
 @router.post("/users/{user_id}/2fa/reset")
@@ -447,6 +594,53 @@ def _existing_names(db: Session, parent_type: str, parent_id: str | None) -> set
     if parent_col:
         q = q.filter(getattr(child_model, parent_col) == parent_id)
     return {row[0].strip().lower() for row in q.all() if row[0]}
+
+
+@router.post("/catalog/quick")
+def catalog_quick_setup(body: schemas.CatalogQuickIn, db: Session = Depends(get_db)):
+    """The fast path for setting up a college: one call creates the section,
+    its universities, and the same list of stages under every university.
+    Anything that already exists (same name under the same parent) is reused,
+    so running it twice is safe and it can top up an existing section."""
+    def clean(names: list[str]) -> list[str]:
+        seen, out = set(), []
+        for n in names:
+            n = n.strip()
+            if n and n.lower() not in seen:
+                seen.add(n.lower())
+                out.append(n)
+        return out
+
+    section_name = body.section_name.strip()
+    universities, stages = clean(body.universities), clean(body.stages)
+    if not section_name:
+        raise HTTPException(400, "اسم القسم مطلوب")
+    if len(universities) > MAX_BULK_NAMES or len(stages) > MAX_BULK_NAMES:
+        raise HTTPException(400, f"الحد الأقصى {MAX_BULK_NAMES} اسم في القائمة الواحدة")
+
+    created = {"sections": 0, "universities": 0, "stages": 0}
+    section = db.query(models.Section).filter(func.lower(models.Section.name) == section_name.lower()).first()
+    if not section:
+        section = models.Section(name=section_name)
+        db.add(section)
+        db.flush()
+        created["sections"] += 1
+    for uni_name in universities:
+        uni = db.query(models.University).filter(
+            models.University.section_id == section.id, func.lower(models.University.name) == uni_name.lower()).first()
+        if not uni:
+            uni = models.University(name=uni_name, section_id=section.id)
+            db.add(uni)
+            db.flush()
+            created["universities"] += 1
+        for stage_name in stages:
+            exists = db.query(models.Stage).filter(
+                models.Stage.university_id == uni.id, func.lower(models.Stage.name) == stage_name.lower()).first()
+            if not exists:
+                db.add(models.Stage(name=stage_name, university_id=uni.id))
+                created["stages"] += 1
+    db.commit()
+    return {"created": created, "section_id": section.id}
 
 
 @router.post("/catalog/bulk")
@@ -870,50 +1064,65 @@ def list_questions_admin(subject_id: str, db: Session = Depends(get_db)):
     )
 
 
-def _validate_choices(choices: list[schemas.ChoiceIn]):
-    if len(choices) < 2:
+def normalize_question_input(body: schemas.QuestionAdminIn) -> list[schemas.ChoiceIn]:
+    """Validates a question by its type and returns the choices to store.
+
+    - mcq        : 2+ choices, at least one correct.
+    - true_false : always exactly صح/خطأ — the author only says which is true
+                   (send two choices, or just one flagged correct).
+    - essay      : no choices; needs a model answer.
+    """
+    if body.qtype == "essay":
+        if not body.model_answer.strip():
+            raise HTTPException(400, "الإجابة النموذجية مطلوبة للسؤال المقالي")
+        return []
+    if body.qtype == "true_false":
+        correct_is_true = next((c.text.strip() for c in body.choices if c.is_correct), "")
+        if correct_is_true not in ("صح", "خطأ"):
+            raise HTTPException(400, "حدد الإجابة الصحيحة: صح أو خطأ")
+        return [
+            schemas.ChoiceIn(text="صح", is_correct=correct_is_true == "صح"),
+            schemas.ChoiceIn(text="خطأ", is_correct=correct_is_true == "خطأ"),
+        ]
+    if len(body.choices) < 2:
         raise HTTPException(400, "يجب إضافة خيارين على الأقل")
-    if not any(c.is_correct for c in choices):
+    if not any(c.is_correct for c in body.choices):
         raise HTTPException(400, "يجب تحديد إجابة صحيحة واحدة على الأقل")
+    return body.choices
 
 
-@router.post("/questions", response_model=schemas.QuestionAdminOut)
-def create_question_admin(body: schemas.QuestionAdminIn, db: Session = Depends(get_db)):
-    if not db.get(models.Subject, body.subject_id):
-        raise HTTPException(404, "المادة غير موجودة")
-    _validate_choices(body.choices)
-    q = models.Question(
-        subject_id=body.subject_id, text=body.text, eyebrow=body.eyebrow,
-        rationale=body.rationale, image_url=body.image_url,
-    )
-    db.add(q)
-    db.flush()
-    for idx, c in enumerate(body.choices):
-        db.add(models.Choice(question_id=q.id, text=c.text, is_correct=c.is_correct, order_index=idx))
-    db.commit()
-    db.refresh(q)
-    return q
+def replace_choices(db: Session, q: models.Question, choices: list[schemas.ChoiceIn]) -> None:
+    """Rewrites a question's choices *in place*.
+
+    Deleting every Choice and re-inserting (what this used to do) violates
+    the foreign keys from student answers and exam attempts as soon as one
+    student has answered — fine on SQLite, a 500 on PostgreSQL. Existing rows
+    are reused by position; only choices that were dropped are removed, along
+    with the answers that pointed at them."""
+    old = sorted(q.choices, key=lambda c: c.order_index or 0)
+    for idx, c in enumerate(choices):
+        if idx < len(old):
+            old[idx].text, old[idx].is_correct, old[idx].order_index = c.text, c.is_correct, idx
+        else:
+            db.add(models.Choice(question_id=q.id, text=c.text, is_correct=c.is_correct, order_index=idx))
+    for extra in old[len(choices):]:
+        db.query(models.StudentAnswer).filter(models.StudentAnswer.choice_id == extra.id).delete()
+        db.query(models.ExamAttemptQuestion).filter(models.ExamAttemptQuestion.choice_id == extra.id).update(
+            {"choice_id": None, "is_correct": False})
+        db.delete(extra)
 
 
-@router.put("/questions/{question_id}", response_model=schemas.QuestionAdminOut)
-def update_question_admin(question_id: str, body: schemas.QuestionAdminIn, db: Session = Depends(get_db)):
-    q = db.get(models.Question, question_id)
-    if not q:
-        raise HTTPException(404, "السؤال غير موجود")
-    if not db.get(models.Subject, body.subject_id):
-        raise HTTPException(404, "المادة غير موجودة")
-    _validate_choices(body.choices)
-    q.text = body.text
-    q.eyebrow = body.eyebrow
-    q.rationale = body.rationale
-    q.image_url = body.image_url
-    q.subject_id = body.subject_id
-    db.query(models.Choice).filter(models.Choice.question_id == question_id).delete()
-    for idx, c in enumerate(body.choices):
-        db.add(models.Choice(question_id=q.id, text=c.text, is_correct=c.is_correct, order_index=idx))
-    db.commit()
-    db.refresh(q)
-    return q
+def purge_question(db: Session, q: models.Question) -> None:
+    """Deletes a question and every row that references it (answers, saved
+    bookmarks, exam attempt items) so the delete can't trip a foreign key."""
+    db.query(models.StudentAnswer).filter(models.StudentAnswer.question_id == q.id).delete()
+    db.query(models.SavedQuestion).filter(models.SavedQuestion.question_id == q.id).delete()
+    db.query(models.ExamAttemptQuestion).filter(models.ExamAttemptQuestion.question_id == q.id).delete()
+    db.delete(q)  # Question.choices cascades via the ORM relationship
+
+
+# Creating and editing questions is the doctors' and assistants' job (see
+# routers/professors.py). Staff keep list + delete here so they can moderate.
 
 
 @router.delete("/questions/{question_id}")
@@ -921,9 +1130,9 @@ def delete_question_admin(question_id: str, db: Session = Depends(get_db)):
     q = db.get(models.Question, question_id)
     if not q:
         raise HTTPException(404, "السؤال غير موجود")
-    db.query(models.StudentAnswer).filter(models.StudentAnswer.question_id == question_id).delete()
-    db.delete(q)  # Question.choices cascades via the ORM relationship
+    purge_question(db, q)
     db.commit()
+    knowledge.invalidate()
     return {"ok": True}
 
 
@@ -995,7 +1204,7 @@ def register_media(filename: str, url: str, content_type: str = "", size_bytes: 
 async def upload_media(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("admin")),
+    user: models.User = Depends(get_current_user),
 ):
     """Powers the Media screen's "رفع ملف" button — saves the file to local
     disk (served back via the /media-files static mount in app/main.py) and
@@ -1025,6 +1234,53 @@ async def upload_media(
 VALID_PRODUCT_TYPES = {t.value for t in models.ProductType}
 
 
+@router.get("/store/categories", response_model=list[schemas.StoreCategoryOut])
+def list_categories_admin(db: Session = Depends(get_db)):
+    return db.query(models.StoreCategory).order_by(models.StoreCategory.sort_order, models.StoreCategory.name).all()
+
+
+@router.post("/store/categories", response_model=schemas.StoreCategoryOut)
+def create_category(body: schemas.StoreCategoryIn, db: Session = Depends(get_db)):
+    if not body.name.strip():
+        raise HTTPException(400, "اسم القسم مطلوب")
+    c = models.StoreCategory(name=body.name.strip(), sort_order=body.sort_order)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@router.put("/store/categories/{category_id}", response_model=schemas.StoreCategoryOut)
+def update_category(category_id: str, body: schemas.StoreCategoryIn, db: Session = Depends(get_db)):
+    c = db.get(models.StoreCategory, category_id)
+    if not c:
+        raise HTTPException(404, "القسم غير موجود")
+    if not body.name.strip():
+        raise HTTPException(400, "اسم القسم مطلوب")
+    c.name = body.name.strip()
+    c.sort_order = body.sort_order
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+@router.delete("/store/categories/{category_id}")
+def delete_category(category_id: str, db: Session = Depends(get_db)):
+    c = db.get(models.StoreCategory, category_id)
+    if not c:
+        raise HTTPException(404, "القسم غير موجود")
+    # Products keep existing; they just fall back to "no section".
+    db.query(models.Product).filter(models.Product.category_id == category_id).update({"category_id": None})
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
+
+
+def _check_category(db: Session, category_id: str | None) -> None:
+    if category_id and not db.get(models.StoreCategory, category_id):
+        raise HTTPException(404, "قسم المتجر غير موجود")
+
+
 @router.get("/store/products", response_model=list[schemas.ProductAdminOut])
 def list_products_admin(db: Session = Depends(get_db)):
     return db.query(models.Product).all()
@@ -1036,9 +1292,11 @@ def create_product(body: schemas.ProductIn, db: Session = Depends(get_db)):
         raise HTTPException(400, "نوع المنتج غير صالح")
     if body.grants_subject_id and not db.get(models.Subject, body.grants_subject_id):
         raise HTTPException(404, "المادة غير موجودة")
+    _check_category(db, body.category_id)
     product = models.Product(
         name=body.name.strip(), price=body.price, type=body.type,
         is_activation_code=body.is_activation_code, grants_subject_id=body.grants_subject_id,
+        category_id=body.category_id or None,
     )
     db.add(product)
     db.commit()
@@ -1060,6 +1318,8 @@ def update_product(product_id: str, body: schemas.ProductIn, db: Session = Depen
     product.type = body.type
     product.is_activation_code = body.is_activation_code
     product.grants_subject_id = body.grants_subject_id
+    _check_category(db, body.category_id)
+    product.category_id = body.category_id or None
     db.commit()
     db.refresh(product)
     return product
@@ -1142,7 +1402,7 @@ def list_notifications_admin(db: Session = Depends(get_db)):
 def send_notification(
     body: schemas.NotificationCreateIn,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("admin")),
+    user: models.User = Depends(get_current_user),
 ):
     if body.user_id and not db.get(models.User, body.user_id):
         raise HTTPException(404, "المستخدم غير موجود")
@@ -1151,6 +1411,70 @@ def send_notification(
     db.commit()
     db.refresh(n)
     return {"id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at}
+
+def _check_section(db: Session, section_id: str | None) -> None:
+    if section_id and not db.get(models.Section, section_id):
+        raise HTTPException(400, "القسم المختار غير موجود")
+
+
+# ============================================ ADMIN: summer training
+# The student-facing list lives in routers/summer.py.
+@router.get("/summer-trainings", response_model=list[schemas.SummerTrainingOut])
+def list_summer_admin(db: Session = Depends(get_db)):
+    return db.query(models.SummerTraining).order_by(models.SummerTraining.created_at.desc()).all()
+
+
+@router.post("/summer-trainings", response_model=schemas.SummerTrainingOut)
+def create_summer(
+    body: schemas.SummerTrainingIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    _check_section(db, body.section_id)
+    item = models.SummerTraining(
+        title=body.title.strip(), description=body.description.strip(),
+        location=body.location.strip(), starts_on=body.starts_on.strip(),
+        ends_on=body.ends_on.strip(), apply_url=body.apply_url.strip(),
+        section_id=body.section_id or None, is_active=body.is_active, created_by=user.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/summer-trainings/{item_id}", response_model=schemas.SummerTrainingOut)
+def update_summer(item_id: str, body: schemas.SummerTrainingIn, db: Session = Depends(get_db)):
+    item = db.get(models.SummerTraining, item_id)
+    if not item:
+        raise HTTPException(404, "غير موجود")
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    _check_section(db, body.section_id)
+    item.title = body.title.strip()
+    item.description = body.description.strip()
+    item.location = body.location.strip()
+    item.starts_on = body.starts_on.strip()
+    item.ends_on = body.ends_on.strip()
+    item.apply_url = body.apply_url.strip()
+    item.section_id = body.section_id or None
+    item.is_active = body.is_active
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/summer-trainings/{item_id}")
+def delete_summer(item_id: str, db: Session = Depends(get_db)):
+    item = db.get(models.SummerTraining, item_id)
+    if not item:
+        raise HTTPException(404, "غير موجود")
+    db.delete(item)
+    db.commit()
+    return {"ok": True}
+
 
 # ================================================== ADMIN: clinical pearls
 # The student-facing reads live in routers/pearls.py — including the public
@@ -1164,38 +1488,8 @@ def list_pearls_admin(db: Session = Depends(get_db)):
     )
 
 
-@router.post("/pearls", response_model=schemas.ClinicalPearlOut)
-def create_pearl(
-    body: schemas.ClinicalPearlIn,
-    db: Session = Depends(get_db),
-    user: models.User = Depends(require_role("admin")),
-):
-    title = body.title.strip()
-    if not title:
-        raise HTTPException(400, "العنوان مطلوب")
-    pearl = models.ClinicalPearl(
-        title=title, tag=body.tag.strip(), body=body.body.strip(), created_by=user.id,
-    )
-    db.add(pearl)
-    db.commit()
-    db.refresh(pearl)
-    return pearl
-
-
-@router.put("/pearls/{pearl_id}", response_model=schemas.ClinicalPearlOut)
-def update_pearl(pearl_id: str, body: schemas.ClinicalPearlIn, db: Session = Depends(get_db)):
-    pearl = db.get(models.ClinicalPearl, pearl_id)
-    if not pearl:
-        raise HTTPException(404, "اللمحة غير موجودة")
-    title = body.title.strip()
-    if not title:
-        raise HTTPException(400, "العنوان مطلوب")
-    pearl.title = title
-    pearl.tag = body.tag.strip()
-    pearl.body = body.body.strip()
-    db.commit()
-    db.refresh(pearl)
-    return pearl
+# Pearls are written by doctors and assistants (routers/professors.py); staff
+# can only list and delete them.
 
 
 @router.delete("/pearls/{pearl_id}")

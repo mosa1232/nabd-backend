@@ -13,6 +13,7 @@ Creating and editing them is admin work and lives in routers/admin.py with
 the rest of the admin CRUD.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -34,10 +35,23 @@ def preview_pearls(limit: int = Query(3, ge=1, le=12), db: Session = Depends(get
     )
 
 
+def _visible_to(query, user: models.User):
+    """A student sees the pearls of their own college plus the ones marked
+    for every college. Staff (admin/professor/…) see everything."""
+    if user.role != models.Role.student:
+        return query
+    if user.section_id:
+        return query.filter(or_(
+            models.ClinicalPearl.section_id == user.section_id,
+            models.ClinicalPearl.section_id.is_(None),
+        ))
+    return query.filter(models.ClinicalPearl.section_id.is_(None))
+
+
 @router.get("", response_model=list[schemas.ClinicalPearlOut])
 def list_pearls(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     return (
-        db.query(models.ClinicalPearl)
+        _visible_to(db.query(models.ClinicalPearl), user)
         .order_by(models.ClinicalPearl.created_at.desc())
         .all()
     )
@@ -45,7 +59,7 @@ def list_pearls(db: Session = Depends(get_db), user: models.User = Depends(get_c
 
 @router.get("/{pearl_id}", response_model=schemas.ClinicalPearlOut)
 def get_pearl(pearl_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    pearl = db.get(models.ClinicalPearl, pearl_id)
+    pearl = _visible_to(db.query(models.ClinicalPearl), user).filter(models.ClinicalPearl.id == pearl_id).first()
     if not pearl:
         raise HTTPException(404, "اللمحة غير موجودة")
     return pearl

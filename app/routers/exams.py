@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
@@ -97,7 +98,11 @@ def start_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = 
     if existing:
         attempt = existing
     else:
-        pool = db.query(models.Question).filter(models.Question.subject_id == exam.subject_id).all()
+        # Essays can't be auto-graded, so they never enter a timed exam.
+        pool = db.query(models.Question).filter(
+            models.Question.subject_id == exam.subject_id,
+            or_(models.Question.qtype.is_(None), models.Question.qtype != "essay"),
+        ).all()
         if not pool:
             raise HTTPException(400, "لا توجد أسئلة متاحة لهذا الامتحان بعد")
         random.shuffle(pool)

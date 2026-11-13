@@ -10,8 +10,8 @@ from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
 from .database import Base, engine
 from .routers import (
-    activation, admin, auth, bans, catalog, courses, exams, import_export, pearls,
-    notifications, professors, public, questions, reseller, store, students,
+    activation, admin, ai as ai_router, auth, bans, catalog, courses, exams, import_export, pearls,
+    notifications, professors, public, questions, reseller, store, students, summer,
 )
 from .storage import name_from_url, storage
 
@@ -57,6 +57,8 @@ app.include_router(notifications.router)
 app.include_router(students.router)
 app.include_router(pearls.router)
 app.include_router(public.router)
+app.include_router(summer.router)
+app.include_router(ai_router.router)
 
 @app.get("/media-files/{name}")
 def serve_media(name: str):
@@ -131,10 +133,58 @@ def _patch_missing_columns():
                     )
 
 
+def _patch_enum_values():
+    """PostgreSQL stores each Enum as a named type, and `create_all` never adds
+    labels to a type that already exists — so a database created before the
+    supervisor / store_manager / assistant roles existed would reject them
+    ("invalid input value for enum"). Add any missing label. SQLite stores
+    Enums as plain text, so there's nothing to do there."""
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        seen: set[str] = set()
+        for table in Base.metadata.sorted_tables:
+            for column in table.columns:
+                enum_type = column.type
+                name = getattr(enum_type, "name", None)
+                labels = getattr(enum_type, "enums", None)
+                if not name or not labels or name in seen:
+                    continue
+                seen.add(name)
+                existing = {
+                    row[0] for row in conn.execute(
+                        text("SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = :n"),
+                        {"n": name},
+                    )
+                }
+                if not existing:
+                    continue  # type doesn't exist yet — create_all made it complete
+                for label in labels:
+                    if label not in existing:
+                        quoted = label.replace("'", "''")
+                        conn.execute(text(f'ALTER TYPE "{name}" ADD VALUE IF NOT EXISTS \'{quoted}\''))
+
+
+def _backfill_reseller_permissions():
+    """Resellers created before per-reseller permissions existed could view and
+    generate codes. Give them exactly that (once — only while their grants have
+    never been configured), so the upgrade doesn't lock anyone out."""
+    with engine.begin() as conn:
+        conn.execute(
+            text("UPDATE users SET permissions = 'codes.generate,codes.view' "
+                 "WHERE role = 'reseller' AND permissions IS NULL")
+        )
+
+
 @app.on_event("startup")
 def on_startup():
+    # Enum labels must exist before anything tries to use them, and create_all
+    # (which may create the types fresh) has to run first so existing types are
+    # the only ones patched.
     Base.metadata.create_all(bind=engine)
+    _patch_enum_values()
     _patch_missing_columns()
+    _backfill_reseller_permissions()
     # No demo data auto-seeded — this instance starts genuinely empty.
     # Whoever signs in with BOOTSTRAP_ADMIN_EMAIL becomes admin (see auth.py) so
     # there's still a way in without fake accounts. Run `python seed.py`

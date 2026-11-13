@@ -3,6 +3,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from .permissions import effective_permissions, parse_permissions
+
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -24,6 +26,25 @@ class UserOut(BaseModel):
     password_hash: Optional[str] = Field(default=None, exclude=True)
     # None for an account that has never set one.
     password_changed_at: Optional[datetime] = None
+    parent_user_id: Optional[str] = None
+    code_quota: Optional[int] = None
+    created_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None
+    # The raw extra grants; the dashboard reads `effective_permissions`.
+    permissions: Optional[str] = Field(default="", exclude=True)
+
+    @computed_field
+    @property
+    def extra_permissions(self) -> list[str]:
+        """Only the grants made on top of the role's defaults (for editors)."""
+        return sorted(parse_permissions(self.permissions))
+
+    @computed_field
+    @property
+    def effective_permissions(self) -> list[str]:
+        """Everything this account may do — drives which dashboard pages and
+        buttons appear. The server enforces it independently."""
+        return sorted(effective_permissions(self.role, self.permissions))
 
     @computed_field
     @property
@@ -40,7 +61,8 @@ class UserOut(BaseModel):
         admins/resellers are created directly by an admin and never need it."""
         if self.role != "student":
             return True
-        if not self.phone or not self.university_id or not self.section_id:
+        # phone is optional — it is not part of completeness.
+        if not self.university_id or not self.section_id:
             return False
         if self.is_graduate is None:
             return False
@@ -51,11 +73,51 @@ class UserOut(BaseModel):
 
 class ProfileUpdateIn(BaseModel):
     full_name: str
-    phone: str
+    phone: str = ""  # optional
     section_id: str
     university_id: str
     is_graduate: bool
     stage_id: Optional[str] = None
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class ChatIn(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=40)
+    context: str = Field(default="", max_length=3000)
+
+
+class ChatOut(BaseModel):
+    reply: str
+    mode: str = "ai"            # "ai" = written by the model, "search" = assembled from the question bank
+    sources: list[dict] = []    # the bank questions the answer drew on
+
+
+class PearlProfIn(BaseModel):
+    title: str
+    tag: str = ""
+    body: str = ""
+
+
+class QuestionBulkIn(BaseModel):
+    questions: list["QuestionProfIn"] = Field(min_length=1, max_length=50)
+
+
+class PearlBulkIn(BaseModel):
+    pearls: list[PearlProfIn] = Field(min_length=1, max_length=30)
+
+
+class CatalogQuickIn(BaseModel):
+    section_name: str
+    universities: list[str] = []
+    stages: list[str] = []
+
+
+class StageChangeIn(BaseModel):
+    stage_id: str
 
 
 class CaptionUpdateIn(BaseModel):
@@ -92,6 +154,45 @@ class UserCreateIn(BaseModel):
     # profile is what ties them to a subject.
     subject_id: Optional[str] = None
     title: Optional[str] = None
+    # Extra permissions on top of the role's defaults (admin sets these).
+    permissions: list[str] = []
+    # Assistant only: the professor (user id) they work for.
+    parent_user_id: Optional[str] = None
+    # Reseller only.
+    code_quota: Optional[int] = Field(default=None, ge=0)
+    phone: Optional[str] = None
+
+
+class PermissionsUpdateIn(BaseModel):
+    permissions: list[str] = []
+    code_quota: Optional[int] = Field(default=None, ge=0)
+
+
+class ResellerCreateIn(BaseModel):
+    email: str
+    full_name: str
+    password: str
+    permissions: list[str] = ["codes.view", "codes.generate"]
+    code_quota: Optional[int] = Field(default=None, ge=0)
+
+
+class AssistantCreateIn(BaseModel):
+    email: str
+    full_name: str
+    password: str
+    permissions: list[str] = []
+
+
+class StoreCategoryIn(BaseModel):
+    name: str
+    sort_order: int = 0
+
+
+class StoreCategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    sort_order: int = 0
 
 
 class ProfessorAssignIn(BaseModel):
@@ -104,6 +205,10 @@ class UserUpdateIn(BaseModel):
     full_name: str
     role: str
     password: Optional[str] = None  # leave empty to keep the current password unchanged
+    permissions: Optional[list[str]] = None  # None = leave grants unchanged
+    phone: Optional[str] = None
+    parent_user_id: Optional[str] = None
+    code_quota: Optional[int] = Field(default=None, ge=0)
 
 
 class PasswordLoginIn(BaseModel):
@@ -154,12 +259,27 @@ class ChoiceWithAnswerOut(ChoiceOut):
     is_correct: bool
 
 
+QuestionType = Literal["mcq", "true_false", "essay"]
+
+
+class QuestionProfIn(BaseModel):
+    """A professor's question — the subject is fixed to their own."""
+    text: str
+    eyebrow: str = ""
+    rationale: str = ""
+    image_url: Optional[str] = None
+    qtype: QuestionType = "mcq"
+    model_answer: str = ""
+    choices: list["ChoiceIn"] = []
+
+
 class QuestionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     text: str
     eyebrow: str
     image_url: Optional[str] = None
+    qtype: str = "mcq"
     choices: list[ChoiceOut]
 
 
@@ -170,6 +290,11 @@ class AnswerIn(BaseModel):
 class AnswerResult(BaseModel):
     is_correct: bool
     correct_choice_id: str
+    rationale: str
+
+
+class EssayRevealOut(BaseModel):
+    model_answer: str
     rationale: str
 
 
@@ -257,7 +382,9 @@ class QuestionAdminIn(BaseModel):
     eyebrow: str = ""
     rationale: str = ""
     image_url: Optional[str] = None
-    choices: list[ChoiceIn]
+    qtype: QuestionType = "mcq"
+    model_answer: str = ""
+    choices: list[ChoiceIn] = []
 
 
 class QuestionAdminOut(BaseModel):
@@ -268,6 +395,8 @@ class QuestionAdminOut(BaseModel):
     eyebrow: str
     rationale: str
     image_url: Optional[str] = None
+    qtype: str = "mcq"
+    model_answer: str = ""
     choices: list[ChoiceWithAnswerOut]
 
 
@@ -277,6 +406,7 @@ class ProductOut(BaseModel):
     name: str
     price: int
     type: str
+    category_id: Optional[str] = None
 
 
 class ProductAdminOut(ProductOut):
@@ -374,6 +504,7 @@ class ProductIn(BaseModel):
     type: str  # "digital" | "physical" | "course"
     is_activation_code: bool = False
     grants_subject_id: Optional[str] = None
+    category_id: Optional[str] = None
 
 
 class OrderAdminItemOut(BaseModel):
@@ -411,6 +542,7 @@ class ClinicalPearlIn(BaseModel):
     title: str
     tag: str = ""
     body: str = ""
+    section_id: Optional[str] = None  # null = every section
 
 
 class ClinicalPearlOut(BaseModel):
@@ -418,6 +550,7 @@ class ClinicalPearlOut(BaseModel):
     tag: str = ""
     title: str
     body: str
+    section_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -430,6 +563,30 @@ class ClinicalPearlPreviewOut(BaseModel):
     title: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class SummerTrainingIn(BaseModel):
+    title: str
+    description: str = ""
+    location: str = ""
+    starts_on: str = ""
+    ends_on: str = ""
+    apply_url: str = ""
+    section_id: Optional[str] = None
+    is_active: bool = True
+
+
+class SummerTrainingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    title: str
+    description: str = ""
+    location: str = ""
+    starts_on: str = ""
+    ends_on: str = ""
+    apply_url: str = ""
+    section_id: Optional[str] = None
+    is_active: bool = True
+
 
 class ForgotPasswordIn(BaseModel):
     email: str

@@ -19,6 +19,9 @@ class Role(str, enum.Enum):
     professor = "professor"
     admin = "admin"
     reseller = "reseller"
+    supervisor = "supervisor"        # سوبر فايزر
+    store_manager = "store_manager"  # منجر المتجر
+    assistant = "assistant"          # مساعد الدكتور
 
 
 class ProductType(str, enum.Enum):
@@ -81,6 +84,15 @@ class User(Base):
     theme = Column(String, default="light")
     language = Column(String, default="ar")
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Extra permissions granted on top of the role's defaults (comma-separated
+    # codes from app/permissions.py).
+    # NULL = never configured (lets startup grant pre-existing resellers the
+    # access they already had); "" = explicitly no extra grants.
+    permissions = Column(Text, nullable=True)
+    # An assistant's professor (the professor's *user* id).
+    parent_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    # Reseller only: most codes they may hold in total. Null = unlimited.
+    code_quota = Column(Integer, nullable=True)
 
     university = relationship("University")
     stage = relationship("Stage")
@@ -173,6 +185,11 @@ class Question(Base):
     image_url = Column(String, nullable=True)
     rationale = Column(Text, default="")
     eyebrow = Column(String, default="")
+    # "mcq" (multiple choice) | "true_false" | "essay". True/false is stored
+    # as a two-choice question (صح/خطأ) so grading is shared with mcq; an
+    # essay has no choices — just a model answer the student reveals.
+    qtype = Column(String, default="mcq")
+    model_answer = Column(Text, default="")
 
     subject = relationship("Subject")
     choices = relationship("Choice", back_populates="question", cascade="all, delete-orphan")
@@ -281,12 +298,21 @@ class ActivationCode(Base):
 
 
 # ------------------------------------------------------------------- store
+class StoreCategory(Base):
+    """A store section (e.g. ملازم, أكواد, كتب) products are grouped under."""
+    __tablename__ = "store_categories"
+    id = Column(String, primary_key=True, default=gen_id)
+    name = Column(String, nullable=False)
+    sort_order = Column(Integer, default=0)
+
+
 class Product(Base):
     __tablename__ = "products"
     id = Column(String, primary_key=True, default=gen_id)
     name = Column(String, nullable=False)
     price = Column(Integer, nullable=False)  # IQD
     type = Column(Enum(ProductType), nullable=False)
+    category_id = Column(String, ForeignKey("store_categories.id"), nullable=True)
     is_activation_code = Column(Boolean, default=False)  # buying this issues a real ActivationCode
     grants_subject_id = Column(String, ForeignKey("subjects.id"), nullable=True)  # null + is_activation_code = VIP
 
@@ -448,5 +474,28 @@ class ClinicalPearl(Base):
     tag = Column(String, default="")        # "طوارئ" / "تشخيص" / ... — a short label
     title = Column(String, nullable=False)  # public
     body = Column(Text, default="")         # signed-in only
+    # Which college (قسم, e.g. طب بشري / صيدلة) this pearl belongs to. Null =
+    # shown to every section. Students only ever see their own section's.
+    section_id = Column(String, ForeignKey("sections.id"), nullable=True)
+    # The doctor whose pearl this is (shared with their assistants). Null for
+    # pearls that predate this.
+    professor_id = Column(String, ForeignKey("professor_profiles.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+
+class SummerTraining(Base):
+    """A summer-training opportunity shown on the student page, scoped to a
+    college (section) so a pharmacy student doesn't see medicine placements."""
+    __tablename__ = "summer_trainings"
+    id = Column(String, primary_key=True, default=gen_id)
+    title = Column(String, nullable=False)
+    description = Column(Text, default="")
+    location = Column(String, default="")
+    starts_on = Column(String, default="")   # free text/ISO date — display only
+    ends_on = Column(String, default="")
+    apply_url = Column(String, default="")
+    section_id = Column(String, ForeignKey("sections.id"), nullable=True)  # null = all sections
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, ForeignKey("users.id"), nullable=True)

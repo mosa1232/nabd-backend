@@ -1,8 +1,8 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from . import models
+from . import models, permissions
 from .database import get_db
 from .security import decode_access_token
 
@@ -48,3 +48,37 @@ def require_role(*roles: str):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية الوصول")
         return user
     return _check
+
+
+def user_permissions(user: models.User) -> set[str]:
+    return permissions.effective_permissions(user.role.value, user.permissions)
+
+
+def has_permission(user: models.User, perm: str) -> bool:
+    return perm in user_permissions(user)
+
+
+def require_permission(*perms: str):
+    """Allows the request if the account holds at least one of `perms`."""
+    def _check(user: models.User = Depends(get_current_user)) -> models.User:
+        held = user_permissions(user)
+        if not any(p in held for p in perms):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية لهذا الإجراء")
+        return user
+    return _check
+
+
+def admin_gate(request: Request, user: models.User = Depends(get_current_user)) -> models.User:
+    """Guards every /api/admin/* route: the account must be back-office staff
+    *and* hold the permission that route family needs (permissions.py). A
+    route no rule covers is admin-only, so a newly added endpoint is closed
+    by default instead of open."""
+    if user.role.value not in permissions.BACKOFFICE_ROLES:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية الوصول")
+    needed = permissions.required_admin_permission(request.url.path)
+    if needed is None:
+        if user.role != models.Role.admin:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "هذا الإجراء للمدير فقط")
+    elif needed not in user_permissions(user):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية لهذا الإجراء")
+    return user

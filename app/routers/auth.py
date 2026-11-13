@@ -125,7 +125,10 @@ def _issue_session_and_redirect(db: Session, user: models.User, device_label: st
 # Roles allowed to actually use the admin dashboard — kept in sync with the
 # `roles` map on the dashboard's own side (nabd-admin-dashboard.html), which
 # rejects anything else with the same message this returns via #google_error.
-ADMIN_DASHBOARD_ROLES = {models.Role.admin, models.Role.professor, models.Role.reseller}
+ADMIN_DASHBOARD_ROLES = {
+    models.Role.admin, models.Role.supervisor, models.Role.store_manager,
+    models.Role.professor, models.Role.assistant, models.Role.reseller,
+}
 
 
 def _admin_redirect_base(request: Request) -> str:
@@ -343,8 +346,8 @@ def update_my_profile(
     open to any email, this is the platform's only source of that data."""
     if not body.full_name.strip():
         raise HTTPException(400, "الاسم الكامل مطلوب")
-    if not body.phone.strip():
-        raise HTTPException(400, "رقم الهاتف مطلوب")
+    # Phone is optional — it used to block sign-up for students who didn't
+    # want to give one.
 
     university = db.get(models.University, body.university_id)
     if not university or university.section_id != body.section_id:
@@ -360,11 +363,32 @@ def update_my_profile(
         stage_id = body.stage_id
 
     user.full_name = body.full_name.strip()
-    user.phone = body.phone.strip()
+    user.phone = body.phone.strip() or None
     user.section_id = body.section_id
     user.university_id = body.university_id
     user.is_graduate = body.is_graduate
     user.stage_id = stage_id
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/me/stage", response_model=schemas.UserOut)
+def change_my_stage(
+    body: schemas.StageChangeIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """One-tap stage change (e.g. moving up a year). The college and
+    university stay as signed up; everything the student sees follows the new
+    stage automatically."""
+    if not user.university_id:
+        raise HTTPException(400, "أكمل بياناتك أولاً")
+    stage = db.get(models.Stage, body.stage_id)
+    if not stage or stage.university_id != user.university_id:
+        raise HTTPException(400, "المرحلة المختارة لا تتبع جامعتك")
+    user.stage_id = stage.id
+    user.is_graduate = False
     db.commit()
     db.refresh(user)
     return user

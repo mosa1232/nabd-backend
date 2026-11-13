@@ -37,6 +37,8 @@ def answer_question(
     question = db.get(models.Question, question_id)
     if not question:
         raise HTTPException(404, "السؤال غير موجود")
+    if question.qtype == "essay":
+        raise HTTPException(400, "السؤال المقالي لا يُجاب باختيار — استخدم عرض الإجابة النموذجية")
 
     choice = db.get(models.Choice, body.choice_id)
     if not choice or choice.question_id != question_id:
@@ -59,6 +61,23 @@ def answer_question(
         correct_choice_id=correct_choice.id if correct_choice else "",
         rationale=question.rationale,
     )
+
+
+@router.get("/questions/{question_id}/model-answer", response_model=schemas.EssayRevealOut)
+def essay_model_answer(
+    question_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Essay questions have no auto-grading: the student writes their own
+    answer, then reveals the model answer to compare. Only essays reveal
+    here — for an MCQ the answer endpoint is what reveals (after a pick)."""
+    question = db.get(models.Question, question_id)
+    if not question:
+        raise HTTPException(404, "السؤال غير موجود")
+    if question.qtype != "essay":
+        raise HTTPException(400, "هذا ليس سؤالاً مقاليًا")
+    return schemas.EssayRevealOut(model_answer=question.model_answer or "", rationale=question.rationale or "")
 
 
 @router.post("/questions/{question_id}/save")

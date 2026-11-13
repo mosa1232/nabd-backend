@@ -4,7 +4,11 @@ services:
     runtime: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    # --proxy-headers: Render and Cloudflare sit in front of the app, so the real
+    # scheme (https) and visitor IP arrive in X-Forwarded-* headers. Without
+    # trusting them, password-reset and Google sign-in links would be built
+    # with http:// and the activity log would record the proxy's IP.
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'"
     healthCheckPath: /health
     envVars:
       # Pin the interpreter: Render otherwise uses its newest default Python,
@@ -54,6 +58,14 @@ services:
         sync: false
       - key: S3_SECRET_ACCESS_KEY
         sync: false
+      # The AI assistant and the doctors' question generator call the Claude
+      # API (console.anthropic.com → API keys). Leave it empty and the AI
+      # features simply report themselves as unavailable. Usage is billed to
+      # that key's account, and uploaded files are sent to Anthropic.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: "claude-sonnet-5-5"
       # Set these in the Render dashboard after the first deploy, once you
       # know the service's real onrender.com URL (see README "Deploying").
       - key: GOOGLE_CLIENT_ID

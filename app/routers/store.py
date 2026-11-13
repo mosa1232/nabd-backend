@@ -13,9 +13,18 @@ router = APIRouter(prefix="/api/store", tags=["store"])
 CODE_VALIDITY_DAYS = 365  # matches app/routers/activation.py's redemption window
 
 
+@router.get("/categories", response_model=list[schemas.StoreCategoryOut])
+def list_categories(db: Session = Depends(get_db)):
+    """The store's sections, for the filter chips on the student store page."""
+    return db.query(models.StoreCategory).order_by(models.StoreCategory.sort_order, models.StoreCategory.name).all()
+
+
 @router.get("/products", response_model=list[schemas.ProductOut])
-def list_products(db: Session = Depends(get_db)):
-    return db.query(models.Product).all()
+def list_products(category_id: str | None = None, db: Session = Depends(get_db)):
+    q = db.query(models.Product)
+    if category_id:
+        q = q.filter(models.Product.category_id == category_id)
+    return q.all()
 
 
 @router.post("/orders", response_model=schemas.OrderOut)

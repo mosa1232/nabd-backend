@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
-from .. import models, schemas
+from .. import ai, knowledge, models, schemas
+from ..config import get_settings
 from ..database import get_db
-from ..deps import get_current_user
+from ..deps import get_current_user, user_permissions
+from ..permissions import PERMISSIONS, PROF_PERMS, parse_permissions, serialize_permissions
+from ..security import hash_password
 from ..storage import media_url, storage
 from .admin import (
     DOC_EXTS, IMAGE_EXTS, MAX_UPLOAD_BYTES, MAX_VIDEO_BYTES,
-    VIDEO_EXTS, delete_stored_upload, safe_upload_name,
+    VIDEO_EXTS, delete_stored_upload, normalize_question_input, purge_question, replace_choices, safe_upload_name,
 )
 
 router = APIRouter(prefix="/api/professors", tags=["professors"])
+_settings = get_settings()
 
 
 def _to_out(
@@ -91,10 +95,31 @@ def latest_booklet(db: Session = Depends(get_db), user: models.User = Depends(ge
     }
 
 
-def _get_own_profile(db: Session, user: models.User) -> models.ProfessorProfile:
-    if user.role != models.Role.professor:
+def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> models.ProfessorProfile:
+    """The teaching profile the caller acts on.
+
+    - a professor always acts on their own profile;
+    - an assistant acts on their professor's profile, but only for the
+      permission the professor granted ("any" = at least one prof.* grant);
+    - perm="owner" is professor-only (profile edits, managing assistants).
+    """
+    if user.role == models.Role.professor:
+        owner_id = user.id
+    elif user.role == models.Role.assistant and perm != "owner":
+        held = user_permissions(user)
+        if perm == "any":
+            ok = bool(held & PROF_PERMS)
+        else:
+            ok = perm in held
+        if not ok:
+            raise HTTPException(403, "لا تملك صلاحية لهذا الإجراء — اطلبها من الدكتور")
+        parent = db.get(models.User, user.parent_user_id) if user.parent_user_id else None
+        if not parent or parent.role != models.Role.professor or parent.is_banned:
+            raise HTTPException(403, "حساب المساعد غير مرتبط بدكتور فعّال")
+        owner_id = parent.id
+    else:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
-    profile = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user.id).first()
+    profile = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == owner_id).first()
     if not profile:
         raise HTTPException(404, "لا يوجد ملف تدريسي مرتبط بهذا الحساب")
     return profile
@@ -108,7 +133,7 @@ def update_my_profile(
 ):
     """Lets a professor fill in their own bio and photo — the student-facing
     "صفحة الدكتور" used to show only a name, title and subject."""
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "owner")
     profile.title = body.title.strip() or profile.title
     profile.bio = body.bio.strip()
     if body.photo_url is not None and body.photo_url != profile.photo_url:
@@ -127,7 +152,7 @@ async def upload_my_photo(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "owner")
     contents = await file.read()
     if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
@@ -143,7 +168,7 @@ async def upload_my_photo(
 def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Powers the Professor Panel — a professor's own booklets, exams, and
     the students who've been active in their subject."""
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "any")
 
     booklets = db.query(models.Booklet).filter(models.Booklet.professor_id == profile.id).all()
     exams = db.query(models.Exam).filter(models.Exam.professor_id == profile.id).all()
@@ -175,7 +200,7 @@ def my_students(db: Session = Depends(get_db), user: models.User = Depends(get_c
     """Powers the Professor Panel's "طلابي" tab — the students who've
     actually answered questions in this professor's subject, with their
     real activity and accuracy instead of the old static placeholder rows."""
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.students")
 
     answers = (
         db.query(models.StudentAnswer)
@@ -253,7 +278,7 @@ def _drop_content_notifications(db: Session, content_type: str, content_ids: lis
 # ---------------------------------------------------------- booklet CRUD
 @router.post("/me/booklets", response_model=schemas.BookletOut)
 def create_booklet(body: schemas.BookletIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.booklets")
     b = models.Booklet(professor_id=profile.id, title=body.title, pages=body.pages)
     db.add(b)
     db.flush()  # need the generated id to link the announcement to it
@@ -265,7 +290,7 @@ def create_booklet(body: schemas.BookletIn, db: Session = Depends(get_db), user:
 
 @router.put("/me/booklets/{booklet_id}", response_model=schemas.BookletOut)
 def update_booklet(booklet_id: str, body: schemas.BookletIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.booklets")
     b = db.get(models.Booklet, booklet_id)
     if not b or b.professor_id != profile.id:
         raise HTTPException(404, "الملزمة غير موجودة")
@@ -278,7 +303,7 @@ def update_booklet(booklet_id: str, body: schemas.BookletIn, db: Session = Depen
 
 @router.delete("/me/booklets/{booklet_id}")
 def delete_booklet(booklet_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.booklets")
     b = db.get(models.Booklet, booklet_id)
     if not b or b.professor_id != profile.id:
         raise HTTPException(404, "الملزمة غير موجودة")
@@ -302,7 +327,7 @@ async def upload_booklet_file(
 ):
     """The "فتح" button on a booklet used to have nothing to open — this is
     what actually puts a real file behind it."""
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.booklets")
     b = db.get(models.Booklet, booklet_id)
     if not b or b.professor_id != profile.id:
         raise HTTPException(404, "الملزمة غير موجودة")
@@ -321,7 +346,7 @@ async def upload_booklet_file(
 # ------------------------------------------------------------- exam CRUD
 @router.post("/me/exams", response_model=schemas.ExamOut)
 def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.exams")
     e = models.Exam(
         subject_id=profile.subject_id, professor_id=profile.id, title=body.title,
         question_count=body.question_count, duration_minutes=body.duration_minutes,
@@ -336,7 +361,7 @@ def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: model
 
 @router.put("/me/exams/{exam_id}", response_model=schemas.ExamOut)
 def update_exam(exam_id: str, body: schemas.ExamIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.exams")
     e = db.get(models.Exam, exam_id)
     if not e or e.professor_id != profile.id:
         raise HTTPException(404, "الامتحان غير موجود")
@@ -350,7 +375,7 @@ def update_exam(exam_id: str, body: schemas.ExamIn, db: Session = Depends(get_db
 
 @router.delete("/me/exams/{exam_id}")
 def delete_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.exams")
     e = db.get(models.Exam, exam_id)
     if not e or e.professor_id != profile.id:
         raise HTTPException(404, "الامتحان غير موجود")
@@ -363,7 +388,7 @@ def delete_exam(exam_id: str, db: Session = Depends(get_db), user: models.User =
 # --------------------------------------------------------- course/lecture CRUD
 @router.get("/me/courses")
 def my_courses(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     courses = db.query(models.Course).filter(models.Course.professor_id == profile.id).all()
     return [
         {
@@ -379,7 +404,7 @@ def my_courses(db: Session = Depends(get_db), user: models.User = Depends(get_cu
 
 @router.post("/me/courses")
 def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     c = models.Course(subject_id=profile.subject_id, professor_id=profile.id, title=body.title)
     db.add(c)
     db.flush()  # need the generated id to link the announcement to it
@@ -391,7 +416,7 @@ def create_course(body: schemas.CourseIn, db: Session = Depends(get_db), user: m
 
 @router.put("/me/courses/{course_id}")
 def update_course(course_id: str, body: schemas.CourseIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     c = db.get(models.Course, course_id)
     if not c or c.professor_id != profile.id:
         raise HTTPException(404, "الكورس غير موجود")
@@ -402,7 +427,7 @@ def update_course(course_id: str, body: schemas.CourseIn, db: Session = Depends(
 
 @router.delete("/me/courses/{course_id}")
 def delete_course(course_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     c = db.get(models.Course, course_id)
     if not c or c.professor_id != profile.id:
         raise HTTPException(404, "الكورس غير موجود")
@@ -417,7 +442,7 @@ def delete_course(course_id: str, db: Session = Depends(get_db), user: models.Us
 
 @router.post("/me/courses/{course_id}/lectures")
 def create_lecture(course_id: str, body: schemas.LectureIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     c = db.get(models.Course, course_id)
     if not c or c.professor_id != profile.id:
         raise HTTPException(404, "الكورس غير موجود")
@@ -457,7 +482,7 @@ def _get_own_lecture(db: Session, profile: models.ProfessorProfile, lecture_id: 
 
 @router.put("/me/lectures/{lecture_id}")
 def update_lecture(lecture_id: str, body: schemas.LectureIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     lec = _get_own_lecture(db, profile, lecture_id)
     lec.title = body.title
     lec.duration_seconds = body.duration_seconds
@@ -467,7 +492,7 @@ def update_lecture(lecture_id: str, body: schemas.LectureIn, db: Session = Depen
 
 @router.delete("/me/lectures/{lecture_id}")
 def delete_lecture(lecture_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     lec = _get_own_lecture(db, profile, lecture_id)
     delete_stored_upload(lec.video_url)
     _purge_lecture_traces(db, [lec.id])
@@ -486,7 +511,7 @@ async def upload_lecture_video(
     """Replaces the old fake progress-bar "player" — a real video file
     behind a real lecture, played by a real <video> element on the student
     side."""
-    profile = _get_own_profile(db, user)
+    profile = _get_own_profile(db, user, "prof.courses")
     lec = _get_own_lecture(db, profile, lecture_id)
     contents = await file.read()
     if len(contents) > MAX_VIDEO_BYTES:
@@ -497,3 +522,339 @@ async def upload_lecture_video(
     lec.video_url = media_url(stored_name)
     db.commit()
     return {"id": lec.id, "title": lec.title, "duration_seconds": lec.duration_seconds, "video_url": lec.video_url}
+
+
+
+# ------------------------------------------------------------ question bank
+# The professor uploads the questions of their own subject. They can only see
+# and change the ones they (or their assistants) wrote.
+def _question_out(q: models.Question) -> dict:
+    return schemas.QuestionAdminOut.model_validate(q, from_attributes=True).model_dump()
+
+
+@router.get("/me/questions")
+def my_questions(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    rows = (
+        db.query(models.Question)
+        .options(joinedload(models.Question.choices))
+        .filter(models.Question.professor_id == profile.id)
+        .all()
+    )
+    return [_question_out(q) for q in rows]
+
+
+def _prof_question_input(profile: models.ProfessorProfile, body: schemas.QuestionProfIn) -> schemas.QuestionAdminIn:
+    return schemas.QuestionAdminIn(subject_id=profile.subject_id, **body.model_dump())
+
+
+@router.post("/me/questions")
+def create_my_question(body: schemas.QuestionProfIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    full = _prof_question_input(profile, body)
+    choices = normalize_question_input(full)
+    q = models.Question(
+        subject_id=profile.subject_id, professor_id=profile.id, text=body.text, eyebrow=body.eyebrow,
+        rationale=body.rationale, image_url=body.image_url, qtype=body.qtype,
+        model_answer=body.model_answer.strip(),
+    )
+    db.add(q)
+    db.flush()
+    for idx, c in enumerate(choices):
+        db.add(models.Choice(question_id=q.id, text=c.text, is_correct=c.is_correct, order_index=idx))
+    db.commit()
+    knowledge.invalidate()
+    db.refresh(q)
+    return _question_out(q)
+
+
+def _own_question(db: Session, profile: models.ProfessorProfile, question_id: str) -> models.Question:
+    q = db.get(models.Question, question_id)
+    if not q or q.professor_id != profile.id:
+        raise HTTPException(404, "السؤال غير موجود")
+    return q
+
+
+@router.put("/me/questions/{question_id}")
+def update_my_question(question_id: str, body: schemas.QuestionProfIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    q = _own_question(db, profile, question_id)
+    choices = normalize_question_input(_prof_question_input(profile, body))
+    q.text, q.eyebrow, q.rationale, q.image_url = body.text, body.eyebrow, body.rationale, body.image_url
+    q.qtype, q.model_answer = body.qtype, body.model_answer.strip()
+    replace_choices(db, q, choices)
+    db.commit()
+    knowledge.invalidate()
+    db.refresh(q)
+    return _question_out(q)
+
+
+@router.delete("/me/questions/{question_id}")
+def delete_my_question(question_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    q = _own_question(db, profile, question_id)
+    purge_question(db, q)
+    db.commit()
+    knowledge.invalidate()
+    return {"ok": True}
+
+
+# -------------------------------------------------------------- assistants
+# The professor creates their assistants' accounts and decides what each may
+# do. Assistants then work inside the professor's own content.
+def _assistant_out(a: models.User) -> dict:
+    return {
+        "id": a.id, "full_name": a.full_name, "email": a.email, "is_banned": bool(a.is_banned),
+        "permissions": sorted(parse_permissions(a.permissions) & PROF_PERMS),
+    }
+
+
+def _own_assistant(db: Session, prof_user: models.User, assistant_id: str) -> models.User:
+    a = db.get(models.User, assistant_id)
+    if not a or a.role != models.Role.assistant or a.parent_user_id != prof_user.id:
+        raise HTTPException(404, "المساعد غير موجود")
+    return a
+
+
+@router.get("/me/permission-catalog")
+def prof_permission_catalog(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "owner")
+    return [{"code": c, "label": PERMISSIONS[c]} for c in sorted(PROF_PERMS)]
+
+
+@router.get("/me/assistants")
+def my_assistants(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "owner")
+    rows = db.query(models.User).filter(
+        models.User.role == models.Role.assistant, models.User.parent_user_id == user.id
+    ).order_by(models.User.full_name).all()
+    return [_assistant_out(a) for a in rows]
+
+
+@router.post("/me/assistants")
+def create_assistant(body: schemas.AssistantCreateIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "owner")
+    email = body.email.strip()
+    if not email or not body.full_name.strip():
+        raise HTTPException(400, "الاسم والبريد مطلوبان")
+    if len(body.password) < 8:
+        raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+    if db.query(models.User).filter(models.User.email == email).first():
+        raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
+    a = models.User(
+        email=email, full_name=body.full_name.strip(), role=models.Role.assistant,
+        password_hash=hash_password(body.password), parent_user_id=user.id,
+        permissions=serialize_permissions(p for p in body.permissions if p in PROF_PERMS),
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return _assistant_out(a)
+
+
+@router.put("/me/assistants/{assistant_id}")
+def update_assistant(assistant_id: str, body: schemas.PermissionsUpdateIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "owner")
+    a = _own_assistant(db, user, assistant_id)
+    a.permissions = serialize_permissions(p for p in body.permissions if p in PROF_PERMS)
+    db.commit()
+    return _assistant_out(a)
+
+
+@router.delete("/me/assistants/{assistant_id}")
+def delete_assistant(assistant_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _get_own_profile(db, user, "owner")
+    a = _own_assistant(db, user, assistant_id)
+    try:
+        db.delete(a)
+        db.commit()
+    except Exception:
+        # The account has history pointing at it (logs, uploads…). Don't
+        # fail — lock it out instead, which has the same effect for the
+        # professor.
+        db.rollback()
+        a = _own_assistant(db, user, assistant_id)
+        a.is_banned, a.permissions, a.parent_user_id = True, "", None
+        db.commit()
+    return {"ok": True}
+
+
+
+# ------------------------------------------------- bulk save (AI drafts)
+@router.post("/me/questions/bulk")
+def bulk_create_questions(body: schemas.QuestionBulkIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Saves several questions at once — what the AI generator's "save the
+    ones I picked" button calls. Each is validated exactly like a single one;
+    one bad question rejects the whole batch so nothing is half-saved."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    prepared = []
+    for i, qin in enumerate(body.questions, start=1):
+        try:
+            prepared.append((qin, normalize_question_input(_prof_question_input(profile, qin))))
+        except HTTPException as e:
+            raise HTTPException(400, f"السؤال رقم {i}: {e.detail}")
+    for qin, choices in prepared:
+        q = models.Question(
+            subject_id=profile.subject_id, professor_id=profile.id, text=qin.text, eyebrow=qin.eyebrow,
+            rationale=qin.rationale, image_url=qin.image_url, qtype=qin.qtype, model_answer=qin.model_answer.strip(),
+        )
+        db.add(q)
+        db.flush()
+        for idx, c in enumerate(choices):
+            db.add(models.Choice(question_id=q.id, text=c.text, is_correct=c.is_correct, order_index=idx))
+    db.commit()
+    knowledge.invalidate()
+    return {"saved": len(prepared)}
+
+
+# ---------------------------------------------------------- clinical pearls
+# Written by the doctor (and assistants they allow). A pearl takes the college
+# of the doctor's subject, so students of that college are the ones who see it.
+def _section_of(db: Session, profile: models.ProfessorProfile) -> str | None:
+    subject = db.get(models.Subject, profile.subject_id)
+    stage = db.get(models.Stage, subject.stage_id) if subject else None
+    uni = db.get(models.University, stage.university_id) if stage else None
+    return uni.section_id if uni else None
+
+
+def _pearl_out(p: models.ClinicalPearl) -> dict:
+    return {"id": p.id, "title": p.title, "tag": p.tag or "", "body": p.body or "", "created_at": p.created_at}
+
+
+@router.get("/me/pearls")
+def my_pearls(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    rows = (db.query(models.ClinicalPearl).filter(models.ClinicalPearl.professor_id == profile.id)
+            .order_by(models.ClinicalPearl.created_at.desc()).all())
+    return [_pearl_out(p) for p in rows]
+
+
+@router.post("/me/pearls")
+def create_my_pearl(body: schemas.PearlProfIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    p = models.ClinicalPearl(
+        title=body.title.strip(), tag=body.tag.strip(), body=body.body.strip(),
+        section_id=_section_of(db, profile), professor_id=profile.id, created_by=user.id,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return _pearl_out(p)
+
+
+def _own_pearl(db: Session, profile: models.ProfessorProfile, pearl_id: str) -> models.ClinicalPearl:
+    p = db.get(models.ClinicalPearl, pearl_id)
+    if not p or p.professor_id != profile.id:
+        raise HTTPException(404, "اللمحة غير موجودة")
+    return p
+
+
+@router.put("/me/pearls/{pearl_id}")
+def update_my_pearl(pearl_id: str, body: schemas.PearlProfIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    p = _own_pearl(db, profile, pearl_id)
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    p.title, p.tag, p.body = body.title.strip(), body.tag.strip(), body.body.strip()
+    db.commit()
+    return _pearl_out(p)
+
+
+@router.delete("/me/pearls/{pearl_id}")
+def delete_my_pearl(pearl_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    db.delete(_own_pearl(db, profile, pearl_id))
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/me/pearls/bulk")
+def bulk_create_pearls(body: schemas.PearlBulkIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    section_id = _section_of(db, profile)
+    n = 0
+    for pin in body.pearls:
+        if not pin.title.strip():
+            continue
+        db.add(models.ClinicalPearl(title=pin.title.strip(), tag=pin.tag.strip(), body=pin.body.strip(),
+                                    section_id=section_id, professor_id=profile.id, created_by=user.id))
+        n += 1
+    db.commit()
+    return {"saved": n}
+
+
+# ------------------------------------------------------------ AI generation
+def _ai_guard(user: models.User, kind: str):
+    if not ai.enabled():
+        raise HTTPException(503, "الذكاء الاصطناعي غير مفعّل على هذا الخادم — يلزم ضبط ANTHROPIC_API_KEY")
+    try:
+        ai.check_rate(user.id, kind, _settings.ai_generate_per_hour)
+    except ai.RateLimited as e:
+        raise HTTPException(429, str(e))
+
+
+def _ai_call(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except ai.AIUnavailable as e:
+        raise HTTPException(503, str(e))
+    except ai.AIError as e:
+        raise HTTPException(502, str(e))
+
+
+@router.post("/me/ai/generate-questions")
+async def ai_generate_questions(
+    file: UploadFile = File(...),
+    count: int = Form(10),
+    types: str = Form("mcq,true_false"),
+    difficulty: str = Form("متوسط"),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """The doctor uploads a lecture/booklet (PDF, Word, text or image) and the
+    AI drafts questions from it. Nothing is saved here: the doctor reviews the
+    drafts and saves the ones they want through /me/questions/bulk."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    if not (1 <= count <= 30):
+        raise HTTPException(400, "العدد يجب أن يكون بين 1 و30")
+    wanted = [t.strip() for t in types.split(",") if t.strip() in ("mcq", "true_false", "essay")]
+    if not wanted:
+        raise HTTPException(400, "اختر نوع سؤال واحدًا على الأقل")
+    _ai_guard(user, "generate")
+    data = await file.read()
+    blocks = _ai_call(ai.file_blocks, file.filename, data)
+    subject_name = profile.subject.name if profile.subject else ""
+    questions, skipped = _ai_call(ai.generate_questions, blocks, subject_name, count, wanted, difficulty[:40], notes)
+    if not questions:
+        raise HTTPException(502, "لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
+    # Warn about drafts that are already in the bank (the search model's job).
+    for q in questions:
+        q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"])
+    return {"questions": questions, "skipped": skipped}
+
+
+@router.post("/me/ai/generate-pearls")
+async def ai_generate_pearls(
+    file: UploadFile | None = File(None),
+    topic: str = Form(""),
+    count: int = Form(3),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    profile = _get_own_profile(db, user, "prof.pearls")
+    if not (1 <= count <= 10):
+        raise HTTPException(400, "العدد يجب أن يكون بين 1 و10")
+    blocks = []
+    if file is not None and file.filename:
+        blocks = _ai_call(ai.file_blocks, file.filename, await file.read())
+    if not blocks and not topic.strip():
+        raise HTTPException(400, "ارفع ملفًا أو اكتب موضوعًا")
+    _ai_guard(user, "generate")
+    subject_name = profile.subject.name if profile.subject else ""
+    pearls = _ai_call(ai.generate_pearls, blocks, subject_name, count, topic)
+    if not pearls:
+        raise HTTPException(502, "لم يستطع المساعد توليد لمحات — جرّب موضوعًا أوضح")
+    return {"pearls": pearls}
