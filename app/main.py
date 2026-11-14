@@ -4,7 +4,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -254,18 +253,3 @@ def serve_student_app():
 @app.get("/admin")
 def serve_admin_app():
     return FileResponse(FRONTEND_DIR / "nabd-admin-dashboard.html", headers=SPA_HEADERS)
-
-
-class _RevalidatingStatic(StaticFiles):
-    """Static assets (the 3D anatomy simulator and its three.js library). They
-    are revalidated on every load so a deploy is picked up at once; the ETag
-    still turns an unchanged file into a cheap 304."""
-
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "no-cache"
-        return response
-
-
-if (FRONTEND_DIR / "static").is_dir():
-    app.mount("/static", _RevalidatingStatic(directory=FRONTEND_DIR / "static"), name="static")

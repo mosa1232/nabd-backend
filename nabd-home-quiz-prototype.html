@@ -650,6 +650,19 @@
   .tile.is-soon .soon-badge{position:absolute; top:10px; inset-inline-end:10px; margin:0;}
   .bn-item.is-soon .soon-badge{position:absolute; top:2px; inset-inline-end:2px; margin:0; padding:1px 6px; font-size:.54rem;}
   .bn-item.is-soon{position:relative;}
+  /* ---------- Anatomy (3D) ---------- */
+  .anat-chips{display:flex; gap:8px; overflow-x:auto; padding:2px 16px 10px; scrollbar-width:none;}
+  .anat-chips::-webkit-scrollbar{display:none;}
+  .anat-chip{flex:none; padding:9px 16px; border-radius:99px; border:1.5px solid var(--glass-border, #0002); background:var(--glass-bg-strong, #fff8); color:var(--ink); font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .anat-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .anat-stage{position:relative; margin:0 16px; border-radius:18px; overflow:hidden; background:#10131c; aspect-ratio:4/3; min-height:300px;}
+  .anat-stage iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  .anat-loading{position:absolute; inset:0; display:grid; place-items:center; color:#cfd3e6; font-size:.85rem; pointer-events:none; text-align:center; padding:20px;}
+  .anat-info{margin:12px 16px 0; display:grid; gap:6px;}
+  .anat-credit{font-size:.7rem; color:var(--ink-faint);}
+  .anat-credit a{color:var(--accent);}
+  @media (min-width:900px){ .anat-stage{aspect-ratio:16/9; min-height:460px;} }
+
   /* ---------- Video Academy ---------- */
   .course-grid{display:flex; flex-direction:column; gap:12px; margin-bottom:20px;}
   .course-card{display:flex; align-items:center; gap:14px; padding:14px; text-align:start; width:100%; transition:.2s;}
@@ -2139,11 +2152,19 @@
         </button>
         <div>
           <div class="page-title" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</div>
-          <div class="page-sub" data-i18n="anatomySub">مجسّم تفاعلي للجسم: دوّره، قرّب منه، فعّل الأجهزة، واضغط أي جزء لتتعرّف عليه.</div>
+          <div class="page-sub" data-i18n="anatomySub">دوّر النموذج بإصبعك أو الماوس، وقرّب وبعّد لترى التفاصيل.</div>
         </div>
       </div>
     </div>
-    <div id="anatRoot"></div>
+    <div class="anat-chips" id="anatChips" role="tablist"></div>
+    <div class="anat-stage" id="anatStage">
+      <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoading">جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.</div>
+    </div>
+    <div class="anat-info">
+      <div style="font-weight:800;" id="anatName"></div>
+      <div class="item-meta" id="anatDesc"></div>
+      <div class="anat-credit" id="anatCredit"></div>
+    </div>
   </div>
 
   <!-- ============ SUMMER TRAINING (signed in, scoped to the student's college) ============ -->
@@ -2890,8 +2911,8 @@
       continueEyebrow:'آخر ملزمة', continueBtn:'متابعة', navHome:'الرئيسية', navAccount:'حسابي', hi:'مرحباً،',
       continueCourseEyebrow:'متابعة الكورس', lecturesOf:'محاضرة',
       anatomyTitle:'التشريح ثلاثي الأبعاد', anatomyShort:'التشريح', anatomyHeroBtn:'استكشف التشريح ثلاثي الأبعاد',
-      anatomySub:'مجسّم تفاعلي للجسم: دوّره، قرّب منه، فعّل الأجهزة، واضغط أي جزء لتتعرّف عليه.',
-      anatomyLoading:'جارٍ تجهيز مجسّم الجسم…', anatomyFailed:'تعذّر تحميل المجسّم — تحقق من الاتصال وحاول مجددًا.',
+      anatomySub:'دوّر النموذج بإصبعك أو الماوس، وقرّب وبعّد لترى التفاصيل.',
+      anatomyLoading:'جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.', anatomyCreditPrefix:'النموذج:',
       comingSoon:'هذا القسم قريبًا — Soon',
       studyingFor:'مرحلتك الدراسية', navGroupStudy:'التعلّم والتدريب', navGroupRecord:'سجلّك وتقدّمك',
       tabOverview:'نظرة عامة', tabLearning:'التعلّم', tabSecurity:'الأمان',
@@ -3030,8 +3051,8 @@
       continueEyebrow:'Last booklet', continueBtn:'Continue', navHome:'Home', navAccount:'My Account', hi:'Hi,',
       continueCourseEyebrow:'Continue course', lecturesOf:'lectures',
       anatomyTitle:'3D Anatomy', anatomyShort:'Anatomy', anatomyHeroBtn:'Explore 3D anatomy',
-      anatomySub:'An interactive body: rotate it, zoom in, switch systems on, and tap any part to learn about it.',
-      anatomyLoading:'Preparing the 3D body…', anatomyFailed:'Could not load the 3D model — check your connection and try again.',
+      anatomySub:'Rotate with your finger or mouse, and zoom to see the details.',
+      anatomyLoading:'Loading the model… this may take a moment on a slow connection.', anatomyCreditPrefix:'Model:',
       comingSoon:'This section is coming soon',
       studyingFor:'Your stage', navGroupStudy:'Learning & practice', navGroupRecord:'Your record',
       tabOverview:'Overview', tabLearning:'Learning', tabSecurity:'Security',
@@ -3159,8 +3180,8 @@
       continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون', navHome:'سەرەکی', navAccount:'هەژماری من', hi:'سڵاو،',
       continueCourseEyebrow:'بەردەوامبوون لە کۆرس', lecturesOf:'وانە',
       anatomyTitle:'تەشریحی سێ ڕەهەندی', anatomyShort:'تەشریح', anatomyHeroBtn:'تەشریحی سێ ڕەهەندی ببینە',
-      anatomySub:'جەستەیەکی کارلێککەر: بیسوڕێنە، نزیک بکەوە، سیستەمەکان چالاک بکە و کلیک لە هەر بەشێک بکە.',
-      anatomyLoading:'مۆدێلی جەستە ئامادە دەکرێت…', anatomyFailed:'نەتوانرا مۆدێلەکە بار بکرێت — پەیوەندی بپشکنە.',
+      anatomySub:'بە پەنجە یان ماوس بیسوڕێنە و نزیک/دووری بکەرەوە بۆ بینینی وردەکاری.',
+      anatomyLoading:'مۆدێلەکە بار دەکرێت… لەوانەیە کەمێک بخایەنێت.', anatomyCreditPrefix:'مۆدێل:',
       comingSoon:'ئەم بەشە بەمزووانە دەکرێتەوە — Soon',
       studyingFor:'قۆناغی خوێندنت', navGroupStudy:'فێربوون و ڕاهێنان', navGroupRecord:'تۆمار و پێشکەوتنت',
       tabOverview:'تێڕوانینی گشتی', tabLearning:'فێربوون', tabSecurity:'پاراستن',
@@ -3287,7 +3308,7 @@
   const viewRerenderers = {
     'view-home': () => loadHomeStats(), 'view-professors': goToProfessors, 'view-professor': null, 'view-store': goToStore,
     'view-academy': goToAcademy, 'view-notifications': goToNotifications,
-    'view-pearls': goToPearls, 'view-summer': goToSummer, 'view-anatomy': () => { if (window.KiurAnatomy) KiurAnatomy.setLang(currentLang); }, 'view-bank-select': goToBankSelect, 'view-landing': loadLandingData,
+    'view-pearls': goToPearls, 'view-summer': goToSummer, 'view-anatomy': () => { renderAnatomyChips(); if (anatomyCurrent) { const id = anatomyCurrent; anatomyCurrent = null; selectAnatomy(id); } }, 'view-bank-select': goToBankSelect, 'view-landing': loadLandingData,
     // The account page carries a locale-formatted date and three tabs of
     // fetched content, none of which a data-i18n sweep can reach.
     'view-account': goToAccount,
@@ -3362,7 +3383,6 @@
     document.body.classList.remove('auth-mode', 'landing-mode');
     if (id !== 'view-landing' && typeof stopLanding === 'function') stopLanding();
     incoming.classList.add('active');
-    if (id !== 'view-anatomy' && window.KiurAnatomy) KiurAnatomy.pause();
     currentViewId = id;
     updateNavActiveState(id);
     aiSyncFab();
@@ -6114,39 +6134,73 @@
   // ---------- Sections that are not open yet ----------
   function comingSoon(){ showToast(t('comingSoon')); }
 
-  // ---------- Anatomy: our own 3D simulator ----------
-  // static/anatomy.js builds the whole body from code (three.js primitives, no
-  // third-party model), so it is loaded only when the student opens the section.
-  let anatomyLoading = null;
-  function loadScriptOnce(src){
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('load failed: ' + src));
-      document.head.appendChild(s);
-    });
-  }
-  function ensureAnatomyLib(){
-    if (window.KiurAnatomy) return Promise.resolve();
-    if (!anatomyLoading){
-      anatomyLoading = (async () => {
-        if (!window.THREE) await loadScriptOnce('/static/vendor/three.min.js');
-        if (!window.THREE.OrbitControls) await loadScriptOnce('/static/vendor/OrbitControls.js');
-        await loadScriptOnce('/static/anatomy.js');
-      })().catch(e => { anatomyLoading = null; throw e; });
-    }
-    return anatomyLoading;
-  }
-  async function goToAnatomy(){
+  // ---------- Anatomy: 3D models ----------
+  // Interactive models are embedded from Sketchfab. Each one is published by
+  // its author under CC BY 4.0, which allows this use as long as the author
+  // is credited — hence the credit line shown under every model.
+  const ANATOMY_MODELS = [
+    {id:'ecorche', uid:'ab11ebff89224f03bd75efede1164cf6', ar:'الجسم كاملًا (العضلات)', en:'Whole body (muscles)', ku:'تەواوی جەستە (ماسولکە)',
+     author:'diegoluga', title:'Male Full Body Ecorche',
+     d_ar:'جسم إنسان كامل مع الطبقة العضلية السطحية والعميقة بتفاصيل عالية.', d_en:'A complete human body with its superficial and deep muscle layers, in high detail.', d_ku:'جەستەی مرۆڤی تەواو لەگەڵ چینی ماسولکەی ڕووکەش و قووڵ.'},
+    {id:'skeleton', uid:'4de7b96a351a4a35b1b6e5415277ff07', ar:'الهيكل العظمي', en:'Skeleton', ku:'ئێسکەپەیکەر',
+     author:'diegoluga', title:'Skeleton',
+     d_ar:'الهيكل العظمي الكامل: الجمجمة، العمود الفقري، القفص الصدري، الحوض والأطراف.', d_en:'The complete skeleton: skull, spine, rib cage, pelvis and limbs.', d_ku:'ئێسکەپەیکەری تەواو: کاسەی سەر، بڕبڕەی پشت، قەفەزی سنگ، ڕان و ئەندامەکان.'},
+    {id:'muscleM', uid:'991eb96938be4d0d8fadee241a1063d3', ar:'الجهاز العضلي (ذكر)', en:'Muscular system (male)', ku:'سیستەمی ماسولکە (نێر)',
+     author:'ruslangadzhiev', title:'Male Body Muscular System - Anatomy Study',
+     d_ar:'دراسة تشريحية لعضلات الجسم الذكري.', d_en:'An anatomical study of the male body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی نێر.'},
+    {id:'muscleF', uid:'9a596b6c24b344bfbe6bb5246290df0e', ar:'الجهاز العضلي (أنثى)', en:'Muscular system (female)', ku:'سیستەمی ماسولکە (مێ)',
+     author:'ruslangadzhiev', title:'Female Body Muscular System - Anatomy Study',
+     d_ar:'دراسة تشريحية لعضلات الجسم الأنثوي.', d_en:'An anatomical study of the female body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی مێ.'},
+    {id:'skull', uid:'a47ef69ff3a4402783cff0f841bc5e0a', ar:'الجمجمة والرقبة', en:'Skull and neck', ku:'کاسەی سەر و ملی',
+     author:'thesidekick', title:'Human skull and neck',
+     d_ar:'الجمجمة والفك وفقرات الرقبة بدقة عالية جدًا.', d_en:'Skull, jaw and cervical vertebrae in very high detail.', d_ku:'کاسەی سەر و ڕوومەت و بڕبڕەکانی ملی بە وردی زۆر.'},
+    {id:'brain', uid:'c9c9d4d671b94345952d012cc2ea7a24', ar:'الدماغ', en:'Brain', ku:'مێشک',
+     author:'agher', title:'Human Brain',
+     d_ar:'الدماغ البشري: التلافيف والفصوص والمخيخ.', d_en:'The human brain: gyri, lobes and cerebellum.', d_ku:'مێشکی مرۆڤ: ڕیزەکان، پارچەکان و مێشکۆڵە.'},
+    {id:'heart', uid:'f5fa1e719f3d4f28a7c31728a86a9b42', ar:'القلب', en:'Heart', ku:'دڵ',
+     author:'Yasama', title:'Human Heart',
+     d_ar:'القلب البشري مع الأوعية الكبرى.', d_en:'The human heart with its great vessels.', d_ku:'دڵی مرۆڤ لەگەڵ خوێنهێنەرە گەورەکان.'},
+    {id:'intestine', uid:'8a1ca8e3ca224cdeb9264674416bde38', ar:'الأمعاء الدقيقة والغليظة', en:'Small and large intestine', ku:'ڕیخۆڵەی باریک و ئەستوور',
+     author:'antonia.sundberg', title:'Small and large intestine',
+     d_ar:'الجهاز الهضمي السفلي: الأمعاء الدقيقة والغليظة.', d_en:'The lower digestive tract: small and large intestine.', d_ku:'ڕێڕەوی هەرسی خوارەوە: ڕیخۆڵەی باریک و ئەستوور.'},
+    {id:'kidney', uid:'686992c2a7fb456eaa8997b0366f4062', ar:'الكلية', en:'Kidney', ku:'گورچیلە',
+     author:'cgmac', title:'Kidney',
+     d_ar:'الكلية وتركيبها الداخلي.', d_en:'The kidney and its internal structure.', d_ku:'گورچیلە و پێکهاتەی ناوەوەی.'},
+  ];
+  let anatomyCurrent = null;
+
+  function goToAnatomy(){
     showView('view-anatomy');
-    const root = document.getElementById('anatRoot');
-    if (!root.firstChild) root.innerHTML = `<div class="empty-row">${t('anatomyLoading')}</div>`;
-    try {
-      await ensureAnatomyLib();
-      KiurAnatomy.mount(root, {lang: currentLang});
-      KiurAnatomy.setLang(currentLang);
-    } catch (e) {
-      root.innerHTML = `<div class="empty-row">${t('anatomyFailed')}</div>`;
-    }
+    renderAnatomyChips();
+    if (!anatomyCurrent) selectAnatomy(ANATOMY_MODELS[0].id);
+  }
+  function renderAnatomyChips(){
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    document.getElementById('anatChips').innerHTML = ANATOMY_MODELS.map(m =>
+      `<button type="button" class="anat-chip ${m.id === anatomyCurrent ? 'active' : ''}" role="tab" onclick="selectAnatomy('${m.id}')">${esc(m[lang])}</button>`).join('');
+  }
+  function selectAnatomy(id){
+    const m = ANATOMY_MODELS.find(x => x.id === id);
+    if (!m) return;
+    anatomyCurrent = id;
+    renderAnatomyChips();
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    const stage = document.getElementById('anatStage');
+    stage.querySelectorAll('iframe').forEach(f => f.remove());
+    document.getElementById('anatLoading').style.display = 'grid';
+    const f = document.createElement('iframe');
+    f.title = m[lang];
+    f.allow = 'autoplay; fullscreen; xr-spatial-tracking';
+    f.setAttribute('allowfullscreen', '');
+    f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    // The frame "loads" before the 3D model has downloaded, so keep the hint a bit longer.
+    f.addEventListener('load', () => { setTimeout(() => { if (anatomyCurrent === id) document.getElementById('anatLoading').style.display = 'none'; }, 9000); });
+    f.src = `https://sketchfab.com/models/${m.uid}/embed?autostart=1&preload=1&dnt=1&ui_infos=0&ui_hint=2&ui_watermark_link=0`;
+    stage.appendChild(f);
+    document.getElementById('anatName').textContent = m[lang];
+    document.getElementById('anatDesc').textContent = m['d_' + lang];
+    document.getElementById('anatCredit').innerHTML =
+      `${t('anatomyCreditPrefix')} <a href="https://sketchfab.com/3d-models/${m.uid}" target="_blank" rel="noopener noreferrer">«${esc(m.title)}»</a> — <a href="https://sketchfab.com/${esc(m.author)}" target="_blank" rel="noopener noreferrer">@${esc(m.author)}</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>`;
   }
 
   // ---------- Summer training ----------
