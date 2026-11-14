@@ -224,9 +224,10 @@ def list_professor_profiles(db: Session = Depends(get_db)):
     """Which professor accounts have a teaching profile, and which don't —
     an account created before this was required, or promoted to professor
     later, has none and can't open its dashboard until one is assigned."""
-    profiles = {
-        p.user_id: p for p in db.query(models.ProfessorProfile).all()
-    }
+    all_profiles: dict = {}
+    for prof in db.query(models.ProfessorProfile).order_by(models.ProfessorProfile.created_at.asc().nullsfirst(), models.ProfessorProfile.id).all():
+        all_profiles.setdefault(prof.user_id, []).append(prof)
+    profiles = {uid: lst[0] for uid, lst in all_profiles.items()}
     out = []
     for user in db.query(models.User).filter(models.User.role == models.Role.professor).all():
         p = profiles.get(user.id)
@@ -238,8 +239,52 @@ def list_professor_profiles(db: Session = Depends(get_db)):
             "subject_id": p.subject_id if p else None,
             "subject_name": p.subject.name if p and p.subject else None,
             "title": p.title if p else None,
+            "subjects": [
+                {"subject_id": x.subject_id, "subject_name": x.subject.name if x.subject else ""}
+                for x in all_profiles.get(user.id, [])
+            ],
         })
     return out
+
+
+@router.post("/professors/{user_id}/subjects")
+def add_professor_subject(user_id: str, body: schemas.ProfessorAssignIn, db: Session = Depends(get_db)):
+    """Lets a doctor teach one more subject — in another stage or department.
+    Each subject keeps its own questions, booklets and courses."""
+    user = db.get(models.User, user_id)
+    if not user or user.role != models.Role.professor:
+        raise HTTPException(404, "الدكتور غير موجود")
+    if not db.get(models.Subject, body.subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+    mine = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user_id).all()
+    if any(p.subject_id == body.subject_id for p in mine):
+        raise HTTPException(400, "الدكتور يدرّس هذه المادة مسبقاً")
+    base = mine[0] if mine else None
+    p = models.ProfessorProfile(
+        user_id=user_id, subject_id=body.subject_id,
+        title=(body.title or "").strip() or (base.title if base else "أستاذ مساعد"),
+        bio=base.bio if base else "", photo_url=base.photo_url if base else None,
+    )
+    db.add(p)
+    db.commit()
+    return {"profile_id": p.id, "subject_id": p.subject_id}
+
+
+@router.delete("/professors/{user_id}/subjects/{subject_id}")
+def remove_professor_subject(user_id: str, subject_id: str, db: Session = Depends(get_db)):
+    mine = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user_id).all()
+    target = next((p for p in mine if p.subject_id == subject_id), None)
+    if not target:
+        raise HTTPException(404, "الدكتور لا يدرّس هذه المادة")
+    if len(mine) == 1:
+        raise HTTPException(400, "لا يمكن إزالة المادة الوحيدة للدكتور")
+    for model, label in ((models.Question, "أسئلة"), (models.Course, "كورسات"), (models.Exam, "امتحانات"),
+                         (models.Booklet, "ملازم")):
+        if db.query(model).filter(model.professor_id == target.id).count():
+            raise HTTPException(400, f"لا يمكن إزالة المادة — للدكتور {label} فيها")
+    db.delete(target)
+    db.commit()
+    return {"ok": True}
 
 
 @router.put("/professors/{user_id}")
@@ -541,14 +586,17 @@ def admin_catalog(db: Session = Depends(get_db)):
         unis = db.query(models.University).filter(models.University.section_id == section.id).all()
         rows.append({"id": section.id, "level": 0, "type": "section", "name": section.name, "meta": f"{len(unis)} جامعة"})
         for uni in unis:
-            stages = db.query(models.Stage).filter(models.Stage.university_id == uni.id).all()
-            rows.append({"id": uni.id, "level": 1, "type": "university", "name": uni.name, "meta": f"{len(stages)} مرحلة"})
-            for stage in stages:
-                subjects = db.query(models.Subject).filter(models.Subject.stage_id == stage.id).all()
-                rows.append({"id": stage.id, "level": 2, "type": "stage", "name": stage.name, "meta": f"{len(subjects)} مادة"})
-                for subj in subjects:
-                    q_count = db.query(models.Question).filter(models.Question.subject_id == subj.id).count()
-                    rows.append({"id": subj.id, "level": 3, "type": "subject", "name": subj.name, "meta": f"{q_count} سؤال"})
+            depts = db.query(models.Department).filter(models.Department.university_id == uni.id).all()
+            rows.append({"id": uni.id, "level": 1, "type": "university", "name": uni.name, "meta": f"{len(depts)} قسم"})
+            for dept in depts:
+                stages = db.query(models.Stage).filter(models.Stage.department_id == dept.id).all()
+                rows.append({"id": dept.id, "level": 2, "type": "department", "name": dept.name, "meta": f"{len(stages)} مرحلة"})
+                for stage in stages:
+                    subjects = db.query(models.Subject).filter(models.Subject.stage_id == stage.id).all()
+                    rows.append({"id": stage.id, "level": 3, "type": "stage", "name": stage.name, "meta": f"{len(subjects)} مادة"})
+                    for subj in subjects:
+                        q_count = db.query(models.Question).filter(models.Question.subject_id == subj.id).count()
+                        rows.append({"id": subj.id, "level": 4, "type": "subject", "name": subj.name, "meta": f"{q_count} سؤال"})
     return rows
 
 
@@ -572,11 +620,26 @@ def create_university(name: str, section_id: str, db: Session = Depends(get_db))
     return {"id": u.id}
 
 
-@router.post("/catalog/stages")
-def create_stage(name: str, university_id: str, db: Session = Depends(get_db)):
+@router.post("/catalog/departments")
+def create_department(name: str, university_id: str, db: Session = Depends(get_db)):
+    if not name.strip():
+        raise HTTPException(400, "الاسم مطلوب")
     if not db.get(models.University, university_id):
         raise HTTPException(404, "الجامعة غير موجودة")
-    st = models.Stage(name=name.strip(), university_id=university_id)
+    d = models.Department(name=name.strip(), university_id=university_id)
+    db.add(d)
+    db.commit()
+    db.refresh(d)
+    return {"id": d.id}
+
+
+@router.post("/catalog/stages")
+def create_stage(name: str, department_id: str, db: Session = Depends(get_db)):
+    """A stage belongs to a department (and, through it, to its university)."""
+    dept = db.get(models.Department, department_id)
+    if not dept:
+        raise HTTPException(404, "القسم غير موجود")
+    st = models.Stage(name=name.strip(), university_id=dept.university_id, department_id=dept.id)
     db.add(st)
     db.commit()
     db.refresh(st)
@@ -605,7 +668,8 @@ MAX_BULK_NAMES = 300
 _CATALOG_CHILD = {
     "root": (models.Section, None, None),
     "section": (models.University, "section_id", models.Section),
-    "university": (models.Stage, "university_id", models.University),
+    "university": (models.Department, "university_id", models.University),
+    "department": (models.Stage, "department_id", models.Department),
     "stage": (models.Subject, "stage_id", models.Stage),
 }
 
@@ -635,12 +699,13 @@ def catalog_quick_setup(body: schemas.CatalogQuickIn, db: Session = Depends(get_
 
     section_name = body.section_name.strip()
     universities, stages = clean(body.universities), clean(body.stages)
+    departments = clean(body.departments) or ["القسم العام"]
     if not section_name:
         raise HTTPException(400, "اسم القسم مطلوب")
     if len(universities) > MAX_BULK_NAMES or len(stages) > MAX_BULK_NAMES:
         raise HTTPException(400, f"الحد الأقصى {MAX_BULK_NAMES} اسم في القائمة الواحدة")
 
-    created = {"sections": 0, "universities": 0, "stages": 0}
+    created = {"sections": 0, "universities": 0, "departments": 0, "stages": 0}
     section = db.query(models.Section).filter(func.lower(models.Section.name) == section_name.lower()).first()
     if not section:
         section = models.Section(name=section_name)
@@ -655,12 +720,20 @@ def catalog_quick_setup(body: schemas.CatalogQuickIn, db: Session = Depends(get_
             db.add(uni)
             db.flush()
             created["universities"] += 1
-        for stage_name in stages:
-            exists = db.query(models.Stage).filter(
-                models.Stage.university_id == uni.id, func.lower(models.Stage.name) == stage_name.lower()).first()
-            if not exists:
-                db.add(models.Stage(name=stage_name, university_id=uni.id))
-                created["stages"] += 1
+        for dept_name in departments:
+            dept = db.query(models.Department).filter(
+                models.Department.university_id == uni.id, func.lower(models.Department.name) == dept_name.lower()).first()
+            if not dept:
+                dept = models.Department(name=dept_name, university_id=uni.id)
+                db.add(dept)
+                db.flush()
+                created["departments"] += 1
+            for stage_name in stages:
+                exists = db.query(models.Stage).filter(
+                    models.Stage.department_id == dept.id, func.lower(models.Stage.name) == stage_name.lower()).first()
+                if not exists:
+                    db.add(models.Stage(name=stage_name, university_id=uni.id, department_id=dept.id))
+                    created["stages"] += 1
     db.commit()
     return {"created": created, "section_id": section.id}
 
@@ -698,6 +771,8 @@ def catalog_bulk_add(body: schemas.CatalogBulkIn, db: Session = Depends(get_db))
         kwargs = {"name": name}
         if parent_col:
             kwargs[parent_col] = body.parent_id
+        if child_model is models.Stage:   # a stage also records its university
+            kwargs["university_id"] = db.get(models.Department, body.parent_id).university_id
         db.add(child_model(**kwargs))
         created.append(name)
 
@@ -712,7 +787,7 @@ def _duplicate_subtree(db: Session, node_type: str, node, new_name: str, target_
     original subject. A duplicated curriculum is an empty shell to fill,
     not a copy of another university's content.
     """
-    counts = {"universities": 0, "stages": 0, "subjects": 0}
+    counts = {"universities": 0, "departments": 0, "stages": 0, "subjects": 0}
 
     if node_type == "section":
         new_section = models.Section(name=new_name)
@@ -723,18 +798,27 @@ def _duplicate_subtree(db: Session, node_type: str, node, new_name: str, target_
             db.add(new_uni)
             db.flush()
             counts["universities"] += 1
-            _copy_stages(db, uni.id, new_uni.id, counts)
+            _copy_departments(db, uni.id, new_uni.id, counts)
         return new_section, counts
 
     if node_type == "university":
         new_uni = models.University(name=new_name, section_id=target_parent_id)
         db.add(new_uni)
         db.flush()
-        _copy_stages(db, node.id, new_uni.id, counts)
+        _copy_departments(db, node.id, new_uni.id, counts)
         return new_uni, counts
 
+    if node_type == "department":
+        new_dept = models.Department(name=new_name, university_id=target_parent_id)
+        db.add(new_dept)
+        db.flush()
+        counts["departments"] += 1
+        _copy_stages(db, node.id, new_dept.id, target_parent_id, counts)
+        return new_dept, counts
+
     if node_type == "stage":
-        new_stage = models.Stage(name=new_name, university_id=target_parent_id)
+        dept = db.get(models.Department, target_parent_id)
+        new_stage = models.Stage(name=new_name, university_id=dept.university_id, department_id=dept.id)
         db.add(new_stage)
         db.flush()
         counts["stages"] += 1
@@ -751,9 +835,18 @@ def _duplicate_subtree(db: Session, node_type: str, node, new_name: str, target_
     return new_subj, counts
 
 
-def _copy_stages(db: Session, from_uni_id: str, to_uni_id: str, counts: dict):
-    for stage in db.query(models.Stage).filter(models.Stage.university_id == from_uni_id).all():
-        new_stage = models.Stage(name=stage.name, university_id=to_uni_id)
+def _copy_departments(db: Session, from_uni_id: str, to_uni_id: str, counts: dict):
+    for dept in db.query(models.Department).filter(models.Department.university_id == from_uni_id).all():
+        new_dept = models.Department(name=dept.name, university_id=to_uni_id)
+        db.add(new_dept)
+        db.flush()
+        counts["departments"] += 1
+        _copy_stages(db, dept.id, new_dept.id, to_uni_id, counts)
+
+
+def _copy_stages(db: Session, from_dept_id: str, to_dept_id: str, to_uni_id: str, counts: dict):
+    for stage in db.query(models.Stage).filter(models.Stage.department_id == from_dept_id).all():
+        new_stage = models.Stage(name=stage.name, university_id=to_uni_id, department_id=to_dept_id)
         db.add(new_stage)
         db.flush()
         counts["stages"] += 1
@@ -765,16 +858,18 @@ def _copy_stages(db: Session, from_uni_id: str, to_uni_id: str, counts: dict):
 _CATALOG_MODEL = {
     "section": models.Section,
     "university": models.University,
+    "department": models.Department,
     "stage": models.Stage,
     "subject": models.Subject,
 }
 _CATALOG_PARENT_COL = {
     "section": None,
     "university": "section_id",
-    "stage": "university_id",
+    "department": "university_id",
+    "stage": "department_id",
     "subject": "stage_id",
 }
-_PARENT_TYPE_OF = {"university": "section", "stage": "university", "subject": "stage"}
+_PARENT_TYPE_OF = {"university": "section", "department": "university", "stage": "department", "subject": "stage"}
 
 
 @router.post("/catalog/duplicate")
@@ -814,7 +909,7 @@ def catalog_duplicate(body: schemas.CatalogDuplicateIn, db: Session = Depends(ge
         siblings = db.query(models.Section).all()
     taken = {(c.name or "").strip().lower() for c in siblings}
 
-    totals = {"universities": 0, "stages": 0, "subjects": 0}
+    totals = {"universities": 0, "departments": 0, "stages": 0, "subjects": 0}
     made, skipped = [], []
     for new_name in names:
         if new_name.lower() in taken:
@@ -835,7 +930,7 @@ def catalog_duplicate(body: schemas.CatalogDuplicateIn, db: Session = Depends(ge
 
 # --------------------------------------------------- whole-curriculum import
 MAX_IMPORT_LINES = 4000
-_IMPORT_LEVEL_NAMES = ["قسم", "جامعة", "مرحلة", "مادة"]
+_IMPORT_LEVEL_NAMES = ["كلية", "جامعة", "قسم", "مرحلة", "مادة"]
 
 
 def _parse_indented(text: str) -> list[tuple[int, str]]:
@@ -860,7 +955,7 @@ def _parse_indented(text: str) -> list[tuple[int, str]]:
 
     widths = sorted({indent for indent, _ in rows})
     level_of = {w: i for i, w in enumerate(widths)}
-    return [(min(level_of[indent], 3), name) for indent, name in rows]
+    return [(min(level_of[indent], 4), name) for indent, name in rows]
 
 
 @router.post("/catalog/import")
@@ -888,24 +983,30 @@ def catalog_import(body: schemas.CatalogImportIn, db: Session = Depends(get_db))
     if not parsed:
         raise HTTPException(400, "لا يوجد نص لاستيراده")
 
-    created = {"sections": 0, "universities": 0, "stages": 0, "subjects": 0}
-    reused = {"sections": 0, "universities": 0, "stages": 0, "subjects": 0}
+    created = {"sections": 0, "universities": 0, "departments": 0, "stages": 0, "subjects": 0}
+    reused = {"sections": 0, "universities": 0, "departments": 0, "stages": 0, "subjects": 0}
     problems = []
 
     distinct_indents = len({len(r.replace("	", "    ")) - len(r.replace("	", "    ").lstrip(" "))
                             for r in body.text.splitlines() if r.strip()})
-    if distinct_indents > 4:
+    if distinct_indents > 5:
         problems.append(
             f"المسافات البادئة غير منتظمة ({distinct_indents} مستويات مختلفة) — "
-            "المستويات أربعة فقط: قسم ثم جامعة ثم مرحلة ثم مادة"
+            "المستويات خمسة فقط: كلية ثم جامعة ثم قسم ثم مرحلة ثم مادة"
         )
+    # Text written before departments existed has four levels (no القسم line):
+    # slot the default department in, so old pastes keep working.
+    legacy = distinct_indents <= 4
+    if legacy:
+        parsed = [(lv + 1 if lv >= 2 else lv, nm) for lv, nm in parsed]
+        problems.append("لم يُذكر قسم — وُضعت المراحل تحت «القسم العام» لكل جامعة")
 
     # The node currently open at each level, so a child attaches to whatever
     # came above it.
-    current = [None, None, None, None]
+    current = [None, None, None, None, None]
 
     def find_or_make(level: int, name: str):
-        key = ["sections", "universities", "stages", "subjects"][level]
+        key = ["sections", "universities", "departments", "stages", "subjects"][level]
         if level == 0:
             existing = next(
                 (x for x in db.query(models.Section).all()
@@ -921,7 +1022,8 @@ def catalog_import(body: schemas.CatalogImportIn, db: Session = Depends(get_db))
                 return None
             model, parent_col = [
                 (models.University, "section_id"),
-                (models.Stage, "university_id"),
+                (models.Department, "university_id"),
+                (models.Stage, "department_id"),
                 (models.Subject, "stage_id"),
             ][level - 1]
             existing = next(
@@ -930,7 +1032,8 @@ def catalog_import(body: schemas.CatalogImportIn, db: Session = Depends(get_db))
             if existing:
                 reused[key] += 1
                 return existing
-            node = model(**{"name": name, parent_col: parent.id})
+            extra = {"university_id": parent.university_id} if model is models.Stage else {}
+            node = model(**{"name": name, parent_col: parent.id, **extra})
 
         db.add(node)
         db.flush()
@@ -938,10 +1041,12 @@ def catalog_import(body: schemas.CatalogImportIn, db: Session = Depends(get_db))
         return node
 
     for level, name in parsed:
+        if legacy and level == 3 and current[2] is None and current[1] is not None:
+            current[2] = find_or_make(2, "القسم العام")    # the implied department
         node = find_or_make(level, name)
         current[level] = node
         # A new parent invalidates whatever was open beneath it.
-        for deeper in range(level + 1, 4):
+        for deeper in range(level + 1, 5):
             current[deeper] = None
 
     total = sum(created.values())
@@ -1004,11 +1109,36 @@ def delete_university(university_id: str, db: Session = Depends(get_db)):
     u = db.get(models.University, university_id)
     if not u:
         raise HTTPException(404, "الجامعة غير موجودة")
-    if db.query(models.Stage).filter(models.Stage.university_id == university_id).count():
-        raise HTTPException(400, "لا يمكن حذف الجامعة — تحتوي على مراحل. احذفيها أولاً")
+    if db.query(models.Department).filter(models.Department.university_id == university_id).count() or \
+            db.query(models.Stage).filter(models.Stage.university_id == university_id).count():
+        raise HTTPException(400, "لا يمكن حذف الجامعة — تحتوي على أقسام. احذفيها أولاً")
     if db.query(models.User).filter(models.User.university_id == university_id).count():
         raise HTTPException(400, "لا يمكن حذف الجامعة — هناك حسابات مسجّلة فيها. انقليها أولاً")
     db.delete(u)
+    db.commit()
+    return {"ok": True}
+
+
+@router.put("/catalog/departments/{department_id}")
+def rename_department(department_id: str, name: str, db: Session = Depends(get_db)):
+    d = db.get(models.Department, department_id)
+    if not d:
+        raise HTTPException(404, "القسم غير موجود")
+    if not name.strip():
+        raise HTTPException(400, "الاسم مطلوب")
+    d.name = name.strip()
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/catalog/departments/{department_id}")
+def delete_department(department_id: str, db: Session = Depends(get_db)):
+    d = db.get(models.Department, department_id)
+    if not d:
+        raise HTTPException(404, "القسم غير موجود")
+    if db.query(models.Stage).filter(models.Stage.department_id == department_id).count():
+        raise HTTPException(400, "لا يمكن حذف القسم — يحتوي على مراحل. احذفها أولاً")
+    db.delete(d)
     db.commit()
     return {"ok": True}
 

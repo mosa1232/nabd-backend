@@ -41,7 +41,11 @@ def _seed(db: Session) -> None:
     db.add(university)
     db.flush()
 
-    stage = models.Stage(name="المرحلة الثانية", university_id=university.id)
+    department = models.Department(name="القسم العام", university_id=university.id)
+    db.add(department)
+    db.flush()
+
+    stage = models.Stage(name="المرحلة الثانية", university_id=university.id, department_id=department.id)
     db.add(stage)
     db.flush()
 

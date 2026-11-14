@@ -105,7 +105,11 @@ def my_scope(db: Session = Depends(get_db), user: models.User = Depends(_rep)):
         total = db.query(func.count(models.VerificationCode.id)).filter(models.VerificationCode.batch_id.in_(batch_ids)).scalar() or 0
         used = db.query(func.count(models.VerificationCode.id)).filter(
             models.VerificationCode.batch_id.in_(batch_ids), models.VerificationCode.used_by_user_id.isnot(None)).scalar() or 0
-    return {**labels, "stages": [{"id": s.id, "name": s.name} for s in stages],
+    depts = {s.department_id for s in stages}
+    def _label(s):
+        # With several departments the same stage name repeats; say whose it is.
+        return f"{s.department.name} — {s.name}" if len(depts) > 1 and s.department else s.name
+    return {**labels, "stages": [{"id": s.id, "name": _label(s)} for s in stages],
             "stage_locked": bool(user.scope_stage_id), "batches": len(batch_ids), "codes": total, "verified": used}
 
 

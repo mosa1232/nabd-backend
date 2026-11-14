@@ -2722,6 +2722,10 @@
   // without escaping, "<img src=x onerror=...>" in any of them executed in
   // every other user's browser — including an admin's, where it could read
   // the in-memory auth token. Numbers/booleans pass through harmlessly.
+  // "القسم — المرحلة", so the same stage name in two departments stays distinguishable.
+  function stageLabel(st){
+    return (st.department_name && st.department_name !== 'القسم العام' ? st.department_name + ' — ' : '') + st.name;
+  }
   function esc(value){
     return String(value ?? '').replace(/[&<>"']/g, ch => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -4906,7 +4910,7 @@
     const stageSel = document.getElementById('acStage');
     stageSel.disabled = !uni;
     stageSel.innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${esc(st.name)}</option>`).join('') : '');
+      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${esc(stageLabel(st))}</option>`).join('') : '');
   }
   function onAcGraduateChange(){
     const isGraduate = document.getElementById('acGraduate').value === '1';
@@ -5739,7 +5743,7 @@
     const section = tree.find(s => s.id === document.getElementById('cpSection').value);
     const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
     document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}">${esc(st.name)}</option>`).join('') : '');
+      (uni ? uni.stages.map(st => `<option value="${st.id}">${esc(stageLabel(st))}</option>`).join('') : '');
   }
 
   function onCpGraduateChange(){

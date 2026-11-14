@@ -1068,7 +1068,7 @@
     <div class="dash-card-head"><span class="dash-card-title">استيراد المنهج كامل</span></div>
     <div class="item-meta" style="line-height:1.9; margin-bottom:12px;">
       اكتب أو الصق المنهج كله بمرة واحدة. كل مستوى بمسافة بادئة أكثر من اللي فوقه:
-      <b>قسم</b> ثم <b>جامعة</b> ثم <b>مرحلة</b> ثم <b>مادة</b>.
+      <b>كلية</b> ثم <b>جامعة</b> ثم <b>قسم</b> ثم <b>مرحلة</b> ثم <b>مادة</b>.
       الموجود مسبقاً ما يتكرر — تكدر تعيد الاستيراد بعد أي تعديل.
     </div>
     <textarea id="catalogImportText" rows="14" spellcheck="false"
@@ -1158,6 +1158,7 @@
     }[ch]));
   }
 
+  let activeSubjectId = null;   // doctor with several subjects: which one requests are for
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
@@ -1168,6 +1169,7 @@
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
+        ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}),
         ...(options.headers || {}),
       },
     });
@@ -1961,7 +1963,7 @@
     }
     if (level === 'sec' || level === 'uni'){
       const unis = notifTree.flatMap(x => x.universities).filter(u => !uniEl.value || u.id === uniEl.value);
-      stEl.innerHTML = '<option value="">كل المراحل</option>' + unis.flatMap(u => u.stages.map(st => `<option value="${st.id}">${esc(unis.length > 1 ? u.name + ' — ' : '')}${esc(st.name)}</option>`)).join('');
+      stEl.innerHTML = '<option value="">كل المراحل</option>' + unis.flatMap(u => u.stages.map(st => `<option value="${st.id}">${esc(unis.length > 1 ? u.name + ' — ' : '')}${esc(st.deptName ? st.deptName + ' — ' : '')}${esc(st.name)}</option>`)).join('');
     }
     notifAudCount();
   }
@@ -2149,11 +2151,12 @@
     const rows = await apiFetch('/api/admin/catalog');
     const unis = [{value: '', label: 'لا ينطبق — ليس ممثلاً عامًا'}];
     const stages = [{value: '', label: 'كل المراحل'}];
-    let sec = '', uni = '';
+    let sec = '', uni = '', dept = '';
     rows.forEach(r => {
       if (r.type === 'section') sec = r.name;
       else if (r.type === 'university'){ uni = r.name; unis.push({value: r.id, label: `${r.name} — ${sec}`}); }
-      else if (r.type === 'stage') stages.push({value: r.id, label: `${uni} — ${sec} — ${r.name}`});
+      else if (r.type === 'department') dept = r.name;
+      else if (r.type === 'stage') stages.push({value: r.id, label: `${uni} — ${sec} — ${dept} — ${r.name}`});
     });
     return {unis, stages};
   }
@@ -2166,7 +2169,9 @@
   // Every subject in the catalog, for the professor-subject pickers.
   async function subjectOptions(){
     const rows = await apiFetch('/api/admin/catalog');
-    return rows.filter(r => r.type === 'subject').map(r => ({value: r.id, label: r.name}));
+    let dept = '', stage = '';
+    return rows.filter(r => { if (r.type === 'department') dept = r.name; if (r.type === 'stage') stage = r.name; return r.type === 'subject' && (r._ctx = `${dept} — ${stage}`); })
+      .map(r => ({value: r.id, label: `${r.name} (${r._ctx})`}));
   }
 
   async function promptAddUser(){
@@ -2230,13 +2235,24 @@
     const rows = await apiFetch('/api/admin/professors');
     const row = rows.find(r => r.user_id === userId);
     openGenericModal('مادة الدكتور' + (row ? ` — ${row.full_name}` : ''), [
+      {id: 'mode', label: row && row.subjects && row.subjects.length
+        ? `يدرّس حاليًا: ${row.subjects.map(x => x.subject_name).join('، ')}` : 'الإجراء', type: 'select', value: 'set',
+       options: [{value: 'set', label: 'تغيير مادته الأساسية'}, {value: 'add', label: 'إضافة مادة ثانية يدرّسها (قسم أو مرحلة أخرى)'}]},
       {id: 'subjectId', label: 'المادة', type: 'select', value: (row && row.subject_id) || subjects[0].value, options: subjects},
       {id: 'title', label: 'اللقب العلمي', type: 'text', value: (row && row.title) || 'أستاذ مساعد'},
     ], async (v) => {
-      await apiFetch('/api/admin/professors/' + userId, {
-        method: 'PUT',
-        body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'}),
-      });
+      if (v.mode === 'add'){
+        await apiFetch(`/api/admin/professors/${userId}/subjects`, {
+          method: 'POST',
+          body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'}),
+        });
+        showToast('أُضيفت المادة للدكتور');
+      } else {
+        await apiFetch('/api/admin/professors/' + userId, {
+          method: 'PUT',
+          body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'}),
+        });
+      }
       loadAccounts();
     });
   }
@@ -2281,18 +2297,21 @@
   // to it, with only a tooltip to say what it did — so adding a subject
   // looked like a feature that didn't exist. Each row now spells out what it
   // adds ("+ مادة", "+ مرحلة", "+ جامعة") in a labelled button.
-  const CATALOG_CHILD_NOUN = {section: 'جامعة', university: 'مرحلة', stage: 'مادة'};
+  const CATALOG_CHILD_NOUN = {section: 'جامعة', university: 'قسم', department: 'مرحلة', stage: 'مادة'};
 
   const catalogOpen = new Set();   // universities the user has expanded
   let catalogNested = [];
 
   function nestCatalog(rows){
-    const secs = []; let sec = null, uni = null, st = null;
+    const secs = []; let sec = null, uni = null, dept = null, st = null;
     rows.forEach(r => {
       if (!r.id) return;
-      if (r.type === 'section'){ sec = {...r, universities: []}; secs.push(sec); uni = st = null; }
-      else if (r.type === 'university' && sec){ uni = {...r, stages: []}; sec.universities.push(uni); st = null; }
-      else if (r.type === 'stage' && uni){ st = {...r, subjects: []}; uni.stages.push(st); }
+      if (r.type === 'section'){ sec = {...r, universities: []}; secs.push(sec); uni = dept = st = null; }
+      else if (r.type === 'university' && sec){ uni = {...r, departments: [], stages: []}; sec.universities.push(uni); dept = st = null; }
+      else if (r.type === 'department' && uni){ dept = {...r, stages: []}; uni.departments.push(dept); st = null; }
+      // uni.stages keeps every stage of the university (with its department's
+      // name) for the pickers that only need a flat list.
+      else if (r.type === 'stage' && dept){ st = {...r, deptName: dept.name, subjects: []}; dept.stages.push(st); uni.stages.push(st); }
       else if (r.type === 'subject' && st){ st.subjects.push(r); }
     });
     return secs;
@@ -2333,7 +2352,7 @@
   function renderCatalogTree(){
     const el = document.getElementById('catalogTree');
     if (!catalogNested.length){
-      el.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — اكتب اسم أول قسم في الخانة بالأعلى، أو استخدم «إعداد سريع»</div>`;
+      el.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — اكتب اسم أول كلية في الخانة بالأعلى، أو استخدم «إعداد سريع»</div>`;
       return;
     }
     const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
@@ -2342,24 +2361,34 @@
       const secHit = !q || has(sec.name);
       const unis = sec.universities.map(uni => {
         const uniHit = secHit || has(uni.name);
-        const stages = uni.stages.filter(st => uniHit || has(st.name) || st.subjects.some(sb => has(sb.name)));
-        if (q && !uniHit && !stages.length) return '';
-        const stageHtml = stages.map(st => `
-          <div class="cat-stage">
-            <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
-            <div class="cat-chips">${st.subjects.map(sb => `
-              <span class="cat-chip">${esc(sb.name)}
-                <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
-                <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
-              </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
-            ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
-          </div>`).join('');
+        const deptHtml = uni.departments.map(dept => {
+          const deptHit = uniHit || has(dept.name);
+          const stages = dept.stages.filter(st => deptHit || has(st.name) || st.subjects.some(sb => has(sb.name)));
+          if (q && !deptHit && !stages.length) return '';
+          const stageHtml = stages.map(st => `
+            <div class="cat-stage">
+              <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
+              <div class="cat-chips">${st.subjects.map(sb => `
+                <span class="cat-chip">${esc(sb.name)}
+                  <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
+                  <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
+                </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
+              ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
+            </div>`).join('');
+          return `
+            <div class="cat-dept" style="margin:8px 0; padding:8px 10px; border:1px dashed var(--glass-border); border-radius:var(--radius-sm);">
+              <div class="cat-stage-name" style="font-weight:800;">قسم: ${esc(dept.name)} <span class="cat-count">· ${dept.stages.length} مراحل</span> ${actions('department', dept.id, true)}</div>
+              ${stageHtml}
+              <div style="margin-top:8px;">${addBox('department', dept.id, '+ مرحلة (أو عدة مراحل مفصولة بفاصلة)')}</div>
+            </div>`;
+        }).join('');
+        if (q && !uniHit && !deptHtml) return '';
         const open = q || catalogOpen.has(uni.id) ? 'open' : '';
         return `
           <details class="cat-uni" ${open} ontoggle="this.open ? catalogOpen.add('${uni.id}') : catalogOpen.delete('${uni.id}')">
-            <summary><span style="flex:1;">${esc(uni.name)} <span class="cat-count">· ${uni.stages.length} مراحل</span></span> ${actions('university', uni.id, true)}</summary>
-            <div class="cat-body">${stageHtml}
-              <div style="margin-top:8px;">${addBox('university', uni.id, '+ مرحلة (أو عدة مراحل مفصولة بفاصلة)')}</div>
+            <summary><span style="flex:1;">${esc(uni.name)} <span class="cat-count">· ${uni.departments.length} أقسام</span></span> ${actions('university', uni.id, true)}</summary>
+            <div class="cat-body">${deptHtml}
+              <div style="margin-top:8px;">${addBox('university', uni.id, '+ قسم (أو عدة أقسام مفصولة بفاصلة)')}</div>
             </div>
           </details>`;
       }).join('');
@@ -2381,7 +2410,7 @@
   // One box adds one name or many ("بغداد، البصرة، الموصل"). The tree keeps
   // its open/closed state and the focus returns to the same box, so adding a
   // dozen subjects in a row is just typing.
-  const ADD_NOUN = {root: 'قسم', section: 'جامعة', university: 'مرحلة', stage: 'مادة'};
+  const ADD_NOUN = {root: 'كلية', section: 'جامعة', university: 'قسم', department: 'مرحلة', stage: 'مادة'};
   async function catalogInlineAdd(parentType, parentId){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
     const input = document.getElementById(`add-${parentType}-${parentId}`);
@@ -2394,6 +2423,7 @@
       });
       reportBulk(res, ADD_NOUN[parentType]);
       if (parentType === 'section' || parentType === 'university') catalogOpen.add(parentId);
+      else if (parentType === 'department') { const u = currentParentIdOf('department', parentId); if (u) catalogOpen.add(u); }
       await loadCatalog();
       document.getElementById(`add-${parentType}-${parentId}`)?.focus();
     } catch (e) { showToast(e.detail || 'تعذّرت الإضافة', 'error'); }
@@ -2425,15 +2455,19 @@
   const CATALOG_IMPORT_EXAMPLE = [
     'طب بشري',
     '  جامعة بغداد',
-    '    المرحلة الأولى',
-    '      التشريح العام',
-    '      الكيمياء الطبية',
-    '    المرحلة الثانية',
-    '      التشريح',
-    '      الفسلجة',
+    '    قسم التشريح',
+    '      المرحلة الأولى',
+    '        التشريح العام',
+    '        الكيمياء الطبية',
+    '      المرحلة الثانية',
+    '        التشريح',
+    '    قسم الفسلجة',
+    '      المرحلة الثانية',
+    '        الفسلجة',
     '  جامعة البصرة',
-    '    المرحلة الأولى',
-    '      التشريح العام',
+    '    قسم التشريح',
+    '      المرحلة الأولى',
+    '        التشريح العام',
   ].join('\n');
 
   function openCatalogImport(){
@@ -2454,13 +2488,13 @@
     const box = document.getElementById('catalogImportResult');
     const c = res.created, r = res.reused;
     const line = (label, n) => n ? `<div>${label}: <b>${n}</b></div>` : '';
-    const anyReused = r.sections + r.universities + r.stages + r.subjects;
+    const anyReused = r.sections + r.universities + (r.departments || 0) + r.stages + r.subjects;
     box.style.display = 'block';
     box.innerHTML = `
       <div style="font-weight:700; margin-bottom:6px; color:${done ? 'var(--success)' : 'var(--ink)'};">
         ${done ? 'تم الاستيراد' : (res.total_created ? 'سيُنشأ:' : 'لا يوجد شيء جديد لإنشائه')}
       </div>
-      ${line('أقسام', c.sections)}${line('جامعات', c.universities)}
+      ${line('كليات', c.sections)}${line('جامعات', c.universities)}${line('أقسام', c.departments)}
       ${line('مراحل', c.stages)}${line('مواد', c.subjects)}
       ${anyReused ? `<div style="color:var(--ink-faint); margin-top:6px;">موجود مسبقاً وما تكرر: ${anyReused}</div>` : ''}
       ${(res.problems || []).map(pr => `<div style="color:var(--danger); margin-top:6px;">⚠ ${esc(pr)}</div>`).join('')}
@@ -2503,8 +2537,8 @@
 
   function promptAddSection(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    openGenericModal('إضافة أقسام', [
-      {id: 'names', label: 'اسم كل قسم في سطر منفصل', type: 'textarea', rows: 6,
+    openGenericModal('إضافة كليات', [
+      {id: 'names', label: 'اسم كل كلية في سطر منفصل', type: 'textarea', rows: 6,
        placeholder: bulkPlaceholder(['طب بشري', 'طب أسنان', 'صيدلة'])},
     ], async (v) => {
       const names = v.names.split('\n');
@@ -2513,14 +2547,15 @@
         method: 'POST',
         body: JSON.stringify({parent_type: 'root', parent_id: null, names}),
       });
-      reportBulk(res, 'قسم');
+      reportBulk(res, 'كلية');
       loadCatalog();
     });
   }
 
   const CATALOG_BULK_EXAMPLES = {
     section: ['جامعة بغداد', 'جامعة البصرة', 'جامعة الموصل'],
-    university: ['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'],
+    university: ['التشريح', 'الفسلجة', 'الأنسجة', 'الكيمياء الحيوية'],
+    department: ['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'],
     stage: ['التشريح', 'الفسلجة', 'الأنسجة', 'الكيمياء الحيوية'],
   };
 
@@ -2551,8 +2586,9 @@
   // Structure only — questions, booklets, courses and exams stay with the
   // original, so a copy is an empty shell to fill.
   const CATALOG_PARENT_PICKER = {
-    university: {type: 'section', label: 'داخل القسم'},
-    stage: {type: 'university', label: 'داخل الجامعة'},
+    university: {type: 'section', label: 'داخل الكلية'},
+    department: {type: 'university', label: 'داخل الجامعة'},
+    stage: {type: 'department', label: 'داخل القسم'},
   };
 
   function promptDuplicateCatalog(type, id){
@@ -2591,6 +2627,7 @@
       });
       const bits = [];
       if (res.universities) bits.push(`${res.universities} جامعة`);
+      if (res.departments) bits.push(`${res.departments} قسم`);
       if (res.stages) bits.push(`${res.stages} مرحلة`);
       if (res.subjects) bits.push(`${res.subjects} مادة`);
       const made = `${res.copies.length} نسخة`;
@@ -2614,8 +2651,8 @@
     return null;
   }
 
-  const CATALOG_ENDPOINTS = {section: 'sections', university: 'universities', stage: 'stages', subject: 'subjects'};
-  const CATALOG_TYPE_LABEL = {section: 'القسم', university: 'الجامعة', stage: 'المرحلة', subject: 'المادة'};
+  const CATALOG_ENDPOINTS = {section: 'sections', university: 'universities', department: 'departments', stage: 'stages', subject: 'subjects'};
+  const CATALOG_TYPE_LABEL = {section: 'الكلية', university: 'الجامعة', department: 'القسم', stage: 'المرحلة', subject: 'المادة'};
 
   function promptRenameCatalog(type, id){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
@@ -3033,7 +3070,35 @@
     photoWrap.innerHTML = d.professor.photo_url
       ? `<img src="${API_BASE_URL}${esc(d.professor.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />`
       : (d.professor.name || '').replace('د. ', '').split(' ').map(w => w[0]).slice(0, 2).join('');
+    renderSubjectSwitcher();
     document.getElementById('pWelcomeText').textContent = `مرحباً ${esc(d.professor.name)} — ${esc(d.professor.title)} في ${esc(d.professor.subject)}. من هنا تقدر ترفع ملازم جديدة، تبني امتحانات، وتتابع مستوى طلابك.`;
+  }
+
+  // A doctor who teaches several subjects (maybe in different departments)
+  // picks which one the panel works on; every /api/professors request then
+  // carries it in X-Subject-Id.
+  let mySubjects = null;
+  async function renderSubjectSwitcher(){
+    if (!liveMode) return;
+    try { if (!mySubjects) mySubjects = await apiFetch('/api/professors/me/subjects'); } catch (e) { return; }
+    let box = document.getElementById('pSubjectSwitch');
+    const welcome = document.getElementById('pWelcomeText');
+    if (mySubjects.length < 2){ if (box) box.remove(); return; }
+    if (!box){
+      box = document.createElement('div'); box.id = 'pSubjectSwitch'; box.style.cssText = 'margin:10px 0;';
+      welcome.parentNode.insertBefore(box, welcome.nextSibling);
+    }
+    const cur = activeSubjectId || mySubjects[0].subject_id;
+    box.innerHTML = `<label style="font-size:.82rem; color:var(--ink-faint);">المادة التي تعمل عليها</label>
+      <select onchange="switchMySubject(this.value)" style="display:block; margin-top:4px; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; width:100%; max-width:420px;">
+        ${mySubjects.map(x => `<option value="${esc(x.subject_id)}" ${x.subject_id === cur ? 'selected' : ''}>${esc(x.subject_name)}${x.department_name ? ' — ' + esc(x.department_name) : ''}${x.stage_name ? ' — ' + esc(x.stage_name) : ''}</option>`).join('')}
+      </select>`;
+  }
+  function switchMySubject(id){
+    activeSubjectId = id;
+    profDashboard = null;
+    showToast('تم تبديل المادة');
+    loadProfessorOverview();
   }
 
   async function saveMyProfessorProfile(){
@@ -3820,17 +3885,18 @@
   // ===== ADMIN: quick catalog setup =====
   function promptQuickCatalog(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
-    openGenericModal('إعداد سريع لقسم كامل', [
-      {id: 'section', label: 'اسم القسم / الكلية', type: 'text', placeholder: 'طب بشري'},
+    openGenericModal('إعداد سريع لكلية كاملة', [
+      {id: 'section', label: 'اسم الكلية', type: 'text', placeholder: 'طب بشري'},
       {id: 'unis', label: 'الجامعات — اسم في كل سطر', type: 'textarea', rows: 4, placeholder: bulkPlaceholder(['جامعة بغداد', 'جامعة البصرة', 'جامعة الموصل'])},
-      {id: 'stages', label: 'المراحل — تُضاف لكل جامعة (اسم في كل سطر)', type: 'textarea', rows: 5, placeholder: bulkPlaceholder(['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'])},
+      {id: 'depts', label: 'الأقسام — تُضاف لكل جامعة (اختياري، وإلا يُنشأ «القسم العام»)', type: 'textarea', rows: 3, placeholder: bulkPlaceholder(['التشريح', 'الفسلجة'])},
+      {id: 'stages', label: 'المراحل — تُضاف لكل قسم (اسم في كل سطر)', type: 'textarea', rows: 5, placeholder: bulkPlaceholder(['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة'])},
     ], async (v) => {
-      if (!v.section.trim()) throw {detail: 'اسم القسم مطلوب'};
+      if (!v.section.trim()) throw {detail: 'اسم الكلية مطلوب'};
       const res = await apiFetch('/api/admin/catalog/quick', {method: 'POST', body: JSON.stringify({
-        section_name: v.section, universities: v.unis.split('\n'), stages: v.stages.split('\n'),
+        section_name: v.section, universities: v.unis.split('\n'), departments: v.depts.split('\n'), stages: v.stages.split('\n'),
       })});
       const c = res.created;
-      showToast(`تم: ${c.sections} قسم، ${c.universities} جامعة، ${c.stages} مرحلة`);
+      showToast(`تم: ${c.sections} كلية، ${c.universities} جامعة، ${c.departments} قسم، ${c.stages} مرحلة`);
       loadCatalog();
     });
   }

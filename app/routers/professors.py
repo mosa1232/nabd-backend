@@ -123,10 +123,39 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
         owner_id = parent.id
     else:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
-    profile = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == owner_id).first()
-    if not profile:
+    profiles = db.query(models.ProfessorProfile).filter(
+        models.ProfessorProfile.user_id == owner_id).order_by(models.ProfessorProfile.created_at.asc().nullsfirst(), models.ProfessorProfile.id).all()
+    if not profiles:
         raise HTTPException(404, "لا يوجد ملف تدريسي مرتبط بهذا الحساب")
-    return profile
+    # A doctor can teach several subjects (one profile each). The app sends
+    # X-Subject-Id to pick one; without it the first is used, as before.
+    wanted = getattr(user, "_active_subject_id", None)
+    if wanted:
+        match = next((p for p in profiles if p.subject_id == wanted), None)
+        if not match:
+            raise HTTPException(403, "هذه المادة ليست من موادك")
+        return match
+    return profiles[0]
+
+
+@router.get("/me/subjects")
+def my_subjects(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Every subject the signed-in doctor (or their assistant's doctor) teaches,
+    with the department it belongs to — drives the subject switcher."""
+    owner_id = user.id if user.role == models.Role.professor else user.parent_user_id
+    if user.role not in (models.Role.professor, models.Role.assistant) or not owner_id:
+        raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
+    out = []
+    for p in db.query(models.ProfessorProfile).filter(
+            models.ProfessorProfile.user_id == owner_id).order_by(models.ProfessorProfile.created_at.asc().nullsfirst(), models.ProfessorProfile.id).all():
+        st = p.subject.stage if p.subject else None
+        dept = st.department if st else None
+        out.append({
+            "subject_id": p.subject_id, "subject_name": p.subject.name if p.subject else "",
+            "stage_name": st.name if st else "", "department_name": dept.name if dept else "",
+            "university_name": st.university.name if st and st.university else "",
+        })
+    return out
 
 
 @router.put("/me/profile", response_model=schemas.ProfessorOut)

@@ -142,13 +142,33 @@ class University(Base):
     stages = relationship("Stage", back_populates="university")
 
 
+class Department(Base):
+    """A department (قسم: التشريح, الفسلجة…) of a college-in-a-university.
+    Every stage belongs to one; startup backfills a default for old data."""
+    __tablename__ = "departments"
+    id = Column(String, primary_key=True, default=gen_id)
+    name = Column(String, nullable=False)
+    university_id = Column(String, ForeignKey("universities.id"), nullable=False)
+
+    university = relationship("University")
+    stages = relationship("Stage", back_populates="department")
+
+
 class Stage(Base):
     __tablename__ = "stages"
     id = Column(String, primary_key=True, default=gen_id)
     name = Column(String, nullable=False)  # e.g. المرحلة الثانية
     university_id = Column(String, ForeignKey("universities.id"), nullable=False)
+    # Required by the API; the column itself stays nullable so a database that
+    # predates departments can be upgraded in place (startup fills it in).
+    department_id = Column(String, ForeignKey("departments.id"), nullable=True)
 
     university = relationship("University", back_populates="stages")
+    department = relationship("Department", back_populates="stages")
+
+    @property
+    def department_name(self) -> str:
+        return self.department.name if self.department else ""
     subjects = relationship("Subject", back_populates="stage")
 
 
@@ -170,6 +190,9 @@ class ProfessorProfile(Base):
     subject_id = Column(String, ForeignKey("subjects.id"), nullable=False)
     bio = Column(Text, default="")
     photo_url = Column(String, nullable=True)
+    # A doctor may have several profiles (one per subject taught). The oldest
+    # is the primary one; rows from before this column have it null and sort first.
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
 
     user = relationship("User")
     subject = relationship("Subject")

@@ -38,6 +38,11 @@ def my_catalog(db: Session = Depends(get_db), user: models.User = Depends(get_cu
         .all()
     )
     current = next((s for s in stages if s.id == user.stage_id), None)
+    # The one-tap stage switch stays inside the student's own department.
+    department = None
+    if current and current.department_id:
+        stages = [s for s in stages if s.department_id == current.department_id]
+        department = current.department
     subjects = (
         db.query(models.Subject).filter(models.Subject.stage_id == current.id).all()
         if current else []
@@ -45,6 +50,7 @@ def my_catalog(db: Session = Depends(get_db), user: models.User = Depends(get_cu
     return {
         "section": {"id": section.id, "name": section.name} if section else None,
         "university": {"id": university.id, "name": university.name} if university else None,
+        "department": {"id": department.id, "name": department.name} if department else None,
         "stage": {"id": current.id, "name": current.name} if current else None,
         "subjects": [{"id": s.id, "name": s.name} for s in subjects],
         "stages": [{"id": s.id, "name": s.name} for s in stages],

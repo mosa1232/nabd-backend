@@ -191,6 +191,28 @@ def _backfill_reseller_permissions():
         )
 
 
+DEFAULT_DEPARTMENT = "القسم العام"
+
+
+def _backfill_departments():
+    """Stages that predate departments get a default one per university, so
+    every stage has a department and nothing is orphaned by the upgrade."""
+    from sqlalchemy.orm import Session
+    with Session(engine) as db:
+        orphans = db.query(models.Stage).filter(models.Stage.department_id.is_(None)).all()
+        made = {}
+        for st in orphans:
+            dep = made.get(st.university_id) or db.query(models.Department).filter(
+                models.Department.university_id == st.university_id).first()
+            if not dep:
+                dep = models.Department(name=DEFAULT_DEPARTMENT, university_id=st.university_id)
+                db.add(dep)
+                db.flush()
+            made[st.university_id] = dep
+            st.department_id = dep.id
+        db.commit()
+
+
 @app.on_event("startup")
 def on_startup():
     # Enum labels must exist before anything tries to use them, and create_all
@@ -200,6 +222,7 @@ def on_startup():
     _patch_enum_values()
     _patch_missing_columns()
     _backfill_reseller_permissions()
+    _backfill_departments()
     # No demo data auto-seeded — this instance starts genuinely empty.
     # Whoever signs in with BOOTSTRAP_ADMIN_EMAIL becomes admin (see auth.py) so
     # there's still a way in without fake accounts. Run `python seed.py`

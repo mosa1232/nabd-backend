@@ -117,6 +117,7 @@ class PearlBulkIn(BaseModel):
 class CatalogQuickIn(BaseModel):
     section_name: str
     universities: list[str] = []
+    departments: list[str] = []   # empty = one default department per university
     stages: list[str] = []
 
 
@@ -245,6 +246,7 @@ class StageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
+    department_name: str = ""
     subjects: list[SubjectOut] = []
 
 

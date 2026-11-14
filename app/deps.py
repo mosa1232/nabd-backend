@@ -10,6 +10,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user_allow_banned(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
@@ -31,6 +32,9 @@ def get_current_user_allow_banned(
     user = db.get(models.User, payload.get("sub"))
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "المستخدم غير موجود")
+    # A doctor who teaches several subjects (possibly in different departments)
+    # says which one a request is for; see professors._get_own_profile.
+    user._active_subject_id = request.headers.get("x-subject-id") or None
     return user
 
 
