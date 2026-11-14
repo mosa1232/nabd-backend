@@ -98,6 +98,8 @@ class User(Base):
     # and, optionally, the stage whose students they onboard.
     scope_university_id = Column(String, ForeignKey("universities.id"), nullable=True)
     scope_stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
+    # ... or a whole department of that college (all of its stages).
+    scope_department_id = Column(String, ForeignKey("departments.id"), nullable=True)
     # Verification (توثيق): set when a student redeems a code from a roster.
     verified_at = Column(DateTime, nullable=True)
     verified_name = Column(String, nullable=True)
@@ -259,6 +261,11 @@ class Exam(Base):
     title = Column(String, nullable=False)
     question_count = Column(Integer, default=0)
     duration_minutes = Column(Integer, default=30)
+    # "mcq" = the usual written exam; "practical" = image stations (only
+    # questions that carry an image), each open for seconds_per_question;
+    # "mixed" = any questions, images shown where present.
+    exam_type = Column(String, default="mcq")
+    seconds_per_question = Column(Integer, nullable=True)
 
     subject = relationship("Subject")
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
-from .. import models, schemas
+from .. import models, ranking, schemas
 from ..database import get_db
 from ..deps import get_current_user
 
@@ -55,6 +55,7 @@ def answer_question(
         is_correct=choice.is_correct,
     ))
     db.commit()
+    ranking.invalidate()   # the board must not lag behind an answer just given
 
     return schemas.AnswerResult(
         is_correct=choice.is_correct,

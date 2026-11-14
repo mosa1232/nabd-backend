@@ -32,6 +32,7 @@ class UserOut(BaseModel):
     last_login: Optional[datetime] = None
     scope_university_id: Optional[str] = None
     scope_stage_id: Optional[str] = None
+    scope_department_id: Optional[str] = None
     verified_at: Optional[datetime] = None
     verified_name: Optional[str] = None
     # The raw extra grants; the dashboard reads `effective_permissions`.
@@ -173,6 +174,7 @@ class UserCreateIn(BaseModel):
     # Representative only: which college-in-university (and stage) they cover.
     scope_university_id: Optional[str] = None
     scope_stage_id: Optional[str] = None
+    scope_department_id: Optional[str] = None
 
 
 class PermissionsUpdateIn(BaseModel):
@@ -221,6 +223,7 @@ class UserUpdateIn(BaseModel):
     phone: Optional[str] = None
     scope_university_id: Optional[str] = None
     scope_stage_id: Optional[str] = None
+    scope_department_id: Optional[str] = None
     parent_user_id: Optional[str] = None
     code_quota: Optional[int] = Field(default=None, ge=0)
 
@@ -326,18 +329,26 @@ class BookletIn(BaseModel):
     pages: int = 0
 
 
+ExamType = Literal["mcq", "practical", "mixed"]
+
+
 class ExamOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
     question_count: int
     duration_minutes: int
+    exam_type: str = "mcq"
+    seconds_per_question: Optional[int] = None
 
 
 class ExamIn(BaseModel):
     title: str
     question_count: int = 0
     duration_minutes: int = 30
+    exam_type: ExamType = "mcq"
+    # Practical exams: how long each image station stays open.
+    seconds_per_question: Optional[int] = Field(default=None, ge=5, le=600)
 
 
 class ProfessorOut(BaseModel):

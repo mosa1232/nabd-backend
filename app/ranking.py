@@ -6,6 +6,7 @@ These used to be copy-pasted across three endpoints (/auth/me/stats,
 count correct answers — 2.5M rows on a 5k-student university, on every home
 screen load. They're aggregates now: the database does the counting.
 """
+import time
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import case, distinct, func
@@ -21,6 +22,74 @@ def peer_ids(db: Session, user: models.User) -> list[str]:
     if user.university_id:
         q = q.filter(models.User.university_id == user.university_id)
     return [row[0] for row in q.all()]
+
+
+# ------------------------------------------------------------- scopes + cache
+# Who a student is ranked against. "university" is the original behaviour.
+SCOPES = ("university", "stage", "department", "section", "all")
+SCOPE_NAMES = {
+    "university": "جامعتك", "stage": "مرحلتك", "department": "قسمك",
+    "section": "كليتك (كل الجامعات)", "all": "كل طلاب المنصة",
+}
+
+
+class ScopeUnavailable(Exception):
+    """The student hasn't chosen what this scope needs (e.g. no stage yet)."""
+
+
+def cohort_ids(db: Session, user: models.User, scope: str) -> list[str]:
+    if scope not in SCOPES:
+        raise ScopeUnavailable("نطاق غير معروف")
+    if scope == "university":
+        return peer_ids(db, user)
+    q = db.query(models.User.id).filter(models.User.role == models.Role.student)
+    if scope == "stage":
+        if not user.stage_id:
+            raise ScopeUnavailable("اختر مرحلتك أولاً")
+        q = q.filter(models.User.stage_id == user.stage_id)
+    elif scope == "department":
+        stage = db.get(models.Stage, user.stage_id) if user.stage_id else None
+        if not stage or not stage.department_id:
+            raise ScopeUnavailable("اختر مرحلتك أولاً")
+        q = q.join(models.Stage, models.Stage.id == models.User.stage_id).filter(
+            models.Stage.department_id == stage.department_id)
+    elif scope == "section":
+        if not user.section_id:
+            raise ScopeUnavailable("اختر كليتك أولاً")
+        q = q.filter(models.User.section_id == user.section_id)
+    return [row[0] for row in q.all()]
+
+
+# Counting correct answers for a whole cohort is the expensive part, and the
+# board is read far more often than answers arrive, so the ranked list is kept
+# for a short time. It is keyed by cohort size too, so people joining or
+# leaving a cohort show up at once, and answering clears it.
+CACHE_SECONDS = 30
+_CACHE: dict[tuple, tuple[float, list[tuple[str, int]]]] = {}
+
+
+def invalidate() -> None:
+    _CACHE.clear()
+
+
+def ranked_cohort(db: Session, user: models.User, scope: str) -> list[tuple[str, int]]:
+    ids = cohort_ids(db, user, scope)
+    value = {"university": user.university_id, "stage": user.stage_id,
+             "section": user.section_id}.get(scope)
+    if scope == "department":
+        stage = db.get(models.Stage, user.stage_id)
+        value = stage.department_id
+    key = (scope, value, len(ids))
+    hit = _CACHE.get(key)
+    now = time.monotonic()
+    if hit and now - hit[0] < CACHE_SECONDS:
+        return hit[1]
+    ranked = ranked_pairs(db, ids)
+    if CACHE_SECONDS > 0:
+        if len(_CACHE) > 500:      # bounded: one entry per cohort, but never unbounded
+            _CACHE.clear()
+        _CACHE[key] = (now, ranked)
+    return ranked
 
 
 def correct_counts(db: Session, user_ids: list[str]) -> dict[str, int]:

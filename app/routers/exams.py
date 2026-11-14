@@ -11,6 +11,8 @@ from ..deps import get_current_user
 
 router = APIRouter(prefix="/api/exams", tags=["exams"])
 
+STATION_GRACE_SECONDS = 4
+
 
 def _own_attempt(db: Session, attempt_id: str, user: models.User) -> models.ExamAttempt:
     attempt = db.get(models.ExamAttempt, attempt_id)
@@ -19,8 +21,15 @@ def _own_attempt(db: Session, attempt_id: str, user: models.User) -> models.Exam
     return attempt
 
 
+def _is_stationed(exam: models.Exam | None) -> bool:
+    return bool(exam and exam.exam_type == "practical" and exam.seconds_per_question)
+
+
 def _deadline(db: Session, attempt: models.ExamAttempt) -> datetime | None:
     exam = db.get(models.Exam, attempt.exam_id)
+    if _is_stationed(exam):
+        # Image stations: the paper lasts exactly stations x seconds.
+        return attempt.started_at + timedelta(seconds=exam.seconds_per_question * (attempt.total or 0))
     if not exam or not exam.duration_minutes:
         return None
     return attempt.started_at + timedelta(minutes=exam.duration_minutes)
@@ -99,12 +108,17 @@ def start_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = 
         attempt = existing
     else:
         # Essays can't be auto-graded, so they never enter a timed exam.
-        pool = db.query(models.Question).filter(
+        pool_q = db.query(models.Question).filter(
             models.Question.subject_id == exam.subject_id,
             or_(models.Question.qtype.is_(None), models.Question.qtype != "essay"),
-        ).all()
+        )
+        if exam.exam_type == "practical":
+            # An image station without an image is meaningless.
+            pool_q = pool_q.filter(models.Question.image_url.isnot(None), models.Question.image_url != "")
+        pool = pool_q.all()
         if not pool:
-            raise HTTPException(400, "لا توجد أسئلة متاحة لهذا الامتحان بعد")
+            raise HTTPException(400, "لا توجد أسئلة بصور لهذا الامتحان العملي بعد" if exam.exam_type == "practical"
+                                else "لا توجد أسئلة متاحة لهذا الامتحان بعد")
         random.shuffle(pool)
         count = exam.question_count or len(pool)
         chosen = pool[:count]
@@ -116,11 +130,15 @@ def start_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = 
         db.commit()
         db.refresh(attempt)
 
+    stationed = _is_stationed(exam)
     return {
         "attempt_id": attempt.id,
         "exam_title": exam.title,
+        "exam_type": exam.exam_type or "mcq",
+        "seconds_per_question": exam.seconds_per_question if stationed else None,
+        "server_now": datetime.utcnow(),
         "expires_at": _deadline(db, attempt),
-        "duration_minutes": exam.duration_minutes,
+        "duration_minutes": (attempt.total * exam.seconds_per_question + 59) // 60 if stationed else exam.duration_minutes,
         "total": attempt.total,
         "started_at": attempt.started_at,
         "finished_at": attempt.finished_at,
@@ -142,6 +160,16 @@ def answer_attempt_item(
     item = db.get(models.ExamAttemptQuestion, item_id)
     if not item or item.attempt_id != attempt_id:
         raise HTTPException(404, "السؤال غير موجود بهذه المحاولة")
+    exam = db.get(models.Exam, attempt.exam_id)
+    if _is_stationed(exam):
+        # Each station is open only in its own window (a few seconds of slack
+        # for the network); answering a past or future one is refused.
+        sec = exam.seconds_per_question
+        elapsed = (datetime.utcnow() - attempt.started_at).total_seconds()
+        if elapsed > (item.order_index + 1) * sec + STATION_GRACE_SECONDS:
+            raise HTTPException(400, "انتهى وقت هذه المحطة")
+        if elapsed < item.order_index * sec - STATION_GRACE_SECONDS:
+            raise HTTPException(400, "هذه المحطة لم تبدأ بعد")
     choice = db.get(models.Choice, body.choice_id)
     if not choice or choice.question_id != item.question_id:
         raise HTTPException(400, "خيار غير صالح")

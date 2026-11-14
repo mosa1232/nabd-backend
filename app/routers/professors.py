@@ -225,7 +225,7 @@ def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_
         "student_count": len(student_ids),
         "avg_student_score": avg_score,
         "booklets": [{"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None} for b in booklets],
-        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes} for e in exams],
+        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes, "exam_type": e.exam_type or "mcq", "seconds_per_question": e.seconds_per_question} for e in exams],
     }
 
 
@@ -384,12 +384,34 @@ async def upload_booklet_file(
 
 
 # ------------------------------------------------------------- exam CRUD
+def _check_exam_body(body: schemas.ExamIn) -> None:
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    if body.exam_type == "practical" and not body.seconds_per_question:
+        raise HTTPException(400, "الامتحان العملي يحتاج مدة لكل محطة (بالثواني)")
+
+
+@router.get("/me/exams/image-questions")
+def image_question_count(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """How many questions of the doctor's subject carry an image — what a
+    practical exam can draw from."""
+    profile = _get_own_profile(db, user, "prof.exams")
+    n = db.query(models.Question).filter(
+        models.Question.subject_id == profile.subject_id,
+        models.Question.image_url.isnot(None), models.Question.image_url != "",
+    ).count()
+    return {"count": n}
+
+
 @router.post("/me/exams", response_model=schemas.ExamOut)
 def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     profile = _get_own_profile(db, user, "prof.exams")
+    _check_exam_body(body)
     e = models.Exam(
         subject_id=profile.subject_id, professor_id=profile.id, title=body.title,
         question_count=body.question_count, duration_minutes=body.duration_minutes,
+        exam_type=body.exam_type,
+        seconds_per_question=body.seconds_per_question if body.exam_type == "practical" else None,
     )
     db.add(e)
     db.flush()  # need the generated id to link the announcement to it
@@ -405,9 +427,12 @@ def update_exam(exam_id: str, body: schemas.ExamIn, db: Session = Depends(get_db
     e = db.get(models.Exam, exam_id)
     if not e or e.professor_id != profile.id:
         raise HTTPException(404, "الامتحان غير موجود")
+    _check_exam_body(body)
     e.title = body.title
     e.question_count = body.question_count
     e.duration_minutes = body.duration_minutes
+    e.exam_type = body.exam_type
+    e.seconds_per_question = body.seconds_per_question if body.exam_type == "practical" else None
     db.commit()
     db.refresh(e)
     return e
@@ -613,6 +638,27 @@ def _own_question(db: Session, profile: models.ProfessorProfile, question_id: st
     if not q or q.professor_id != profile.id:
         raise HTTPException(404, "السؤال غير موجود")
     return q
+
+
+@router.post("/me/questions/image")
+async def upload_question_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Uploads the picture of a practical-exam question (a specimen, slide,
+    X-ray…) and returns its url, to be saved as the question's image_url."""
+    _get_own_profile(db, user, "prof.questions")
+    contents = await file.read()
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
+    stored_name = safe_upload_name(file.filename, IMAGE_EXTS, "question")
+    try:
+        stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 1600)
+    except Exception:
+        raise HTTPException(400, "الملف ليس صورة صالحة")
+    storage.save(stored_name, contents, ctype)
+    return {"url": media_url(stored_name)}
 
 
 @router.put("/me/questions/{question_id}")

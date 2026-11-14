@@ -152,19 +152,27 @@ def _clean_permissions(role: str, perms: list[str]) -> str:
     return serialize_permissions(p for p in perms if p in allowed)
 
 
-def _validate_scope(db: Session, role: str, university_id: str | None, stage_id: str | None):
-    """A representative covers one college-in-a-university (and optionally one
-    stage of it). Returns the (university_id, stage_id) to store; anyone else
-    stores neither."""
+def _validate_scope(db: Session, role: str, university_id: str | None, stage_id: str | None,
+                    department_id: str | None = None):
+    """A representative covers one college-in-a-university, optionally narrowed
+    to one department of it and/or one stage. Returns the (university_id,
+    stage_id, department_id) to store; anyone else stores none."""
     if role != models.Role.representative.value:
-        return None, None
+        return None, None, None
     if not university_id or not db.get(models.University, university_id):
         raise HTTPException(400, "اختر الجامعة/الكلية التي يمثّلها الممثل العام")
+    if department_id:
+        dept = db.get(models.Department, department_id)
+        if not dept or dept.university_id != university_id:
+            raise HTTPException(400, "القسم المختار لا يتبع هذه الجامعة/الكلية")
     if stage_id:
         stage = db.get(models.Stage, stage_id)
         if not stage or stage.university_id != university_id:
             raise HTTPException(400, "المرحلة المختارة لا تتبع هذه الجامعة/الكلية")
-    return university_id, stage_id or None
+        if department_id and stage.department_id != department_id:
+            raise HTTPException(400, "المرحلة المختارة لا تتبع القسم المختار")
+        department_id = department_id or stage.department_id   # a stage implies its department
+    return university_id, stage_id or None, department_id or None
 
 
 @router.get("/permissions")
@@ -193,7 +201,8 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db), actor
             raise HTTPException(400, "اختر المادة التي يدرّسها الدكتور")
         if not db.get(models.Subject, body.subject_id):
             raise HTTPException(404, "المادة غير موجودة")
-    scope_uni, scope_stage = _validate_scope(db, body.role, body.scope_university_id, body.scope_stage_id)
+    scope_uni, scope_stage, scope_dept = _validate_scope(
+        db, body.role, body.scope_university_id, body.scope_stage_id, body.scope_department_id)
     user = models.User(
         email=body.email.strip(),
         full_name=body.full_name.strip(),
@@ -201,6 +210,7 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db), actor
         password_hash=hash_password(body.password) if body.password else None,
         scope_university_id=scope_uni,
         scope_stage_id=scope_stage,
+        scope_department_id=scope_dept,
         phone=(body.phone or "").strip() or None,
         permissions=_clean_permissions(body.role, body.permissions),
         parent_user_id=parent.id if parent else None,
@@ -346,8 +356,8 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
         user.parent_user_id = parent.id
     if body.role == models.Role.reseller.value:
         user.code_quota = body.code_quota
-    user.scope_university_id, user.scope_stage_id = _validate_scope(
-        db, body.role, body.scope_university_id, body.scope_stage_id)
+    user.scope_university_id, user.scope_stage_id, user.scope_department_id = _validate_scope(
+        db, body.role, body.scope_university_id, body.scope_stage_id, body.scope_department_id)
     db.commit()
     db.refresh(user)
     return user

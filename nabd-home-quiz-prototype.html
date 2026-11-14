@@ -1757,6 +1757,7 @@
     <div class="q-card glass">
       <div class="q-body">
         <div class="q-eyebrow" id="examEyebrow"></div>
+        <img id="examImage" alt="" style="display:none; width:100%; max-height:46vh; object-fit:contain; border-radius:12px; margin-bottom:14px; background:#00000008;" />
         <div class="q-text" id="examText">جارٍ التحميل...</div>
       </div>
       <div class="options" id="examOptions"></div>
@@ -1835,7 +1836,19 @@
         <button class="tab-btn active" data-ltab="rank" onclick="switchLeaderboardTab('rank')" data-i18n="rankTab">الترتيب</button>
         <button class="tab-btn" data-ltab="perf" onclick="switchLeaderboardTab('perf')" data-i18n="myReportTab">تقرير أدائي</button>
       </div>
-      <div class="tab-panel active" id="ltab-rank"><div class="item-list" id="leaderboardList"></div></div>
+      <div class="tab-panel active" id="ltab-rank">
+        <div class="form-field" style="margin:0 16px 8px;">
+          <select id="leaderboardScope" onchange="loadLeaderboardRank()">
+            <option value="university">طلاب جامعتي</option>
+            <option value="stage">طلاب مرحلتي</option>
+            <option value="department">طلاب قسمي</option>
+            <option value="section">طلاب كليتي (كل الجامعات)</option>
+            <option value="all">كل طلاب المنصة</option>
+          </select>
+        </div>
+        <div class="item-meta" id="leaderboardSummary" style="margin:0 16px 8px;"></div>
+        <div class="item-list" id="leaderboardList"></div>
+      </div>
       <div class="tab-panel" id="ltab-perf"><div class="item-list" id="performanceList"></div></div>
     </div>
   </div>
@@ -3926,7 +3939,7 @@
       </div>
     `;
     const booklets = p.apiBooklets ? p.apiBooklets.map(b => ({id: b.id, t: b.title, p: b.pages, fileUrl: b.file_url || null})) : (bookletsBySubject[p.subject] || []);
-    const exams = p.apiExams ? p.apiExams.map(e => ({id: e.id, t: e.title, q: e.question_count, m: e.duration_minutes})) : (examsBySubject[p.subject] || []);
+    const exams = p.apiExams ? p.apiExams.map(e => ({id: e.id, t: e.title, q: e.question_count, m: e.duration_minutes, ty: e.exam_type})) : (examsBySubject[p.subject] || []);
     document.getElementById('bookletsList').innerHTML = booklets.map(b => `
       <div class="item-card glass">
         <div class="item-icon pdf">${pdfIcon}</div>
@@ -3942,7 +3955,7 @@
         <div class="item-icon exam">${examIcon}</div>
         <div class="item-body">
           <div class="item-title">${esc(e.t)}</div>
-          <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة</div>
+          <div class="item-meta">${e.q} سؤال · ${e.m} دقيقة${e.ty === 'practical' ? ' · <b>عملي (صور)</b>' : ''}</div>
         </div>
         ${e.id ? `<button class="btn item-action" onclick="startExam('${e.id}')">${t('start')}</button>` : ''}
       </div>
@@ -4608,7 +4621,7 @@
         <div class="item-icon exam">${examIcon}</div>
         <div class="item-body">
           <div class="item-title">${esc(e.title)}</div>
-          <div class="item-meta">${e.question_count} سؤال · ${e.duration_minutes} دقيقة</div>
+          <div class="item-meta">${e.question_count} سؤال · ${e.duration_minutes} دقيقة${e.exam_type === 'practical' ? ' · <b>عملي (صور)</b>' : ''}</div>
         </div>
         <button class="btn item-action" onclick="startExam('${e.id}')">${t('start')}</button>
       </div>
@@ -6333,8 +6346,14 @@
   async function loadLeaderboardRank(){
     const list = document.getElementById('leaderboardList');
     list.innerHTML = '<div class="empty-row">جارٍ التحميل...</div>';
+    const scope = document.getElementById('leaderboardScope').value || 'university';
+    const sum = document.getElementById('leaderboardSummary');
+    sum.textContent = '';
     try {
-      const rows = await apiFetch('/auth/leaderboard');
+      const rows = await apiFetch('/auth/leaderboard?scope=' + encodeURIComponent(scope));
+      apiFetch('/auth/leaderboard/summary?scope=' + encodeURIComponent(scope)).then(s => {
+        sum.textContent = s.my_rank ? `ترتيبك #${s.my_rank} من ${s.total} (${s.label})` : `${s.total} طالب (${s.label})`;
+      }).catch(() => {});
       list.innerHTML = rows.map(r => `
         <div class="item-card glass" style="cursor:pointer; ${r.is_you ? 'border:1.5px solid var(--accent);' : ''}" onclick="openStudentProfile('${r.user_id}')">
           <div class="item-icon" style="background:var(--accent-2); color:#fff; font-weight:700; overflow:hidden;">${r.photo_url ? `<img src="${API_BASE_URL}${esc(r.photo_url)}" style="width:100%; height:100%; object-fit:cover;" />` : '#' + r.rank}</div>
@@ -6345,7 +6364,7 @@
         </div>
       `).join('') || `<div class="empty-row">${t('noRankingsYet')}</div>`;
     } catch (e) {
-      list.innerHTML = '<div class="empty-row">تعذّر تحميل الترتيب</div>';
+      list.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الترتيب')}</div>`;
     }
   }
 
@@ -6436,6 +6455,9 @@
   let examIndex = 0;
   let examDurationSec = 0;
   let examTimerInt = null;
+  let examType = 'mcq';
+  let examStationSec = 0;      // practical: seconds each image station stays open
+  let examElapsed = 0;         // practical: seconds since the attempt started (server clock)
 
   async function startExam(examId){
     showView('view-exam');
@@ -6448,7 +6470,19 @@
       examIndex = examItems.findIndex(it => !it.answered);
       if (examIndex === -1) examIndex = 0;
       document.getElementById('examTitleBar').textContent = data.exam_title;
-      examDurationSec = (data.duration_minutes || 30) * 60;
+      examType = data.exam_type || 'mcq';
+      examStationSec = data.seconds_per_question || 0;
+      if (examType === 'practical' && examStationSec){
+        // The server owns the clock: station = elapsed / seconds, so resuming or
+        // reloading never gives extra time.
+        const utc = s => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s + 'Z').getTime();
+        examElapsed = Math.max(0, Math.floor((utc(data.server_now) - utc(data.started_at)) / 1000));
+        examDurationSec = Math.max(1, examItems.length * examStationSec - examElapsed);
+        examIndex = Math.min(Math.floor(examElapsed / examStationSec), examItems.length - 1);
+      } else {
+        examElapsed = 0;
+        examDurationSec = (data.duration_minutes || 30) * 60;
+      }
       startExamTimer();
       renderExamQuestion();
     } catch (e) {
@@ -6459,20 +6493,37 @@
 
   function startExamTimer(){
     clearInterval(examTimerInt);
+    const paint = secs => {
+      const m = String(Math.floor(secs / 60)).padStart(2, '0');
+      const s = String(secs % 60).padStart(2, '0');
+      document.getElementById('examTimer').textContent = `${m}:${s}`;
+    };
+    const stationed = examType === 'practical' && examStationSec;
+    if (stationed) paint(examStationSec - (examElapsed % examStationSec));
     examTimerInt = setInterval(() => {
       examDurationSec--;
       if (examDurationSec <= 0){ clearInterval(examTimerInt); submitExam(); return; }
-      const m = String(Math.floor(examDurationSec / 60)).padStart(2, '0');
-      const s = String(examDurationSec % 60).padStart(2, '0');
-      document.getElementById('examTimer').textContent = `${m}:${s}`;
+      if (stationed){
+        examElapsed++;
+        const idx = Math.min(Math.floor(examElapsed / examStationSec), examItems.length - 1);
+        if (idx !== examIndex){ examIndex = idx; renderExamQuestion(); }   // next station opens by itself
+        paint(examStationSec - (examElapsed % examStationSec));
+      } else {
+        paint(examDurationSec);
+      }
     }, 1000);
   }
 
   function renderExamQuestion(){
     const it = examItems[examIndex];
     document.getElementById('examProgress').style.width = ((examIndex + 1) / examItems.length * 100) + '%';
-    document.getElementById('examEyebrow').textContent = it.eyebrow || '';
+    const stationed = examType === 'practical' && examStationSec;
+    document.getElementById('examEyebrow').textContent = stationed
+      ? `محطة ${examIndex + 1} من ${examItems.length}` : (it.eyebrow || '');
     document.getElementById('examText').textContent = it.text;
+    const imgEl = document.getElementById('examImage');
+    if (it.image_url){ imgEl.src = API_BASE_URL + it.image_url; imgEl.style.display = 'block'; }
+    else { imgEl.removeAttribute('src'); imgEl.style.display = 'none'; }
     const wrap = document.getElementById('examOptions');
     wrap.innerHTML = '';
     it.choices.forEach((choice, idx) => {
@@ -6482,9 +6533,10 @@
       b.addEventListener('click', () => selectExamOption(choice.id));
       wrap.appendChild(b);
     });
-    document.getElementById('examPrevBtn').style.visibility = examIndex === 0 ? 'hidden' : 'visible';
+    // Stations advance on their own clock: no going back, no skipping ahead.
+    document.getElementById('examPrevBtn').style.visibility = (stationed || examIndex === 0) ? 'hidden' : 'visible';
     const isLast = examIndex === examItems.length - 1;
-    document.getElementById('examNextBtn').style.display = isLast ? 'none' : 'flex';
+    document.getElementById('examNextBtn').style.display = (isLast || stationed) ? 'none' : 'flex';
     document.getElementById('examFinishBtn').style.display = isLast ? 'flex' : 'none';
   }
 
@@ -6534,6 +6586,7 @@
       <div class="item-card glass" style="align-items:flex-start;">
         <div class="item-icon" style="background:${it.is_correct ? 'var(--success)' : 'var(--danger)'}; color:#fff;">${i + 1}</div>
         <div class="item-body">
+          ${it.image_url ? `<img src="${API_BASE_URL}${esc(it.image_url)}" alt="" style="width:100%; max-height:200px; object-fit:contain; border-radius:10px; margin-bottom:8px;" />` : ''}
           <div class="item-title">${esc(it.text)}</div>
           <div class="item-meta" style="color:${it.is_correct ? 'var(--success)' : 'var(--danger)'};">
             ${it.is_correct ? 'إجابة صحيحة' : 'إجابة خاطئة'}

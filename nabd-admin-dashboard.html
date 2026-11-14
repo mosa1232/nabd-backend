@@ -692,7 +692,7 @@
           </div>
           <div class="table-wrap">
             <table class="dash-table">
-              <thead><tr><th>العنوان</th><th>عدد الأسئلة</th><th>المدة</th><th></th></tr></thead>
+              <thead><tr><th>العنوان</th><th>النوع</th><th>عدد الأسئلة</th><th>المدة</th><th></th></tr></thead>
               <tbody id="pExamsBody"></tbody>
             </table>
           </div>
@@ -949,6 +949,14 @@
       <button class="tab-btn" data-qtype="essay" onclick="qeSetType('essay')">مقالي</button>
     </div>
     <div class="form-field"><textarea id="qeText" rows="3" placeholder="نص السؤال" style="width:100%; resize:vertical; font:inherit; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink);"></textarea></div>
+    <div class="form-field" id="qeImageRow" style="margin-top:2px;">
+      <label style="font-size:.75rem; color:var(--ink-faint); display:block; margin-bottom:5px;">صورة السؤال (اختياري — للامتحان العملي: عيّنة، شريحة، أشعة…)</label>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="file" id="qeImageFile" accept="image/*" onchange="qeUploadImage(this)" style="flex:1; min-width:160px; padding:6px;" />
+        <button type="button" class="btn btn-ghost" id="qeImageRemove" style="display:none; padding:6px 12px; font-size:.72rem;" onclick="qeSetImage(null)">إزالة الصورة</button>
+      </div>
+      <img id="qeImagePreview" alt="" style="display:none; max-width:100%; max-height:170px; margin-top:8px; border-radius:10px; object-fit:contain;" />
+    </div>
     <div id="qeMcq">
       <div id="qeChoices"></div>
       <button class="btn btn-ghost" style="margin-top:4px; padding:7px 14px; font-size:.76rem;" onclick="qeAddChoice()">+ خيار</button>
@@ -2151,14 +2159,15 @@
     const rows = await apiFetch('/api/admin/catalog');
     const unis = [{value: '', label: 'لا ينطبق — ليس ممثلاً عامًا'}];
     const stages = [{value: '', label: 'كل المراحل'}];
+    const depts = [{value: '', label: 'كل الأقسام'}];
     let sec = '', uni = '', dept = '';
     rows.forEach(r => {
       if (r.type === 'section') sec = r.name;
       else if (r.type === 'university'){ uni = r.name; unis.push({value: r.id, label: `${r.name} — ${sec}`}); }
-      else if (r.type === 'department') dept = r.name;
+      else if (r.type === 'department'){ dept = r.name; depts.push({value: r.id, label: `${uni} — ${sec} — ${r.name}`}); }
       else if (r.type === 'stage') stages.push({value: r.id, label: `${uni} — ${sec} — ${dept} — ${r.name}`});
     });
-    return {unis, stages};
+    return {unis, stages, depts};
   }
 
   async function professorOptions(){
@@ -2180,7 +2189,7 @@
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
-    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}]};
+    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
     try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
@@ -2190,6 +2199,7 @@
       {id: 'role', label: 'الدور', type: 'select', value: 'student', options: roleOptionsForMe()},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: '', options: professors},
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
+      {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: '', options: scope.depts},
       {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: '', options: scope.stages},
       {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
@@ -2215,6 +2225,7 @@
           parent_user_id: v.role === 'assistant' ? (v.parentUserId || null) : null,
           scope_university_id: v.role === 'representative' ? v.scopeUni : null,
           scope_stage_id: v.role === 'representative' ? (v.scopeStage || null) : null,
+          scope_department_id: v.role === 'representative' ? (v.scopeDept || null) : null,
           // a reseller made here can view + take codes unless the store manager says otherwise
           permissions: v.role === 'reseller' ? ['codes.view', 'codes.generate']
             : (['supervisor', 'store_manager'].includes(v.role) ? v.perms : []),
@@ -2262,7 +2273,7 @@
     if (!current) return;
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
-    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}]};
+    let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
     try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
     const isStaff = ['supervisor', 'store_manager'].includes(current.role);
     openGenericModal('تعديل مستخدم', [
@@ -2274,6 +2285,7 @@
        options: roleOptionsForMe().some(o => o.value === current.role) ? roleOptionsForMe() : ROLE_OPTIONS},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: current.parent_user_id || '', options: professors},
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: current.scope_university_id || '', options: scope.unis},
+      {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: current.scope_department_id || '', options: scope.depts},
       {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: current.scope_stage_id || '', options: scope.stages},
       {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks',
        value: current.extra_permissions || [], options: STAFF_PERM_OPTIONS},
@@ -2283,7 +2295,7 @@
       if (v.role === 'assistant') body.parent_user_id = v.parentUserId || null;
       if (v.role === 'representative'){
         if (!v.scopeUni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها الممثل العام'};
-        body.scope_university_id = v.scopeUni; body.scope_stage_id = v.scopeStage || null;
+        body.scope_university_id = v.scopeUni; body.scope_stage_id = v.scopeStage || null; body.scope_department_id = v.scopeDept || null;
       }
       // staff grants are only sent for the roles that use them, so editing a
       // reseller or professor here never wipes their own kind of grants
@@ -2705,8 +2717,40 @@
     if (text) row.querySelector('.qeChoiceText').value = text;
   }
 
+  let qeImageUrl = null;
+  function qeSetImage(url){
+    qeImageUrl = url || null;
+    const pv = document.getElementById('qeImagePreview');
+    if (qeImageUrl){ pv.src = API_BASE_URL + qeImageUrl; pv.style.display = 'block'; }
+    else { pv.removeAttribute('src'); pv.style.display = 'none'; document.getElementById('qeImageFile').value = ''; }
+    document.getElementById('qeImageRemove').style.display = qeImageUrl ? 'inline-flex' : 'none';
+  }
+  async function qeUploadImage(input){
+    const file = input.files && input.files[0];
+    if (!file || !qeCtx) return;
+    const msg = document.getElementById('qeMsg');
+    msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)'; msg.textContent = 'جارٍ رفع الصورة...';
+    // Doctors upload through their own endpoint; the admin bank uses the media one.
+    const mine = /\/api\/professors\//.test(qeCtx.createUrl || '');
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const res = await fetch(API_BASE_URL + (mine ? '/api/professors/me/questions/image' : '/api/admin/media/upload'), {
+        method: 'POST', body: fd, credentials: 'include',
+        headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...(mine && activeSubjectId ? {'X-Subject-Id': activeSubjectId} : {})},
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw {detail: data.detail || 'تعذّر رفع الصورة'};
+      qeSetImage(data.url);
+      msg.style.display = 'none';
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'تعذّر رفع الصورة';
+      input.value = '';
+    }
+  }
+
   function openQuestionEditor(ctx, q){
     qeCtx = {...ctx, editingId: q ? q.id : null};
+    qeSetImage(q ? q.image_url : null);
     document.getElementById('qeTitle').textContent = q ? 'تعديل سؤال' : 'سؤال جديد';
     document.getElementById('qeMsg').style.display = 'none';
     document.getElementById('qeText').value = q ? q.text : '';
@@ -2739,7 +2783,7 @@
     const text = document.getElementById('qeText').value.trim();
     if (!text) return fail('اكتب نص السؤال');
     const body = {
-      ...(qeCtx.extra || {}), text, qtype: qeType,
+      ...(qeCtx.extra || {}), text, qtype: qeType, image_url: qeImageUrl,
       rationale: document.getElementById('qeRationale').value.trim(),
       eyebrow: document.getElementById('qeEyebrow').value.trim(),
       model_answer: '', choices: [],
@@ -2776,7 +2820,7 @@
     return `
       <div class="item-card glass" style="align-items:flex-start;">
         <div class="item-body">
-          <div class="item-title"><span class="badge badge-idle" style="margin-inline-end:6px;">${QTYPE_LABEL[q.qtype] || 'اختيارات'}</span>${esc(q.text)}</div>
+          <div class="item-title"><span class="badge badge-idle" style="margin-inline-end:6px;">${QTYPE_LABEL[q.qtype] || 'اختيارات'}</span>${q.image_url ? '<span class="badge badge-active" style="margin-inline-end:6px;">🖼 صورة</span>' : ''}${esc(q.text)}</div>
           <div class="item-meta">${esc(detail)}</div>
         </div>
         <div style="display:flex; gap:6px; flex:none;">
@@ -3182,13 +3226,16 @@
     const d = await fetchProfDashboard();
     document.getElementById('pExamsBody').innerHTML = d.exams.map(e => `
       <tr>
-        <td><div class="cell-name">${esc(e.title)}</div></td><td>${e.question_count}</td><td>${e.duration_minutes} د</td>
+        <td><div class="cell-name">${esc(e.title)}</div></td>
+        <td>${e.exam_type === 'practical' ? '<span class="badge badge-active">عملي (صور)</span>' : '<span class="badge badge-idle">نظري</span>'}</td>
+        <td>${e.question_count}</td>
+        <td>${e.exam_type === 'practical' && e.seconds_per_question ? e.seconds_per_question + ' ث / محطة' : e.duration_minutes + ' د'}</td>
         <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
           <button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="promptEditExam('${e.id}')">تعديل</button>
           <button class="icon-btn" title="حذف الامتحان" aria-label="حذف الامتحان" style="width:30px;height:30px;" onclick="deleteExam('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
         </div></td>
       </tr>
-    `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد امتحانات بعد</td></tr>`;
+    `).join('') || `<tr><td colspan="5" class="empty-row">لا توجد امتحانات بعد</td></tr>`;
   }
 
   function invalidateProfDashboard(){ profDashboard = null; }
@@ -3230,17 +3277,37 @@
     } catch (e) { showToast(e.detail || 'تعذّر حذف الملزمة', 'error'); }
   }
 
-  function promptAddExam(){
+  const EXAM_TYPE_OPTIONS = [
+    {value: 'mcq', label: 'نظري — أسئلة اختيارات'},
+    {value: 'practical', label: 'عملي — محطات بصور (كل صورة بوقت محدد)'},
+    {value: 'mixed', label: 'مختلط'},
+  ];
+  // The fields shared by creating and editing an exam.
+  function examBody(v){
+    const type = v.examType || 'mcq';
+    const body = {title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0,
+                  duration_minutes: parseInt(v.duration, 10) || 30, exam_type: type};
+    if (type === 'practical'){
+      body.seconds_per_question = parseInt(v.stationSeconds, 10) || null;
+      if (!body.seconds_per_question) throw {detail: 'حدّد مدة كل محطة بالثواني (5 إلى 600)'};
+    }
+    return body;
+  }
+  async function promptAddExam(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    let imgs = null;
+    try { imgs = (await apiFetch('/api/professors/me/exams/image-questions')).count; } catch (e) { /* hint only */ }
     openGenericModal('إنشاء امتحان', [
       {id: 'title', label: 'عنوان الامتحان', type: 'text'},
-      {id: 'questionCount', label: 'عدد الأسئلة', type: 'number', value: 20},
-      {id: 'duration', label: 'المدة بالدقائق', type: 'number', value: 30},
+      {id: 'examType', label: 'نوع الامتحان', type: 'select', value: 'mcq', options: EXAM_TYPE_OPTIONS},
+      {id: 'questionCount', label: 'عدد الأسئلة (المحطات في العملي)', type: 'number', value: 20},
+      {id: 'duration', label: 'المدة بالدقائق (للنظري والمختلط)', type: 'number', value: 30},
+      {id: 'stationSeconds', label: 'العملي: مدة كل محطة بالثواني' + (imgs != null ? ` — عندك ${imgs} سؤال بصورة` : ''), type: 'number', value: 45},
     ], async (v) => {
       if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
       await apiFetch('/api/professors/me/exams', {
         method: 'POST',
-        body: JSON.stringify({title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0, duration_minutes: parseInt(v.duration, 10) || 30}),
+        body: JSON.stringify(examBody(v)),
       });
       invalidateProfDashboard();
       loadProfessorExams();
@@ -3253,13 +3320,15 @@
     if (!current) return;
     openGenericModal('تعديل امتحان', [
       {id: 'title', label: 'عنوان الامتحان', type: 'text', value: current.title},
-      {id: 'questionCount', label: 'عدد الأسئلة', type: 'number', value: current.question_count},
-      {id: 'duration', label: 'المدة بالدقائق', type: 'number', value: current.duration_minutes},
+      {id: 'examType', label: 'نوع الامتحان', type: 'select', value: current.exam_type || 'mcq', options: EXAM_TYPE_OPTIONS},
+      {id: 'questionCount', label: 'عدد الأسئلة (المحطات في العملي)', type: 'number', value: current.question_count},
+      {id: 'duration', label: 'المدة بالدقائق (للنظري والمختلط)', type: 'number', value: current.duration_minutes},
+      {id: 'stationSeconds', label: 'العملي: مدة كل محطة بالثواني', type: 'number', value: current.seconds_per_question || 45},
     ], async (v) => {
       if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
       await apiFetch('/api/professors/me/exams/' + id, {
         method: 'PUT',
-        body: JSON.stringify({title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0, duration_minutes: parseInt(v.duration, 10) || 30}),
+        body: JSON.stringify(examBody(v)),
       });
       invalidateProfDashboard();
       loadProfessorExams();
@@ -3921,7 +3990,7 @@
       (parent ? row('يعمل مع الدكتور', esc(parent)) : '') +
       (a.role === 'student' ? row('القسم', esc(catalogNameById[a.section_id] || '—')) + row('الجامعة', esc(catalogNameById[a.university_id] || '—')) + row('المرحلة', esc(a.is_graduate ? 'متخرج' : (catalogNameById[a.stage_id] || '—'))) : '') +
       (a.role === 'reseller' ? row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) : '') +
-      (a.role === 'representative' ? row('يمثّل', esc(catalogNameById[a.scope_university_id] || '—')) + row('المرحلة', esc(a.scope_stage_id ? (catalogNameById[a.scope_stage_id] || '—') : 'كل المراحل')) : '') +
+      (a.role === 'representative' ? row('يمثّل', esc(catalogNameById[a.scope_university_id] || '—')) + row('القسم', esc(a.scope_department_id ? (catalogNameById[a.scope_department_id] || '—') : 'كل الأقسام')) + row('المرحلة', esc(a.scope_stage_id ? (catalogNameById[a.scope_stage_id] || '—') : 'كل المراحل')) : '') +
       (a.role === 'student' ? row('التوثيق', a.verified_at ? ('موثّق باسم «' + esc(a.verified_name || '') + '» — ' + fmt(a.verified_at)) : 'غير موثّق') : '') +
       ((a.extra_permissions || []).length ? row('صلاحيات إضافية', a.extra_permissions.map(p => esc(PERM_LABELS[p] || p)).join('، ')) : '') +
       row('الحالة', a.is_banned ? 'محظور' : 'نشط') +

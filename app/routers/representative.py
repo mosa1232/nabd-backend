@@ -35,22 +35,33 @@ def _scope_labels(db: Session, user: models.User) -> dict:
     uni = db.get(models.University, user.scope_university_id)
     section = db.get(models.Section, uni.section_id) if uni else None
     stage = db.get(models.Stage, user.scope_stage_id) if user.scope_stage_id else None
+    dept = db.get(models.Department, user.scope_department_id) if user.scope_department_id else None
     return {
         "university": uni.name if uni else "",
         "college": section.name if section else "",
+        "department": dept.name if dept else None,
         "stage": stage.name if stage else None,
     }
 
 
-def _in_scope(batch: models.VerificationBatch, user: models.User) -> bool:
+def _dept_stage_ids(db: Session, user: models.User) -> set[str] | None:
+    """The stages a department-scoped rep may use; None = not department-scoped."""
+    if not user.scope_department_id:
+        return None
+    return {s.id for s in db.query(models.Stage.id).filter(models.Stage.department_id == user.scope_department_id)}
+
+
+def _in_scope(batch: models.VerificationBatch, user: models.User, dept_stages: set[str] | None = None) -> bool:
     if batch.university_id != user.scope_university_id:
+        return False
+    if dept_stages is not None and batch.stage_id not in dept_stages:
         return False
     return user.scope_stage_id is None or batch.stage_id == user.scope_stage_id
 
 
 def _own_batch(db: Session, user: models.User, batch_id: str) -> models.VerificationBatch:
     b = db.get(models.VerificationBatch, batch_id)
-    if not b or not _in_scope(b, user):
+    if not b or not _in_scope(b, user, _dept_stage_ids(db, user)):
         raise HTTPException(404, "الدفعة غير موجودة")
     return b
 
@@ -96,10 +107,13 @@ def _put(ws, row: list) -> None:
 def my_scope(db: Session = Depends(get_db), user: models.User = Depends(_rep)):
     labels = _scope_labels(db, user)
     stages = db.query(models.Stage).filter(models.Stage.university_id == user.scope_university_id).order_by(models.Stage.name).all()
+    dept_stages = _dept_stage_ids(db, user)
+    if dept_stages is not None:
+        stages = [s for s in stages if s.id in dept_stages]
     if user.scope_stage_id:
         stages = [s for s in stages if s.id == user.scope_stage_id]
     batch_ids = [b.id for b in db.query(models.VerificationBatch).filter(
-        models.VerificationBatch.university_id == user.scope_university_id).all() if _in_scope(b, user)]
+        models.VerificationBatch.university_id == user.scope_university_id).all() if _in_scope(b, user, dept_stages)]
     total = used = 0
     if batch_ids:
         total = db.query(func.count(models.VerificationCode.id)).filter(models.VerificationCode.batch_id.in_(batch_ids)).scalar() or 0
@@ -141,7 +155,11 @@ async def create_batch(
         st = db.get(models.Stage, stage_id)
         if not st or st.university_id != user.scope_university_id:
             raise HTTPException(400, "المرحلة المختارة لا تتبع جامعتك/كليتك")
+        if user.scope_department_id and st.department_id != user.scope_department_id:
+            raise HTTPException(400, "المرحلة المختارة ليست من قسمك")
         stage = st.id
+    if user.scope_department_id and not stage:
+        raise HTTPException(400, "اختر مرحلة من قسمك")   # a department rep never mints codes for other departments
 
     batch = models.VerificationBatch(
         created_by=user.id, university_id=user.scope_university_id, stage_id=stage,
@@ -169,7 +187,8 @@ def list_batches(db: Session = Depends(get_db), user: models.User = Depends(_rep
     rows = db.query(models.VerificationBatch).filter(
         models.VerificationBatch.university_id == user.scope_university_id
     ).order_by(models.VerificationBatch.created_at.desc()).all()
-    return [_batch_row(db, b) for b in rows if _in_scope(b, user)]
+    dept_stages = _dept_stage_ids(db, user)
+    return [_batch_row(db, b) for b in rows if _in_scope(b, user, dept_stages)]
 
 
 @router.get("/batches/{batch_id}")
@@ -206,7 +225,7 @@ def download_batch(batch_id: str, db: Session = Depends(get_db), user: models.Us
 
 def _own_code(db: Session, user: models.User, code_id: str) -> models.VerificationCode:
     c = db.get(models.VerificationCode, code_id)
-    if not c or not _in_scope(c.batch, user):
+    if not c or not _in_scope(c.batch, user, _dept_stage_ids(db, user)):
         raise HTTPException(404, "الكود غير موجود")
     return c
 

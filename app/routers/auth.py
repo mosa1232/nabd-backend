@@ -661,11 +661,31 @@ def my_performance(db: Session = Depends(get_db), user: models.User = Depends(ge
     return out
 
 
+def _ranked_or_400(db: Session, user: models.User, scope: str):
+    try:
+        return ranking.ranked_cohort(db, user, scope)
+    except ranking.ScopeUnavailable as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/leaderboard/summary")
+def leaderboard_summary(scope: str = Query("university"), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Where the caller stands in the chosen cohort, and how big it is."""
+    ranked = _ranked_or_400(db, user, scope)
+    mine = next(((i + 1, s) for i, (uid, s) in enumerate(ranked) if uid == user.id), None)
+    return {"scope": scope, "label": ranking.SCOPE_NAMES[scope], "total": len(ranked),
+            "my_rank": mine[0] if mine else None, "my_score": mine[1] if mine else None}
+
+
 @router.get("/leaderboard")
-def leaderboard(limit: int = Query(20, ge=1, le=100), db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    """Top students by correct-answer count, scoped to the caller's own
-    university when they have one (same peer group used in /me/stats)."""
-    ranked = ranking.ranked_pairs(db, ranking.peer_ids(db, user))[:limit]
+def leaderboard(
+    limit: int = Query(20, ge=1, le=100),
+    scope: str = Query("university", description="university | stage | department | section | all"),
+    db: Session = Depends(get_db), user: models.User = Depends(get_current_user),
+):
+    """Top students by correct-answer count. `scope` picks who they are ranked
+    against; the default is the caller's own university (as before)."""
+    ranked = _ranked_or_400(db, user, scope)[:limit]
     # Only the page being shown is hydrated into User rows, instead of
     # loading every student on the platform to render 20 of them.
     top = {

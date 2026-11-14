@@ -65,7 +65,7 @@ def get_course_materials(course_id: str, db: Session = Depends(get_db), user: mo
     exams = db.query(models.Exam).filter(models.Exam.subject_id == c.subject_id).all()
     return {
         "booklets": [{"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None} for b in booklets],
-        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes} for e in exams],
+        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes, "exam_type": e.exam_type or "mcq", "seconds_per_question": e.seconds_per_question} for e in exams],
     }
 
 
