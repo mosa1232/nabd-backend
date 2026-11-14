@@ -6199,8 +6199,10 @@
     stage.appendChild(f);
     document.getElementById('anatName').textContent = m[lang];
     document.getElementById('anatDesc').textContent = m['d_' + lang];
-    document.getElementById('anatCredit').innerHTML =
-      `${t('anatomyCreditPrefix')} <a href="https://sketchfab.com/3d-models/${m.uid}" target="_blank" rel="noopener noreferrer">«${esc(m.title)}»</a> — <a href="https://sketchfab.com/${esc(m.author)}" target="_blank" rel="noopener noreferrer">@${esc(m.author)}</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>`;
+    // Credit is shown as plain text (the licence asks for the author's name, not a link),
+    // so nothing here sends the student away from the platform.
+    document.getElementById('anatCredit').textContent =
+      `${t('anatomyCreditPrefix')} «${m.title}» — @${m.author} · CC BY 4.0`;
   }
 
   // ---------- Summer training ----------
