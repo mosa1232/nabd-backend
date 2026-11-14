@@ -643,6 +643,26 @@
   .confirm-title{font-size:1.05rem; font-weight:700; margin-bottom:6px;}
   .confirm-sub{font-size:.83rem; color:var(--ink-soft); margin-bottom:22px;}
 
+  /* ---------- "Soon" badge (sections not open yet) ---------- */
+  .soon-badge{display:inline-block; margin-inline-start:8px; padding:2px 9px; border-radius:99px; font-size:.64rem; font-weight:800; letter-spacing:.06em; background:var(--accent); color:#fff; vertical-align:middle; line-height:1.5;}
+  .is-soon{opacity:.62; cursor:not-allowed;}
+  .tile.is-soon{position:relative;}
+  .tile.is-soon .soon-badge{position:absolute; top:10px; inset-inline-end:10px; margin:0;}
+  .bn-item.is-soon .soon-badge{position:absolute; top:2px; inset-inline-end:2px; margin:0; padding:1px 6px; font-size:.54rem;}
+  .bn-item.is-soon{position:relative;}
+  /* ---------- Anatomy (3D) ---------- */
+  .anat-chips{display:flex; gap:8px; overflow-x:auto; padding:2px 16px 10px; scrollbar-width:none;}
+  .anat-chips::-webkit-scrollbar{display:none;}
+  .anat-chip{flex:none; padding:9px 16px; border-radius:99px; border:1.5px solid var(--glass-border, #0002); background:var(--glass-bg-strong, #fff8); color:var(--ink); font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .anat-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .anat-stage{position:relative; margin:0 16px; border-radius:18px; overflow:hidden; background:#10131c; aspect-ratio:4/3; min-height:300px;}
+  .anat-stage iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  .anat-loading{position:absolute; inset:0; display:grid; place-items:center; color:#cfd3e6; font-size:.85rem; pointer-events:none; text-align:center; padding:20px;}
+  .anat-info{margin:12px 16px 0; display:grid; gap:6px;}
+  .anat-credit{font-size:.7rem; color:var(--ink-faint);}
+  .anat-credit a{color:var(--accent);}
+  @media (min-width:900px){ .anat-stage{aspect-ratio:16/9; min-height:460px;} }
+
   /* ---------- Video Academy ---------- */
   .course-grid{display:flex; flex-direction:column; gap:12px; margin-bottom:20px;}
   .course-card{display:flex; align-items:center; gap:14px; padding:14px; text-align:start; width:100%; transition:.2s;}
@@ -1411,9 +1431,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/></svg>
       <span data-i18n="tileBank">بنك الأسئلة</span>
     </button>
-    <button class="sb-item" data-nav="view-academy" onclick="goToAcademy()">
+    <button class="sb-item" data-nav="view-anatomy" onclick="goToAnatomy()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg>
+      <span data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</span>
+    </button>
+    <button class="sb-item is-soon" data-nav="view-academy" onclick="comingSoon()" aria-disabled="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
-      <span data-i18n="tileVideo">أكاديمية الفيديو</span>
+      <span data-i18n="tileVideo">أكاديمية الفيديو</span><span class="soon-badge">Soon</span>
     </button>
     <button class="sb-item" data-nav="view-professors" onclick="goToProfessors()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
@@ -1423,9 +1447,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>
       <span data-i18n="tileStore">المتجر</span>
     </button>
-    <button class="sb-item" data-nav="view-summer" onclick="goToSummer()">
+    <button class="sb-item is-soon" data-nav="view-summer" onclick="comingSoon()" aria-disabled="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      <span data-i18n="summerTitle">التدريب الصيفي</span>
+      <span data-i18n="summerTitle">التدريب الصيفي</span><span class="soon-badge">Soon</span>
     </button>
     <div class="sb-group" data-i18n="navGroupRecord">سجلّك وتقدّمك</div>
     <button class="sb-item" data-nav="view-review" onclick="goToReview()">
@@ -1514,9 +1538,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
           <span data-i18n="heroStartBtn">ابدأ التعلم — امتحن الآن</span>
         </button>
-        <button class="btn btn-ghost" onclick="goToAcademy()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/></svg>
-          <span data-i18n="heroVideoBtn">تصفّح أكاديمية الفيديو</span>
+        <button class="btn btn-ghost" onclick="goToAnatomy()">
+          <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg>
+          <span data-i18n="anatomyHeroBtn">استكشف التشريح ثلاثي الأبعاد</span>
         </button>
       </div>
     </div>
@@ -1542,9 +1566,13 @@
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
         <span class="tile-label" data-i18n="tileBank">بنك الأسئلة</span>
       </button>
-      <button class="tile glass" onclick="goToAcademy()">
+      <button class="tile glass" onclick="goToAnatomy()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg></span>
+        <span class="tile-label" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</span>
+      </button>
+      <button class="tile glass is-soon" onclick="comingSoon()" aria-disabled="true">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" stroke="none"/></svg></span>
-        <span class="tile-label" data-i18n="tileVideo">أكاديمية الفيديو</span>
+        <span class="tile-label" data-i18n="tileVideo">أكاديمية الفيديو</span><span class="soon-badge">Soon</span>
       </button>
       <button class="tile glass" onclick="goToProfessors()">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
@@ -1562,9 +1590,9 @@
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S4 15.8 4 10.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 8 2.2c0 5.6-8 10.3-8 10.3Z"/></svg></span>
         <span class="tile-label" data-i18n="pearlsTitle">لمحات سريرية</span>
       </button>
-      <button class="tile glass" onclick="goToSummer()">
+      <button class="tile glass is-soon" onclick="comingSoon()" aria-disabled="true">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
-        <span class="tile-label" data-i18n="summerTitle">التدريب الصيفي</span>
+        <span class="tile-label" data-i18n="summerTitle">التدريب الصيفي</span><span class="soon-badge">Soon</span>
       </button>
       <button class="tile glass" onclick="goToLeaderboard()">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg></span>
@@ -2113,6 +2141,30 @@
       
     </div>
     <div class="item-list" id="pearlsList"></div>
+  </div>
+
+  <!-- ============ ANATOMY: interactive 3D models ============ -->
+  <div class="view" id="view-anatomy">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goHome()" aria-label="رجوع" data-i18n-aria="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div>
+          <div class="page-title" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</div>
+          <div class="page-sub" data-i18n="anatomySub">دوّر النموذج بإصبعك أو الماوس، وقرّب وبعّد لترى التفاصيل.</div>
+        </div>
+      </div>
+    </div>
+    <div class="anat-chips" id="anatChips" role="tablist"></div>
+    <div class="anat-stage" id="anatStage">
+      <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoading">جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.</div>
+    </div>
+    <div class="anat-info">
+      <div style="font-weight:800;" id="anatName"></div>
+      <div class="item-meta" id="anatDesc"></div>
+      <div class="anat-credit" id="anatCredit"></div>
+    </div>
   </div>
 
   <!-- ============ SUMMER TRAINING (signed in, scoped to the student's college) ============ -->
@@ -2680,9 +2732,13 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/></svg>
     <span data-i18n="tileBank">بنك الأسئلة</span>
   </button>
-  <button class="bn-item" data-nav="view-academy" onclick="goToAcademy()">
+  <button class="bn-item" data-nav="view-anatomy" onclick="goToAnatomy()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg>
+    <span data-i18n="anatomyShort">التشريح</span>
+  </button>
+  <button class="bn-item is-soon" data-nav="view-academy" onclick="comingSoon()" aria-disabled="true">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
-    <span data-i18n="tileVideo">الأكاديمية</span>
+    <span data-i18n="tileVideo">الأكاديمية</span><span class="soon-badge">Soon</span>
   </button>
   <button class="bn-item" data-nav="view-store" onclick="goToStore()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>
@@ -2854,6 +2910,10 @@
       tileBank:'بنك الأسئلة', tileVideo:'أكاديمية الفيديو', tileProf:'قسم الدكاترة', tileStore:'المتجر', tileReview:'المراجعة', tileLeaderboard:'المتصدرين',
       continueEyebrow:'آخر ملزمة', continueBtn:'متابعة', navHome:'الرئيسية', navAccount:'حسابي', hi:'مرحباً،',
       continueCourseEyebrow:'متابعة الكورس', lecturesOf:'محاضرة',
+      anatomyTitle:'التشريح ثلاثي الأبعاد', anatomyShort:'التشريح', anatomyHeroBtn:'استكشف التشريح ثلاثي الأبعاد',
+      anatomySub:'دوّر النموذج بإصبعك أو الماوس، وقرّب وبعّد لترى التفاصيل.',
+      anatomyLoading:'جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.', anatomyCreditPrefix:'النموذج:',
+      comingSoon:'هذا القسم قريبًا — Soon',
       studyingFor:'مرحلتك الدراسية', navGroupStudy:'التعلّم والتدريب', navGroupRecord:'سجلّك وتقدّمك',
       tabOverview:'نظرة عامة', tabLearning:'التعلّم', tabSecurity:'الأمان',
       accountSub:'ملفّك، تقدّمك، وأمان حسابك في مكان واحد.',
@@ -2990,6 +3050,10 @@
       tileBank:'Question Bank', tileVideo:'Video Academy', tileProf:'Professors', tileStore:'Store', tileReview:'Review', tileLeaderboard:'Leaderboard',
       continueEyebrow:'Last booklet', continueBtn:'Continue', navHome:'Home', navAccount:'My Account', hi:'Hi,',
       continueCourseEyebrow:'Continue course', lecturesOf:'lectures',
+      anatomyTitle:'3D Anatomy', anatomyShort:'Anatomy', anatomyHeroBtn:'Explore 3D anatomy',
+      anatomySub:'Rotate with your finger or mouse, and zoom to see the details.',
+      anatomyLoading:'Loading the model… this may take a moment on a slow connection.', anatomyCreditPrefix:'Model:',
+      comingSoon:'This section is coming soon',
       studyingFor:'Your stage', navGroupStudy:'Learning & practice', navGroupRecord:'Your record',
       tabOverview:'Overview', tabLearning:'Learning', tabSecurity:'Security',
       accountSub:'Your profile, your progress and your account security in one place.',
@@ -3115,6 +3179,10 @@
       tileBank:'کۆگای پرسیار', tileVideo:'ئەکادیمیای ڤیدیۆ', tileProf:'بەشی مامۆستایان', tileStore:'فرۆشگا', tileReview:'پێداچوونەوە', tileLeaderboard:'پێشەنگەکان',
       continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون', navHome:'سەرەکی', navAccount:'هەژماری من', hi:'سڵاو،',
       continueCourseEyebrow:'بەردەوامبوون لە کۆرس', lecturesOf:'وانە',
+      anatomyTitle:'تەشریحی سێ ڕەهەندی', anatomyShort:'تەشریح', anatomyHeroBtn:'تەشریحی سێ ڕەهەندی ببینە',
+      anatomySub:'بە پەنجە یان ماوس بیسوڕێنە و نزیک/دووری بکەرەوە بۆ بینینی وردەکاری.',
+      anatomyLoading:'مۆدێلەکە بار دەکرێت… لەوانەیە کەمێک بخایەنێت.', anatomyCreditPrefix:'مۆدێل:',
+      comingSoon:'ئەم بەشە بەمزووانە دەکرێتەوە — Soon',
       studyingFor:'قۆناغی خوێندنت', navGroupStudy:'فێربوون و ڕاهێنان', navGroupRecord:'تۆمار و پێشکەوتنت',
       tabOverview:'تێڕوانینی گشتی', tabLearning:'فێربوون', tabSecurity:'پاراستن',
       accountSub:'پرۆفایل، پێشکەوتن و پاراستنی هەژمارەکەت لە یەک شوێندا.',
@@ -3240,7 +3308,7 @@
   const viewRerenderers = {
     'view-home': () => loadHomeStats(), 'view-professors': goToProfessors, 'view-professor': null, 'view-store': goToStore,
     'view-academy': goToAcademy, 'view-notifications': goToNotifications,
-    'view-pearls': goToPearls, 'view-summer': goToSummer, 'view-bank-select': goToBankSelect, 'view-landing': loadLandingData,
+    'view-pearls': goToPearls, 'view-summer': goToSummer, 'view-anatomy': () => { renderAnatomyChips(); if (anatomyCurrent) { const id = anatomyCurrent; anatomyCurrent = null; selectAnatomy(id); } }, 'view-bank-select': goToBankSelect, 'view-landing': loadLandingData,
     // The account page carries a locale-formatted date and three tabs of
     // fetched content, none of which a data-i18n sweep can reach.
     'view-account': goToAccount,
@@ -6061,6 +6129,78 @@
     } catch (e) {
       list.innerHTML = `<div class="empty-row">${t('pearlsLoadFailed')}</div>`;
     }
+  }
+
+  // ---------- Sections that are not open yet ----------
+  function comingSoon(){ showToast(t('comingSoon')); }
+
+  // ---------- Anatomy: 3D models ----------
+  // Interactive models are embedded from Sketchfab. Each one is published by
+  // its author under CC BY 4.0, which allows this use as long as the author
+  // is credited — hence the credit line shown under every model.
+  const ANATOMY_MODELS = [
+    {id:'ecorche', uid:'ab11ebff89224f03bd75efede1164cf6', ar:'الجسم كاملًا (العضلات)', en:'Whole body (muscles)', ku:'تەواوی جەستە (ماسولکە)',
+     author:'diegoluga', title:'Male Full Body Ecorche',
+     d_ar:'جسم إنسان كامل مع الطبقة العضلية السطحية والعميقة بتفاصيل عالية.', d_en:'A complete human body with its superficial and deep muscle layers, in high detail.', d_ku:'جەستەی مرۆڤی تەواو لەگەڵ چینی ماسولکەی ڕووکەش و قووڵ.'},
+    {id:'skeleton', uid:'4de7b96a351a4a35b1b6e5415277ff07', ar:'الهيكل العظمي', en:'Skeleton', ku:'ئێسکەپەیکەر',
+     author:'diegoluga', title:'Skeleton',
+     d_ar:'الهيكل العظمي الكامل: الجمجمة، العمود الفقري، القفص الصدري، الحوض والأطراف.', d_en:'The complete skeleton: skull, spine, rib cage, pelvis and limbs.', d_ku:'ئێسکەپەیکەری تەواو: کاسەی سەر، بڕبڕەی پشت، قەفەزی سنگ، ڕان و ئەندامەکان.'},
+    {id:'muscleM', uid:'991eb96938be4d0d8fadee241a1063d3', ar:'الجهاز العضلي (ذكر)', en:'Muscular system (male)', ku:'سیستەمی ماسولکە (نێر)',
+     author:'ruslangadzhiev', title:'Male Body Muscular System - Anatomy Study',
+     d_ar:'دراسة تشريحية لعضلات الجسم الذكري.', d_en:'An anatomical study of the male body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی نێر.'},
+    {id:'muscleF', uid:'9a596b6c24b344bfbe6bb5246290df0e', ar:'الجهاز العضلي (أنثى)', en:'Muscular system (female)', ku:'سیستەمی ماسولکە (مێ)',
+     author:'ruslangadzhiev', title:'Female Body Muscular System - Anatomy Study',
+     d_ar:'دراسة تشريحية لعضلات الجسم الأنثوي.', d_en:'An anatomical study of the female body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی مێ.'},
+    {id:'skull', uid:'a47ef69ff3a4402783cff0f841bc5e0a', ar:'الجمجمة والرقبة', en:'Skull and neck', ku:'کاسەی سەر و ملی',
+     author:'thesidekick', title:'Human skull and neck',
+     d_ar:'الجمجمة والفك وفقرات الرقبة بدقة عالية جدًا.', d_en:'Skull, jaw and cervical vertebrae in very high detail.', d_ku:'کاسەی سەر و ڕوومەت و بڕبڕەکانی ملی بە وردی زۆر.'},
+    {id:'brain', uid:'c9c9d4d671b94345952d012cc2ea7a24', ar:'الدماغ', en:'Brain', ku:'مێشک',
+     author:'agher', title:'Human Brain',
+     d_ar:'الدماغ البشري: التلافيف والفصوص والمخيخ.', d_en:'The human brain: gyri, lobes and cerebellum.', d_ku:'مێشکی مرۆڤ: ڕیزەکان، پارچەکان و مێشکۆڵە.'},
+    {id:'heart', uid:'f5fa1e719f3d4f28a7c31728a86a9b42', ar:'القلب', en:'Heart', ku:'دڵ',
+     author:'Yasama', title:'Human Heart',
+     d_ar:'القلب البشري مع الأوعية الكبرى.', d_en:'The human heart with its great vessels.', d_ku:'دڵی مرۆڤ لەگەڵ خوێنهێنەرە گەورەکان.'},
+    {id:'intestine', uid:'8a1ca8e3ca224cdeb9264674416bde38', ar:'الأمعاء الدقيقة والغليظة', en:'Small and large intestine', ku:'ڕیخۆڵەی باریک و ئەستوور',
+     author:'antonia.sundberg', title:'Small and large intestine',
+     d_ar:'الجهاز الهضمي السفلي: الأمعاء الدقيقة والغليظة.', d_en:'The lower digestive tract: small and large intestine.', d_ku:'ڕێڕەوی هەرسی خوارەوە: ڕیخۆڵەی باریک و ئەستوور.'},
+    {id:'kidney', uid:'686992c2a7fb456eaa8997b0366f4062', ar:'الكلية', en:'Kidney', ku:'گورچیلە',
+     author:'cgmac', title:'Kidney',
+     d_ar:'الكلية وتركيبها الداخلي.', d_en:'The kidney and its internal structure.', d_ku:'گورچیلە و پێکهاتەی ناوەوەی.'},
+  ];
+  let anatomyCurrent = null;
+
+  function goToAnatomy(){
+    showView('view-anatomy');
+    renderAnatomyChips();
+    if (!anatomyCurrent) selectAnatomy(ANATOMY_MODELS[0].id);
+  }
+  function renderAnatomyChips(){
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    document.getElementById('anatChips').innerHTML = ANATOMY_MODELS.map(m =>
+      `<button type="button" class="anat-chip ${m.id === anatomyCurrent ? 'active' : ''}" role="tab" onclick="selectAnatomy('${m.id}')">${esc(m[lang])}</button>`).join('');
+  }
+  function selectAnatomy(id){
+    const m = ANATOMY_MODELS.find(x => x.id === id);
+    if (!m) return;
+    anatomyCurrent = id;
+    renderAnatomyChips();
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    const stage = document.getElementById('anatStage');
+    stage.querySelectorAll('iframe').forEach(f => f.remove());
+    document.getElementById('anatLoading').style.display = 'grid';
+    const f = document.createElement('iframe');
+    f.title = m[lang];
+    f.allow = 'autoplay; fullscreen; xr-spatial-tracking';
+    f.setAttribute('allowfullscreen', '');
+    f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    // The frame "loads" before the 3D model has downloaded, so keep the hint a bit longer.
+    f.addEventListener('load', () => { setTimeout(() => { if (anatomyCurrent === id) document.getElementById('anatLoading').style.display = 'none'; }, 9000); });
+    f.src = `https://sketchfab.com/models/${m.uid}/embed?autostart=1&preload=1&dnt=1&ui_infos=0&ui_hint=2&ui_watermark_link=0`;
+    stage.appendChild(f);
+    document.getElementById('anatName').textContent = m[lang];
+    document.getElementById('anatDesc').textContent = m['d_' + lang];
+    document.getElementById('anatCredit').innerHTML =
+      `${t('anatomyCreditPrefix')} <a href="https://sketchfab.com/3d-models/${m.uid}" target="_blank" rel="noopener noreferrer">«${esc(m.title)}»</a> — <a href="https://sketchfab.com/${esc(m.author)}" target="_blank" rel="noopener noreferrer">@${esc(m.author)}</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>`;
   }
 
   // ---------- Summer training ----------
