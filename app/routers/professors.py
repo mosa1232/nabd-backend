@@ -250,11 +250,16 @@ def _notify_new_content(
     booklet, exam, or course — students otherwise have no way to know
     something new landed in a subject they follow."""
     adj = _NEW_ADJ.get(kind, "جديد")
+    # Only the students of the subject's own stage hear about it (it used to
+    # be broadcast to every student on the platform).
+    stage = profile.subject.stage if profile.subject else None
     db.add(models.Notification(
         title=f"{kind} {adj}: {title}",
         body=f"أضاف {profile.user.full_name} {kind} {adj} في مادة {profile.subject.name}",
         content_type=content_type,
         content_id=content_id,
+        target_stage_id=stage.id if stage else None,
+        target_university_id=stage.university_id if stage else None,
     ))
 
 

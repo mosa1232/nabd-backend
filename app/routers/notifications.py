@@ -1,4 +1,4 @@
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -10,10 +10,20 @@ from ..deps import get_current_user
 router = APIRouter(prefix="/api/me/notifications", tags=["notifications"])
 
 
+def _target_ok(column, value):
+    """A target field matches when it is unset (everyone) or equals the user's."""
+    return or_(column.is_(None), column == value) if value else column.is_(None)
+
+
 def _visible_query(db: Session, user: models.User):
-    return db.query(models.Notification).filter(
-        or_(models.Notification.user_id == user.id, models.Notification.user_id.is_(None))
+    N = models.Notification
+    broadcast = and_(
+        N.user_id.is_(None),
+        _target_ok(N.target_section_id, user.section_id),
+        _target_ok(N.target_university_id, user.university_id),
+        _target_ok(N.target_stage_id, user.stage_id),
     )
+    return db.query(N).filter(or_(N.user_id == user.id, broadcast))
 
 
 @router.get("")

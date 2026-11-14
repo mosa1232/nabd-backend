@@ -1416,6 +1416,7 @@ def list_notifications_admin(db: Session = Depends(get_db)):
         {
             "id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at,
             "user_id": n.user_id, "broadcast": n.user_id is None,
+            "audience": _audience_label(db, n),
         }
         for n in notifs
     ]
@@ -1429,11 +1430,79 @@ def send_notification(
 ):
     if body.user_id and not db.get(models.User, body.user_id):
         raise HTTPException(404, "المستخدم غير موجود")
-    n = models.Notification(title=body.title.strip(), body=body.body.strip(), user_id=body.user_id, created_by=user.id)
+    if not body.title.strip():
+        raise HTTPException(400, "العنوان مطلوب")
+    section_id, university_id, stage_id = _resolve_audience(db, body)
+    if body.user_id and (section_id or university_id or stage_id):
+        raise HTTPException(400, "الإشعار لمستخدم واحد لا يُحدَّد له جمهور")
+    n = models.Notification(
+        title=body.title.strip(), body=body.body.strip(), user_id=body.user_id, created_by=user.id,
+        target_section_id=section_id, target_university_id=university_id, target_stage_id=stage_id,
+    )
     db.add(n)
     db.commit()
     db.refresh(n)
-    return {"id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at}
+    return {"id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at,
+            "recipients": None if body.user_id else _audience_count(db, section_id, university_id, stage_id)}
+
+
+@router.get("/notifications/audience")
+def notification_audience(section_id: str = "", university_id: str = "", stage_id: str = "", db: Session = Depends(get_db)):
+    """How many students a notification with this audience would reach."""
+    body = schemas.NotificationCreateIn(title="x", section_id=section_id or None,
+                                        university_id=university_id or None, stage_id=stage_id or None)
+    s, u, st = _resolve_audience(db, body)
+    return {"recipients": _audience_count(db, s, u, st)}
+
+
+def _resolve_audience(db: Session, body) -> tuple:
+    """Validates the chosen section/university/stage and fills in the levels
+    above a lower one (a stage implies its university and section)."""
+    section_id, university_id, stage_id = body.section_id or None, body.university_id or None, body.stage_id or None
+    if stage_id:
+        st = db.get(models.Stage, stage_id)
+        if not st:
+            raise HTTPException(400, "المرحلة المختارة غير موجودة")
+        if university_id and university_id != st.university_id:
+            raise HTTPException(400, "المرحلة لا تتبع الجامعة المختارة")
+        university_id = st.university_id
+    if university_id:
+        uni = db.get(models.University, university_id)
+        if not uni:
+            raise HTTPException(400, "الجامعة المختارة غير موجودة")
+        if section_id and section_id != uni.section_id:
+            raise HTTPException(400, "الجامعة لا تتبع الكلية المختارة")
+        section_id = uni.section_id
+    if section_id and not db.get(models.Section, section_id):
+        raise HTTPException(400, "الكلية المختارة غير موجودة")
+    return section_id, university_id, stage_id
+
+
+def _audience_count(db: Session, section_id, university_id, stage_id) -> int:
+    q = db.query(models.User).filter(models.User.role == models.Role.student)
+    if section_id:
+        q = q.filter(models.User.section_id == section_id)
+    if university_id:
+        q = q.filter(models.User.university_id == university_id)
+    if stage_id:
+        q = q.filter(models.User.stage_id == stage_id)
+    return q.count()
+
+
+def _audience_label(db: Session, n: models.Notification) -> str:
+    if n.user_id:
+        return "مستخدم واحد"
+    parts = []
+    if n.target_section_id:
+        s = db.get(models.Section, n.target_section_id)
+        parts.append(s.name if s else "كلية محذوفة")
+    if n.target_university_id:
+        u = db.get(models.University, n.target_university_id)
+        parts.append(u.name if u else "جامعة محذوفة")
+    if n.target_stage_id:
+        st = db.get(models.Stage, n.target_stage_id)
+        parts.append(st.name if st else "مرحلة محذوفة")
+    return " ← ".join(parts) if parts else "كل الطلاب"
 
 def _check_section(db: Session, section_id: str | None) -> None:
     if section_id and not db.get(models.Section, section_id):

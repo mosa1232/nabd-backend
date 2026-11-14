@@ -549,6 +549,10 @@ class NotificationCreateIn(BaseModel):
     title: str
     body: str = ""
     user_id: Optional[str] = None  # null = broadcast to every student
+    # Narrow a broadcast to a section / university / stage (all optional).
+    section_id: Optional[str] = None
+    university_id: Optional[str] = None
+    stage_id: Optional[str] = None
 
 
 class ClinicalPearlIn(BaseModel):

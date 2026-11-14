@@ -479,7 +479,16 @@
           <div class="form-field"><textarea id="notifBody" rows="3" placeholder="نص الإشعار (اختياري)" style="width:100%; resize:vertical; font-family:inherit; font-size:.85rem; color:var(--ink); padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong);"></textarea></div>
           <div class="tabs" style="margin:12px 0;">
             <button class="tab-btn active" data-ntab="broadcast" onclick="switchNotifTarget('broadcast')">للجميع</button>
+            <button class="tab-btn" data-ntab="audience" onclick="switchNotifTarget('audience')">حسب الجامعة والمرحلة</button>
             <button class="tab-btn" data-ntab="single" onclick="switchNotifTarget('single')">طالب معيّن</button>
+          </div>
+          <div id="notifAudienceWrap" style="display:none;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px;">
+              <select id="nSec" onchange="notifAudChange('sec')" style="padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;"></select>
+              <select id="nUni" onchange="notifAudChange('uni')" style="padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;"></select>
+              <select id="nStage" onchange="notifAudChange('stage')" style="padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;"></select>
+            </div>
+            <div class="item-meta" id="notifAudienceCount" style="margin-top:8px;"></div>
           </div>
           <div id="notifSingleWrap" style="display:none;">
             <div class="form-field" style="position:relative;">
@@ -1928,6 +1937,41 @@
     notifTarget = target;
     document.querySelectorAll('[data-ntab]').forEach(b => b.classList.toggle('active', b.dataset.ntab === target));
     document.getElementById('notifSingleWrap').style.display = target === 'single' ? 'block' : 'none';
+    document.getElementById('notifAudienceWrap').style.display = target === 'audience' ? 'block' : 'none';
+    if (target === 'audience') notifAudInit();
+  }
+  // Audience picker: college -> university -> stage, from the catalogue tree.
+  let notifTree = null;
+  async function notifAudInit(){
+    if (!liveMode){ document.getElementById('notifAudienceCount').textContent = 'سجّل دخول حقيقي أولاً'; return; }
+    if (!notifTree){
+      try { notifTree = nestCatalog(await apiFetch('/api/admin/catalog')); }
+      catch (e) { showToast(e.detail || 'تعذّر تحميل المنهج', 'error'); return; }
+    }
+    const sec = document.getElementById('nSec');
+    sec.innerHTML = '<option value="">كل الكليات</option>' + notifTree.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+    notifAudChange('sec');
+  }
+  function notifAudChange(level){
+    const secEl = document.getElementById('nSec'), uniEl = document.getElementById('nUni'), stEl = document.getElementById('nStage');
+    if (level === 'sec'){
+      const secs = secEl.value ? notifTree.filter(x => x.id === secEl.value) : notifTree;
+      const unis = secs.flatMap(x => x.universities);
+      uniEl.innerHTML = '<option value="">كل الجامعات</option>' + unis.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    }
+    if (level === 'sec' || level === 'uni'){
+      const unis = notifTree.flatMap(x => x.universities).filter(u => !uniEl.value || u.id === uniEl.value);
+      stEl.innerHTML = '<option value="">كل المراحل</option>' + unis.flatMap(u => u.stages.map(st => `<option value="${st.id}">${esc(unis.length > 1 ? u.name + ' — ' : '')}${esc(st.name)}</option>`)).join('');
+    }
+    notifAudCount();
+  }
+  async function notifAudCount(){
+    const el = document.getElementById('notifAudienceCount');
+    const q = new URLSearchParams({section_id: document.getElementById('nSec').value, university_id: document.getElementById('nUni').value, stage_id: document.getElementById('nStage').value});
+    try {
+      const r = await apiFetch('/api/admin/notifications/audience?' + q);
+      el.textContent = `سيصل لـ ${r.recipients} طالب`;
+    } catch (e) { el.textContent = e.detail || ''; }
   }
   let notifSearchTimer = null;
   let notifSearchResults = [];
@@ -1970,7 +2014,14 @@
     try {
       await apiFetch('/api/admin/notifications', {
         method: 'POST',
-        body: JSON.stringify({title, body, user_id: notifTarget === 'single' ? notifSelectedStudentId : null}),
+        body: JSON.stringify({
+          title, body, user_id: notifTarget === 'single' ? notifSelectedStudentId : null,
+          ...(notifTarget === 'audience' ? {
+            section_id: document.getElementById('nSec').value || null,
+            university_id: document.getElementById('nUni').value || null,
+            stage_id: document.getElementById('nStage').value || null,
+          } : {}),
+        }),
       });
       showToast('تم إرسال الإشعار');
       document.getElementById('notifTitle').value = '';
@@ -1988,7 +2039,7 @@
       document.getElementById('notifHistoryList').innerHTML = list.map(n => `
         <div class="activity-row">
           <span class="activity-dot"></span>
-          <span class="activity-text">${esc(n.title)}${n.broadcast ? ' <span class="badge badge-active" style="margin-right:6px;">للجميع</span>' : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
+          <span class="activity-text">${esc(n.title)}${n.broadcast ? ` <span class="badge badge-active" style="margin-right:6px;">${esc(n.audience || 'للجميع')}</span>` : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
           <span class="activity-time">${fmtDate(n.created_at)}</span>
         </div>
       `).join('') || '<div class="empty-row">لا يوجد إشعارات مُرسلة بعد</div>';

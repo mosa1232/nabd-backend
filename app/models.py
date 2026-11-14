@@ -486,6 +486,12 @@ class Notification(Base):
     # through to something that no longer exists.
     content_type = Column(String, nullable=True)
     content_id = Column(String, nullable=True)
+    # Audience of a broadcast (user_id null). Every set field must match the
+    # student's own: section = the college/specialty (طب بشري…), university =
+    # that college inside a university, stage = the year. All null = everyone.
+    target_section_id = Column(String, ForeignKey("sections.id"), nullable=True)
+    target_university_id = Column(String, ForeignKey("universities.id"), nullable=True)
+    target_stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
 
 
 class NotificationRead(Base):
