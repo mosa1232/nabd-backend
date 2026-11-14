@@ -1,0 +1,11 @@
+﻿Anatomy data (bp3d.bin, bp3d.json)
+
+Derived from BodyParts3D: (c) The Database Center for Life Science, licensed under
+Creative Commons Attribution-Share Alike 2.1 Japan
+(https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html).
+Source archive: partof_BP3D_4.0_obj_99.zip (+ partof_element_parts.txt), downloaded from
+https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/
+
+Changes made: elements grouped into named anatomical parts, classified into body systems,
+coordinates rotated to Y-up, meshes thinned by vertex clustering (3.1M -> 0.5M triangles),
+packed into one binary. These files remain under CC BY-SA 2.1 Japan.
