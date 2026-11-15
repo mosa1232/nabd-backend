@@ -20,8 +20,8 @@
   const STR = {
     ar: {
       layers: {skin: 'الجلد', skeleton: 'الهيكل العظمي', muscles: 'العضلات', organs: 'الأعضاء', vessels: 'الأوعية الدموية', nerves: 'الأعصاب'},
-      reset: 'إعادة العرض', xray: 'شفاف', labels: 'التسميات', rotate: 'دوران', front: 'أمامي', back: 'خلفي', left: 'يسار', right: 'يمين', head: 'الرأس', chest: 'الصدر', belly: 'البطن',
-      search: 'ابحث عن عضو أو عظمة أو وعاء…', hint: 'اضغط على أي جزء من الجسم لمعرفة اسمه، أو شغّل الطبقات من الأسفل.',
+      reset: 'إعادة العرض', xray: 'شفاف', labels: 'التسميات', hot: 'نقاط',  rotate: 'دوران', front: 'أمامي', back: 'خلفي', left: 'يسار', right: 'يمين', head: 'الرأس', chest: 'الصدر', belly: 'البطن',
+      search: 'ابحث عن عضو أو عظمة أو وعاء…', hint: 'اضغط على أي جزء من الجسم أو على الدوائر الصفراء لمعرفة اسمه ووظيفته، وشغّل الطبقات من الأسفل.',
       isolate: 'عزل', showAll: 'إظهار الكل', close: 'إغلاق', quiz: 'اختبرني', quizStop: 'إنهاء', ask: 'اضغط على: ', ok: 'صحيح ✓', no: 'ليس هذا — هذا هو: ', score: 'النتيجة',
       loading: 'جارٍ تحميل المجسّم…', noResults: 'لا توجد نتائج', parts: 'جزءًا تشريحيًا',
       note: 'التشريح مأخوذ من BodyParts3D (© مركز قواعد بيانات علوم الحياة، اليابان) بترخيص CC BY-SA 2.1 — مجسّم تعليمي، وليس بديلًا عن الأطالس الطبية.',
@@ -30,8 +30,8 @@
     },
     en: {
       layers: {skin: 'Skin', skeleton: 'Skeleton', muscles: 'Muscles', organs: 'Organs', vessels: 'Vessels', nerves: 'Nerves'},
-      reset: 'Reset view', xray: 'X-ray', labels: 'Labels', rotate: 'Spin', front: 'Front', back: 'Back', left: 'Left', right: 'Right', head: 'Head', chest: 'Chest', belly: 'Abdomen',
-      search: 'Search an organ, bone or vessel…', hint: 'Tap any part of the body to see its name, or switch layers below.',
+      reset: 'Reset view', xray: 'X-ray', labels: 'Labels', hot: 'Hotspots',  rotate: 'Spin', front: 'Front', back: 'Back', left: 'Left', right: 'Right', head: 'Head', chest: 'Chest', belly: 'Abdomen',
+      search: 'Search an organ, bone or vessel…', hint: 'Tap any part of the body, or a yellow ring, to see its name and function; switch layers below.',
       isolate: 'Isolate', showAll: 'Show all', close: 'Close', quiz: 'Quiz me', quizStop: 'Stop', ask: 'Tap on: ', ok: 'Correct ✓', no: 'Not that — this is the: ', score: 'Score',
       loading: 'Loading the 3D body…', noResults: 'No results', parts: 'anatomical parts',
       note: 'Anatomy from BodyParts3D (© The Database Center for Life Science, Japan), CC BY-SA 2.1 — a teaching model, not a substitute for medical atlases.',
@@ -40,7 +40,7 @@
     },
     ku: {
       layers: {skin: 'پێست', skeleton: 'ئێسکەپەیکەر', muscles: 'ماسولکە', organs: 'ئەندامەکان', vessels: 'ڕەگەکانی خوێن', nerves: 'دەمارەکان'},
-      reset: 'گەڕانەوە', xray: 'شەفاف', labels: 'ناوەکان', rotate: 'سوڕان', front: 'پێشەوە', back: 'پشتەوە', left: 'چەپ', right: 'ڕاست', head: 'سەر', chest: 'سنگ', belly: 'سک',
+      reset: 'گەڕانەوە', xray: 'شەفاف', labels: 'ناوەکان', hot: 'خاڵەکان',  rotate: 'سوڕان', front: 'پێشەوە', back: 'پشتەوە', left: 'چەپ', right: 'ڕاست', head: 'سەر', chest: 'سنگ', belly: 'سک',
       search: 'بەدوای ئەندام، ئێسک یان ڕەگدا بگەڕێ…', hint: 'کلیک لە هەر بەشێکی جەستە بکە بۆ ناوەکەی، یان چینەکان لە خوارەوە بگۆڕە.',
       isolate: 'جیاکردنەوە', showAll: 'هەموو نیشان بدە', close: 'داخستن', quiz: 'تاقیم بکەوە', quizStop: 'کۆتایی', ask: 'کلیک بکە لەسەر: ', ok: 'ڕاستە ✓', no: 'ئەمە نییە — ئەمە: ', score: 'ئەنجام',
       loading: 'مۆدێلەکە بار دەکرێت…', noResults: 'هیچ ئەنجامێک نییە', parts: 'بەشی تەشریحی',
@@ -88,14 +88,18 @@
       SYS.forEach(k => { const g = new T.Group(); g.name = k; sysGroup[k] = g; });
       cat.parts.forEach(p => {
         const geo = new T.BufferGeometry();
-        geo.setAttribute('position', new T.BufferAttribute(new Float32Array(buf.slice(p.po, p.po + p.nv * 12)), 3));
-        geo.setIndex(new T.BufferAttribute(new Uint16Array(buf.slice(p.io, p.io + p.nf * 6)), 1));
+        const q = new Uint16Array(buf, p.po, p.nv * 3), pos = new Float32Array(p.nv * 3);
+        for (let i = 0; i < pos.length; i += 3) {
+          pos[i] = p.o[0] + q[i] / 65535 * p.k[0]; pos[i + 1] = p.o[1] + q[i + 1] / 65535 * p.k[1]; pos[i + 2] = p.o[2] + q[i + 2] / 65535 * p.k[2];
+        }
+        geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+        geo.setIndex(new T.BufferAttribute(new Uint16Array(buf, p.io, p.nf * 3), 1));
         geo.computeVertexNormals();
-        const mesh = new T.Mesh(geo, p.sys === 'skin' ? skinMaterial : new T.MeshStandardMaterial({color: p.col, roughness: p.sys === 'muscles' ? 0.75 : 0.6, metalness: 0, side: T.DoubleSide}));
+        const mesh = new T.Mesh(geo, p.sys === 'skin' ? skinMaterial : new T.MeshStandardMaterial({color: p.col === 0xB5453F ? 0x93332E : p.col, roughness: p.sys === 'muscles' ? 0.75 : 0.6, metalness: 0, side: T.DoubleSide}));
         mesh.userData.part = p.id; mesh.userData.baseOp = 1;
         const def = {id: p.id, sys: p.sys, ar: p.ar || '', en: cap(p.name), name: p.name, side: p.side || 0, base: p.base || p.name, dar: p.dar || '', den: p.den || '',
                      meshes: [mesh], center: new T.Vector3(p.c[0], p.c[1], p.c[2]), size: new T.Vector3(p.s[0], p.s[1], p.s[2]),
-                     label: !!p.dar && p.sys !== 'skin', quiz: !!p.ar && p.sys !== 'skin', selectable: p.sys !== 'skin'};
+                     label: !!p.dar && p.sys !== 'skin', hot: !!p.dar && p.sys !== 'skin', quiz: !!p.ar && p.sys !== 'skin', selectable: p.sys !== 'skin'};
         parts[p.id] = def; order.push(p.id); sysGroup[p.sys].add(mesh);
       });
       return cat;
@@ -112,6 +116,11 @@
   .ka-stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block; outline:none;}
   .ka-labels{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
   .ka-label{position:absolute; transform:translate(-50%,-100%); background:rgba(15,19,32,.82); color:#fff; font-size:.66rem; font-weight:700; padding:2px 7px; border-radius:99px; white-space:nowrap; border:1px solid rgba(255,255,255,.25);}
+  .ka-hots{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+  .ka-hot{position:absolute; width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%; border:3px solid #f1d34a; background:rgba(20,20,20,.78); box-shadow:0 0 0 2px rgba(0,0,0,.35); cursor:pointer; pointer-events:auto; padding:0;}
+  .ka-hot::after{content:""; position:absolute; inset:6px; border-radius:50%; background:#f1d34a;}
+  .ka-hot.sel{border-color:#fff; box-shadow:0 0 0 3px #2b59ff;}
+  .ka-hot.sel::after{background:#fff;}
   .ka-load{position:absolute; inset:0; display:grid; place-items:center; color:#cfd3e6; font-size:.85rem; background:#0d111d; z-index:3; transition:opacity .4s; text-align:center; padding:20px;}
   .ka-tools{position:absolute; top:10px; inset-inline-start:10px; display:flex; flex-direction:column; gap:6px; z-index:2;}
   .ka-tools2{position:absolute; top:10px; inset-inline-end:10px; display:flex; flex-direction:column; gap:6px; z-index:2; align-items:flex-end;}
@@ -151,12 +160,12 @@
     if (App.mounted) { App.setLang(opts.lang || st.lang); App.resume(); return App; }
     App.mounted = true;
     const style = document.createElement('style'); style.textContent = CSS; document.head.appendChild(style);
-    st = {lang: opts.lang || 'ar', layers: Object.assign({}, DEFAULT_LAYERS), xray: false, labels: false, spin: false,
+    st = {lang: opts.lang || 'ar', layers: Object.assign({}, DEFAULT_LAYERS), xray: false, labels: false, hot: true, spin: false,
           selected: null, isolate: false, quiz: null, down: null, anim: null, running: true, dirty: true, ready: false};
     const S = () => STR[st.lang] || STR.ar;
     root.innerHTML = `<div class="ka">
       <div class="ka-stage" id="kaStage">
-        <canvas id="kaCanvas"></canvas><div class="ka-labels" id="kaLabels"></div>
+        <canvas id="kaCanvas"></canvas><div class="ka-labels" id="kaLabels"></div><div class="ka-hots" id="kaHots"></div>
         <div class="ka-load" id="kaLoad"></div>
         <div class="ka-tools" id="kaTools"></div><div class="ka-tools2" id="kaTools2"></div>
         <div class="ka-quizbar" id="kaQuiz"></div>
@@ -277,6 +286,25 @@
       });
     }
 
+    // ---------- hot spots: tap a yellow ring to open that structure
+    const hotEls = {};
+    function updateHots() {
+      const box = $('kaHots'); const w = stage.clientWidth, h = stage.clientHeight;
+      const dist = camera.position.distanceTo(controls.target);
+      order.forEach(id => {
+        const p = parts[id]; if (!p.hot) return;
+        let el = hotEls[id];
+        const near = dist < 9 + p.size.length() * 2.2;                 // far away only the big structures get a ring
+        const vis = st.hot && !st.quiz && st.layers[p.sys] && near && !(st.isolate && st.selected && st.selected !== id);
+        if (!vis) { if (el) el.style.display = 'none'; return; }
+        if (!el) { el = document.createElement('button'); el.type = 'button'; el.className = 'ka-hot'; el.onclick = () => select(id, true); box.appendChild(el); hotEls[id] = el; }
+        const v = p.center.clone().project(camera);
+        if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) { el.style.display = 'none'; return; }
+        el.style.display = 'block'; el.title = displayName(p, st.lang); el.classList.toggle('sel', st.selected === id);
+        el.style.left = ((v.x * 0.5 + 0.5) * w) + 'px'; el.style.top = ((-v.y * 0.5 + 0.5) * h) + 'px';
+      });
+    }
+
     // ---------- quiz
     const quizPool = () => order.filter(id => parts[id].quiz && st.layers[parts[id].sys] && (parts[id].size.length() > 1.0 || parts[id].dar));
     function quizNext() {
@@ -311,6 +339,7 @@
     }
     function syncTools() {
       $('kaTools').innerHTML = `<button class="ka-btn ${st.xray ? 'on' : ''}" data-a="xray">${S().xray}</button>
+        <button class="ka-btn ${st.hot ? 'on' : ''}" data-a="hot">${S().hot}</button>
         <button class="ka-btn ${st.labels ? 'on' : ''}" data-a="labels">${S().labels}</button>
         <button class="ka-btn ${st.spin ? 'on' : ''}" data-a="spin">${S().rotate}</button>
         <button class="ka-btn ${st.quiz ? 'on' : ''}" data-a="quiz">${st.quiz ? S().quizStop : S().quiz}</button>`;
@@ -319,6 +348,7 @@
         const a = b.dataset.a;
         if (a === 'xray') st.xray = !st.xray;
         else if (a === 'labels') st.labels = !st.labels;
+        else if (a === 'hot') st.hot = !st.hot;
         else if (a === 'spin') st.spin = !st.spin;
         else if (a === 'quiz') { st.quiz ? quizStop() : quizStart(); }
         else if (a === 'reset') { st.selected = null; st.isolate = false; st.xray = false; st.layers = Object.assign({}, DEFAULT_LAYERS); st.spin = false; if (st.quiz) quizStop(); view('front'); renderChips(); renderInfo(); }
@@ -374,7 +404,7 @@
         if (a.t >= 1) st.anim = null; moved = true;
       }
       if (st.spin) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(UP, 0.006); camera.position.copy(controls.target).add(off); moved = true; }
-      if (controls.update() || moved || st.dirty) { renderer.render(scene, camera); if (st.ready) updateLabels(); st.dirty = false; }
+      if (controls.update() || moved || st.dirty) { renderer.render(scene, camera); if (st.ready) { updateLabels(); updateHots(); } st.dirty = false; }
     }
     frame();
 

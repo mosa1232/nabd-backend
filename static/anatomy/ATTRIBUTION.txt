@@ -3,9 +3,11 @@
 Derived from BodyParts3D: (c) The Database Center for Life Science, licensed under
 Creative Commons Attribution-Share Alike 2.1 Japan
 (https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html).
-Source archive: partof_BP3D_4.0_obj_99.zip (+ partof_element_parts.txt), downloaded from
+Source archive: isa_BP3D_4.0_obj_99.zip (+ isa_element_parts.txt), downloaded from
 https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/
 
-Changes made: elements grouped into named anatomical parts, classified into body systems,
-coordinates rotated to Y-up, meshes thinned by vertex clustering (3.1M -> 0.5M triangles),
-packed into one binary. These files remain under CC BY-SA 2.1 Japan.
+Changes made: elements grouped into named anatomical parts (most specific concept),
+classified into body systems, coordinates rotated to Y-up, meshes thinned by vertex
+clustering (6.7M -> 2.15M polygons), positions quantised to 16 bits per axis inside each
+part's bounding box, packed into one binary with a JSON catalogue. Arabic names and
+descriptions were added. These files remain under CC BY-SA 2.1 Japan.
