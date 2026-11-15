@@ -19,6 +19,9 @@
   if (!T) { console.error('three.js is required'); return; }
 
   const DATA = '/static/anatomy/';
+  // phones and weak machines get the lighter file (about 1.1M triangles, 10 MB); "?full" forces the full one
+  const LITE = !/[?&]full\b/.test(location.search) && (/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || (navigator.hardwareConcurrency || 4) <= 4 || (navigator.deviceMemory || 8) <= 4);
+  const FILE = LITE ? 'bp3d-lite' : 'bp3d';
   const STR = {
     ar: {
       layers: {skin: 'الجلد', skeleton: 'الهيكل العظمي', muscles: 'العضلات', fascia: 'اللفافات والأغشية', organs: 'الأعضاء', vessels: 'الأوعية الدموية', nerves: 'الأعصاب'},
@@ -84,8 +87,8 @@
     if (loaded) return loaded;
     loaded = (async () => {
       const [cat, buf] = await Promise.all([
-        fetch(DATA + 'bp3d.json').then(r => { if (!r.ok) throw new Error('catalogue'); return r.json(); }),
-        fetch(DATA + 'bp3d.bin').then(r => { if (!r.ok) throw new Error('mesh data'); return r.arrayBuffer(); }),
+        fetch(DATA + FILE + '.json').then(r => { if (!r.ok) throw new Error('catalogue'); return r.json(); }),
+        fetch(DATA + FILE + '.bin').then(r => { if (!r.ok) throw new Error('mesh data'); return r.arrayBuffer(); }),
       ]);
       SYS.forEach(k => { const g = new T.Group(); g.name = k; sysGroup[k] = g; });
       cat.parts.forEach(p => {
