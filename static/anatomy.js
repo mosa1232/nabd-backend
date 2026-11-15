@@ -1,11 +1,13 @@
 /*
  * Kiur — 3D anatomy simulator.
  *
- * The anatomy comes from BodyParts3D, a medical-imaging based atlas:
- *   BodyParts3D, (c) The Database Center for Life Science, licensed under
- *   CC Attribution-Share Alike 2.1 Japan (https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html).
- * static/anatomy/bp3d.bin + bp3d.json are a derivative of it (parts grouped by
- * name, thinned to a mobile-friendly size) and stay under that same licence.
+ * The anatomy comes from Z-Anatomy (the libre 3D atlas of anatomy), which is itself built on
+ * BodyParts3D:
+ *   Z-Anatomy, (c) Gauthier Kervyn and contributors, CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+ *   BodyParts3D, (c) The Database Center for Life Science, CC BY-SA 2.1 Japan.
+ * static/anatomy/bp3d.bin + bp3d.json are a derivative of them (structures extracted, the
+ * non-commercial and unclear-licence ones left out, thinned to a mobile-friendly size) and
+ * stay under CC BY-SA. Terminology: Terminologia Anatomica (Latin names via Z-Anatomy's TA2 table).
  * The viewer code in this file is the platform's own, on three.js (MIT).
  *
  * Coordinates: 1 unit = 10 cm, +Y up, +Z toward the viewer (front of the
@@ -19,40 +21,40 @@
   const DATA = '/static/anatomy/';
   const STR = {
     ar: {
-      layers: {skin: 'الجلد', skeleton: 'الهيكل العظمي', muscles: 'العضلات', organs: 'الأعضاء', vessels: 'الأوعية الدموية', nerves: 'الأعصاب'},
+      layers: {skin: 'الجلد', skeleton: 'الهيكل العظمي', muscles: 'العضلات', fascia: 'اللفافات والأغشية', organs: 'الأعضاء', vessels: 'الأوعية الدموية', nerves: 'الأعصاب'},
       reset: 'إعادة العرض', xray: 'شفاف', labels: 'التسميات', hot: 'نقاط',  rotate: 'دوران', front: 'أمامي', back: 'خلفي', left: 'يسار', right: 'يمين', head: 'الرأس', chest: 'الصدر', belly: 'البطن',
       search: 'ابحث عن عضو أو عظمة أو وعاء…', hint: 'اضغط على أي جزء من الجسم أو على الدوائر الصفراء لمعرفة اسمه ووظيفته، وشغّل الطبقات من الأسفل.',
       isolate: 'عزل', showAll: 'إظهار الكل', close: 'إغلاق', quiz: 'اختبرني', quizStop: 'إنهاء', ask: 'اضغط على: ', ok: 'صحيح ✓', no: 'ليس هذا — هذا هو: ', score: 'النتيجة',
       loading: 'جارٍ تحميل المجسّم…', noResults: 'لا توجد نتائج', parts: 'جزءًا تشريحيًا',
-      note: 'التشريح مأخوذ من BodyParts3D (© مركز قواعد بيانات علوم الحياة، اليابان) بترخيص CC BY-SA 2.1 — مجسّم تعليمي، وليس بديلًا عن الأطالس الطبية.',
-      gen: {skeleton: 'عظم أو غضروف أو رباط من الجهاز الهيكلي.', muscles: 'عضلة أو وتر من الجهاز العضلي.', organs: 'عضو أو بنية داخلية.', vessels: 'وعاء دموي أو لمفاوي — الشرايين حمراء والأوردة زرقاء في المجسّم.', nerves: 'من الجهاز العصبي.', skin: 'الجلد.'},
+      note: 'التشريح من مشروع Z-Anatomy (CC BY-SA 4.0) المبني على BodyParts3D (© مركز قواعد بيانات علوم الحياة، اليابان) — مجسّم تعليمي، وليس بديلًا عن الأطالس الطبية.',
+      gen: {skeleton: 'عظم أو غضروف أو رباط من الجهاز الهيكلي.', muscles: 'عضلة أو وتر من الجهاز العضلي.', fascia: 'لفافة أو غشاء يغلّف العضلات والأعضاء.', organs: 'عضو أو بنية داخلية.', vessels: 'وعاء دموي أو لمفاوي — الشرايين حمراء والأوردة زرقاء في المجسّم.', nerves: 'من الجهاز العصبي.', skin: 'الجلد.'},
       fail: 'تعذّر تحميل بيانات المجسّم.',
     },
     en: {
-      layers: {skin: 'Skin', skeleton: 'Skeleton', muscles: 'Muscles', organs: 'Organs', vessels: 'Vessels', nerves: 'Nerves'},
+      layers: {skin: 'Skin', skeleton: 'Skeleton', muscles: 'Muscles', fascia: 'Fasciae & membranes', organs: 'Organs', vessels: 'Vessels', nerves: 'Nerves'},
       reset: 'Reset view', xray: 'X-ray', labels: 'Labels', hot: 'Hotspots',  rotate: 'Spin', front: 'Front', back: 'Back', left: 'Left', right: 'Right', head: 'Head', chest: 'Chest', belly: 'Abdomen',
       search: 'Search an organ, bone or vessel…', hint: 'Tap any part of the body, or a yellow ring, to see its name and function; switch layers below.',
       isolate: 'Isolate', showAll: 'Show all', close: 'Close', quiz: 'Quiz me', quizStop: 'Stop', ask: 'Tap on: ', ok: 'Correct ✓', no: 'Not that — this is the: ', score: 'Score',
       loading: 'Loading the 3D body…', noResults: 'No results', parts: 'anatomical parts',
-      note: 'Anatomy from BodyParts3D (© The Database Center for Life Science, Japan), CC BY-SA 2.1 — a teaching model, not a substitute for medical atlases.',
-      gen: {skeleton: 'A bone, cartilage or ligament of the skeleton.', muscles: 'A muscle or tendon of the muscular system.', organs: 'An organ or internal structure.', vessels: 'A blood or lymphatic vessel — arteries are red and veins blue in the model.', nerves: 'Part of the nervous system.', skin: 'The skin.'},
+      note: 'Anatomy from Z-Anatomy (CC BY-SA 4.0), built on BodyParts3D (© The Database Center for Life Science, Japan) — a teaching model, not a substitute for medical atlases.',
+      gen: {skeleton: 'A bone, cartilage or ligament of the skeleton.', muscles: 'A muscle or tendon of the muscular system.', fascia: 'A fascia or membrane that wraps muscles and organs.', organs: 'An organ or internal structure.', vessels: 'A blood or lymphatic vessel — arteries are red and veins blue in the model.', nerves: 'Part of the nervous system.', skin: 'The skin.'},
       fail: 'Could not load the model data.',
     },
     ku: {
-      layers: {skin: 'پێست', skeleton: 'ئێسکەپەیکەر', muscles: 'ماسولکە', organs: 'ئەندامەکان', vessels: 'ڕەگەکانی خوێن', nerves: 'دەمارەکان'},
+      layers: {skin: 'پێست', skeleton: 'ئێسکەپەیکەر', muscles: 'ماسولکە', fascia: 'پەردە و لەفافە', organs: 'ئەندامەکان', vessels: 'ڕەگەکانی خوێن', nerves: 'دەمارەکان'},
       reset: 'گەڕانەوە', xray: 'شەفاف', labels: 'ناوەکان', hot: 'خاڵەکان',  rotate: 'سوڕان', front: 'پێشەوە', back: 'پشتەوە', left: 'چەپ', right: 'ڕاست', head: 'سەر', chest: 'سنگ', belly: 'سک',
       search: 'بەدوای ئەندام، ئێسک یان ڕەگدا بگەڕێ…', hint: 'کلیک لە هەر بەشێکی جەستە بکە بۆ ناوەکەی، یان چینەکان لە خوارەوە بگۆڕە.',
       isolate: 'جیاکردنەوە', showAll: 'هەموو نیشان بدە', close: 'داخستن', quiz: 'تاقیم بکەوە', quizStop: 'کۆتایی', ask: 'کلیک بکە لەسەر: ', ok: 'ڕاستە ✓', no: 'ئەمە نییە — ئەمە: ', score: 'ئەنجام',
       loading: 'مۆدێلەکە بار دەکرێت…', noResults: 'هیچ ئەنجامێک نییە', parts: 'بەشی تەشریحی',
-      note: 'تەشریحەکە لە BodyParts3D وەرگیراوە (© ناوەندی بنکەی زانیاری زانستەکانی ژیان، ژاپۆن) CC BY-SA 2.1 — مۆدێلێکی فێرکارییە، جێگرەوەی ئەتلەسی پزیشکی نییە.',
-      gen: {skeleton: 'ئێسک، کڕکڕاگە یان بەستەر لە ئێسکەپەیکەر.', muscles: 'ماسولکە یان دەمارێکی ماسولکە.', organs: 'ئەندام یان پێکهاتەیەکی ناوەکی.', vessels: 'ڕەگی خوێن یان لیمفاوی — شادەمارەکان سوورن و دەمارەکان شین.', nerves: 'لە سیستەمی دەمارییە.', skin: 'پێست.'},
+      note: 'تەشریحەکە لە Z-Anatomy وەرگیراوە (CC BY-SA 4.0) و لەسەر BodyParts3D بنیاتنراوە — مۆدێلێکی فێرکارییە، جێگرەوەی ئەتلەسی پزیشکی نییە.',
+      gen: {skeleton: 'ئێسک، کڕکڕاگە یان بەستەر لە ئێسکەپەیکەر.', muscles: 'ماسولکە یان دەمارێکی ماسولکە.', fascia: 'لەفافە یان پەردەیەک ماسولکە و ئەندامەکان دەپێچێت.', organs: 'ئەندام یان پێکهاتەیەکی ناوەکی.', vessels: 'ڕەگی خوێن یان لیمفاوی — شادەمارەکان سوورن و دەمارەکان شین.', nerves: 'لە سیستەمی دەمارییە.', skin: 'پێست.'},
       fail: 'نەتوانرا زانیاری مۆدێلەکە بار بکرێت.',
     },
   };
 
-  const SYS = ['skin', 'skeleton', 'muscles', 'organs', 'vessels', 'nerves'];
-  const SYS_COLOR = {skin: '#9fb6ff', skeleton: '#e9dfc8', muscles: '#c0463f', organs: '#e08f8f', vessels: '#d12b2b', nerves: '#f0d24a'};
-  const DEFAULT_LAYERS = {skin: true, skeleton: true, muscles: false, organs: true, vessels: false, nerves: true};
+  const SYS = ['skin', 'skeleton', 'muscles', 'fascia', 'organs', 'vessels', 'nerves'];
+  const SYS_COLOR = {skin: '#9fb6ff', skeleton: '#e9dfc8', muscles: '#c0463f', fascia: '#d8c9a8', organs: '#e08f8f', vessels: '#d12b2b', nerves: '#f0d24a'};
+  const DEFAULT_LAYERS = {skin: true, skeleton: false, muscles: true, fascia: false, organs: false, vessels: false, nerves: false};
   const UP = new T.Vector3(0, 1, 0);
 
   // search words -> English patterns, so "القلب" finds the ventricles, atria and valves
@@ -97,7 +99,7 @@
         geo.computeVertexNormals();
         const mesh = new T.Mesh(geo, p.sys === 'skin' ? skinMaterial : new T.MeshStandardMaterial({color: p.col === 0xB5453F ? 0x93332E : p.col, roughness: p.sys === 'muscles' ? 0.75 : 0.6, metalness: 0, side: T.DoubleSide}));
         mesh.userData.part = p.id; mesh.userData.baseOp = 1;
-        const def = {id: p.id, sys: p.sys, ar: p.ar || '', en: cap(p.name), name: p.name, side: p.side || 0, base: p.base || p.name, dar: p.dar || '', den: p.den || '',
+        const def = {id: p.id, sys: p.sys, ar: p.ar || '', la: p.la || '', en: cap(p.name), name: p.name, side: p.side || 0, base: p.base || p.name, dar: p.dar || '', den: p.den || '',
                      meshes: [mesh], center: new T.Vector3(p.c[0], p.c[1], p.c[2]), size: new T.Vector3(p.s[0], p.s[1], p.s[2]),
                      label: !!p.dar && p.sys !== 'skin', hot: !!p.dar && p.sys !== 'skin', quiz: !!p.ar && p.sys !== 'skin', selectable: p.sys !== 'skin'};
         parts[p.id] = def; order.push(p.id); sysGroup[p.sys].add(mesh);
@@ -182,12 +184,13 @@
     const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
     const renderer = new T.WebGLRenderer({canvas, antialias: true, alpha: true});
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const weak = (navigator.hardwareConcurrency || 4) <= 4 || /Android|iPhone|iPad/i.test(navigator.userAgent);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, weak ? 1.5 : 2));
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(36, 1, 0.1, 200);
-    camera.position.set(0, 8.6, 30);
+    camera.position.set(0, 9.6, 30);
     const controls = new T.OrbitControls(camera, canvas);
-    controls.target.set(0, 8.0, 0); controls.enableDamping = true; controls.dampingFactor = 0.08;
+    controls.target.set(0, 9.0, 0); controls.enableDamping = true; controls.dampingFactor = 0.08;
     controls.minDistance = 1.5; controls.maxDistance = 50; controls.update();
     scene.add(new T.HemisphereLight(0xffffff, 0x445066, 0.9));
     const key = new T.DirectionalLight(0xffffff, 0.85); key.position.set(4, 6, 8); camera.add(key); scene.add(camera);
@@ -264,8 +267,8 @@
     }
     function view(name) {
       const d = 30;
-      const v = {front: [0, 8, 0, 0, 8.6, d], back: [0, 8, 0, 0, 8.6, -d], left: [0, 8, 0, d, 8.6, 0], right: [0, 8, 0, -d, 8.6, 0],
-        head: [0, 15.2, 0, 0, 15.4, 8], chest: [0, 12.0, 0, 0, 12.2, 11], belly: [0, 9.6, 0, 0, 9.8, 11]}[name];
+      const v = {front: [0, 9, 0, 0, 9.6, d], back: [0, 9, 0, 0, 9.6, -d], left: [0, 9, 0, d, 9.6, 0], right: [0, 9, 0, -d, 9.6, 0],
+        head: [0, 15.4, 0, 0, 15.6, 8], chest: [0, 12.8, 0, 0, 13.0, 11], belly: [0, 10.4, 0, 0, 10.6, 11]}[name];
       st.anim = {t: 0, fromT: controls.target.clone(), toT: new T.Vector3(v[0], v[1], v[2]), fromP: camera.position.clone(), toP: new T.Vector3(v[3], v[4], v[5])};
     }
 
@@ -365,7 +368,7 @@
       if (!st.selected) { el.innerHTML = `<div class="item-meta">${S().hint}</div>`; return; }
       const p = parts[st.selected];
       el.innerHTML = `<span class="sys" style="background:${SYS_COLOR[p.sys]}">${S().layers[p.sys]}</span>
-        <h3>${esc(displayName(p, st.lang))}</h3>${st.lang !== 'en' ? `<div class="la">${esc(p.en)}</div>` : ''}
+        <h3>${esc(displayName(p, st.lang))}</h3>${(st.lang !== 'en' || p.la) ? `<div class="la">${esc([p.la, st.lang !== 'en' ? p.en : ''].filter(Boolean).join(' · '))}</div>` : ''}
         <p>${esc(describe(p, st.lang) || S().gen[p.sys])}</p>
         <div class="ka-row"><button class="ka-btn2" id="kaIso">${st.isolate ? S().showAll : S().isolate}</button><button class="ka-btn2" id="kaClose">${S().close}</button></div>`;
       el.querySelector('#kaIso').onclick = () => { st.isolate = !st.isolate; refreshAll(); renderInfo(); };
@@ -399,7 +402,7 @@
       if (!stage.offsetParent) return;
       let moved = false;
       if (st.anim) {
-        const a = st.anim; a.t = Math.min(1, a.t + 0.045); const k = ease(a.t);
+        const a = st.anim; const now = performance.now(); a.t = Math.min(1, a.t + Math.min((now - (a.last || now)) / 650, 0.2)); a.last = now; const k = ease(a.t);
         controls.target.lerpVectors(a.fromT, a.toT, k); camera.position.lerpVectors(a.fromP, a.toP, k);
         if (a.t >= 1) st.anim = null; moved = true;
       }
