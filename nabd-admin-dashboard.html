@@ -227,6 +227,34 @@
   .ai-draft input[type=checkbox]{width:18px; height:18px; margin-top:3px; flex:none; padding:0;}
   /* curriculum page */
   .cat-search{width:100%; max-width:340px;}
+  /* Former popups: now full pages that fill the content area (sidebar stays visible). */
+  .page-layer{position:fixed !important; inset-block:0 !important; inset-inline-start:250px !important; inset-inline-end:0 !important; z-index:950 !important;
+    background:var(--bg-1) !important; overflow-y:auto; align-items:flex-start !important; justify-content:center !important; padding:0 !important;}
+  .page-layer > div{max-width:860px !important; width:100% !important; max-height:none !important; min-height:100%;
+    border-radius:0 !important; box-shadow:none !important; background:transparent !important; border:none !important;
+    backdrop-filter:none !important; padding:26px clamp(16px,3vw,40px) 60px !important;}
+  #confirmModalOverlay.page-layer{align-items:center !important;}
+  #confirmModalOverlay.page-layer > div{min-height:0; max-width:460px !important; text-align:center;}
+  .page-back{margin-bottom:16px;}
+  .ai-panel{inset:0 !important; inset-inline-start:250px !important; width:auto !important; height:auto !important; border-radius:0 !important; z-index:950 !important; background:var(--bg-1) !important; box-shadow:none !important; backdrop-filter:none !important;}
+  .ai-panel .ai-msgs, .ai-panel .ai-input, .ai-panel .ai-sugg{width:100%; max-width:860px; margin-inline:auto;}
+  @media (max-width:960px){ .page-layer, .ai-panel{inset-inline-start:0 !important;} }
+  body.acct-full .page-layer{inset-inline-start:0 !important;}
+  .st-period{display:flex; gap:8px; margin-bottom:16px;}
+  .st-period button{padding:7px 16px; border-radius:999px; border:1.5px solid var(--glass-border); background:var(--glass-bg); font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; color:var(--ink);}
+  .st-period button.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .st-kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px;}
+  .st-kpi{padding:16px 18px; border-radius:18px; border:1px solid var(--glass-border); background:var(--glass-bg-strong);}
+  .st-kpi .l{font-size:.74rem; color:var(--ink-faint); font-weight:700;} .st-kpi .v{font-size:1.6rem; font-weight:800; margin-top:4px;} .st-kpi .s{font-size:.72rem; color:var(--ink-faint); margin-top:2px;}
+  .st-two{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr)); gap:16px; margin-bottom:16px;}
+  .st-bars{display:flex; align-items:flex-end; gap:2px; height:130px; padding-top:8px;}
+  .st-bars i{flex:1; background:var(--accent); border-radius:3px 3px 0 0; min-height:2px; opacity:.85;}
+  .st-bars i:hover{opacity:1;}
+  .st-axis{display:flex; justify-content:space-between; font-size:.68rem; color:var(--ink-faint); margin-top:6px;}
+  .st-row{display:flex; align-items:center; gap:10px; padding:8px 0; font-size:.84rem;}
+  .st-row .n{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .st-row .b{flex:2; height:8px; border-radius:99px; background:var(--track); overflow:hidden;} .st-row .b i{display:block; height:100%; background:var(--accent);}
+  .st-row .c{width:56px; text-align:end; font-weight:800;}
   body.acct-full .sidebar{display:none;}
   body.acct-full .dash-content{padding:22px clamp(16px,3vw,48px);}
   .acct-cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;}
@@ -424,21 +452,15 @@
 
       <!-- ===== ADMIN: Overview ===== -->
       <section class="dash-section" id="sec-overview">
-        <div class="kpi-grid">
-          <div class="kpi-card glass"><div class="kpi-label">إجمالي الطلاب</div><div class="kpi-value mono" id="kpiStudents">—</div></div>
-          <div class="kpi-card glass"><div class="kpi-label">الاشتراكات النشطة</div><div class="kpi-value mono" id="kpiActivations">—</div></div>
-          <div class="kpi-card glass"><div class="kpi-label">إيرادات مسجّلة</div><div class="kpi-value mono" id="kpiRevenue">—</div></div>
-          <div class="kpi-card glass"><div class="kpi-label">طلبات حظر معلّقة</div><div class="kpi-value mono" id="kpiBans">—</div></div>
+        <div class="st-period" id="stPeriod"></div>
+        <div class="st-kpis" id="stKpis"></div>
+        <div class="st-two">
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">الأسئلة المجابة يوميًا</span></div><div id="stAnswers"></div></div>
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">طلاب جدد يوميًا</span></div><div id="stSignups"></div></div>
         </div>
-        <div class="ie-grid">
-          <div class="dash-card glass">
-            <div class="dash-card-head"><span class="dash-card-title">نشاط الأسبوع</span></div>
-            <div class="bar-chart" id="weeklyBars"></div>
-          </div>
-          <div class="dash-card glass">
-            <div class="dash-card-head"><span class="dash-card-title">أحدث النشاطات</span></div>
-            <div id="overviewActivity"></div>
-          </div>
+        <div class="st-two">
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">أكثر المواد نشاطًا</span></div><div id="stSubjects"></div></div>
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">الطلاب حسب الجامعة</span></div><div id="stUnis"></div></div>
         </div>
       </section>
 
@@ -1042,7 +1064,7 @@
     <div class="dash-card-head"><span class="dash-card-title" id="genericModalTitle"></span></div>
     <div id="genericModalFields"></div>
     <div id="genericModalMsg" style="display:none; font-size:.8rem; margin-top:4px;"></div>
-    <div style="display:flex; gap:8px; margin-top:14px;">
+    <div id="genericModalFooter" style="display:flex; gap:8px; margin-top:14px;">
       <button class="btn" style="flex:1; justify-content:center;" onclick="genericModalSubmit()">حفظ</button>
       <button class="btn btn-ghost" style="flex:1; justify-content:center;" onclick="closeGenericModal()">إلغاء</button>
     </div>
@@ -1112,6 +1134,7 @@
   const API_BASE_URL = location.origin === 'http://localhost:5500' || location.origin === 'http://127.0.0.1:5500'
     ? 'http://localhost:8000' : location.origin;
   let authToken = null;
+  setTimeout(() => initPageLayers(), 0);
   let currentUser = null;
   let currentRole = 'admin';
   let liveMode = false; // true once a real dev-login/OAuth session exists
@@ -1184,6 +1207,39 @@
     return g && viewAsPick[g] ? {'X-View-As': viewAsPick[g]} : {};
   }
 
+  // ===== popups -> pages =====
+  const PAGE_LAYERS = {
+    qEditorOverlay: () => qeClose(), aiGenOverlay: () => closeAiGen(), repOverlay: null, genericModalOverlay: () => closeGenericModal(),
+    resellerCodesOverlay: null, securityOverlay: null, catalogImportOverlay: () => closeCatalogImport(), acctOverlay: null,
+    confirmModalOverlay: () => document.getElementById('confirmModalNo').click(),
+  };
+  function pageLayerBack(id){
+    const fn = PAGE_LAYERS[id];
+    if (fn) fn(); else document.getElementById(id).style.display = 'none';
+  }
+  function initPageLayers(){
+    Object.keys(PAGE_LAYERS).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('page-layer');
+      const card = el.firstElementChild;
+      if (card && id !== 'confirmModalOverlay' && !card.querySelector('.page-back')){
+        card.insertAdjacentHTML('afterbegin', `<button type="button" class="btn btn-ghost page-back" onclick="pageLayerBack('${id}')">→ رجوع</button>`);
+      }
+    });
+  }
+  // A list of actions as a page (replaces the little dropdown menus).
+  function openActionPage(title, actions){
+    document.getElementById('genericModalTitle').textContent = title;
+    document.getElementById('genericModalFields').innerHTML = actions.map((a, i) =>
+      `<button class="btn btn-ghost" style="width:100%; justify-content:flex-start; padding:14px 18px; margin-bottom:10px; font-size:.92rem; ${a.danger ? 'color:var(--danger);' : ''}" onclick="closeGenericModal(); window.__actionFns[${i}]()">${a.label}</button>`).join('');
+    window.__actionFns = actions.map(a => a.fn);
+    genericModalOnSubmit = null; genericModalFieldsSpec = [];
+    document.getElementById('genericModalFooter').style.display = 'none';
+    document.getElementById('genericModalMsg').style.display = 'none';
+    document.getElementById('genericModalOverlay').style.display = 'flex';
+  }
+
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
@@ -1232,6 +1288,7 @@
   let genericModalOnSubmit = null;
 
   function openGenericModal(title, fields, onSubmit){
+    document.getElementById('genericModalFooter').style.display = 'flex';
     document.getElementById('genericModalTitle').textContent = title;
     genericModalFieldsSpec = fields; // [{id, label, type:'text'|'password'|'number'|'select'|'textarea', value, placeholder, options:[{value,label}], rows}]
     genericModalOnSubmit = onSubmit;
@@ -1880,29 +1937,42 @@
   }
 
   // ===== ADMIN sections =====
+  let statsDays = 30;
+  const numAr = n => (n || 0).toLocaleString('en-US');
+  function statBars(id, series){
+    const el = document.getElementById(id);
+    if (!series || !series.length){ el.innerHTML = '<div class="empty-row">لا توجد بيانات</div>'; return; }
+    const max = Math.max(1, ...series.map(d => d.count));
+    const d0 = series[0].date.slice(5).replace('-', '/'), d1 = series[series.length - 1].date.slice(5).replace('-', '/');
+    el.innerHTML = `<div class="st-bars">${series.map(d => `<i title="${d.date} — ${d.count}" style="height:${Math.max(2, Math.round(100 * d.count / max))}%"></i>`).join('')}</div>
+      <div class="st-axis"><span dir="ltr">${d0}</span><span>الأعلى ${numAr(max)}</span><span dir="ltr">${d1}</span></div>`;
+  }
+  function statList(id, rows, unit){
+    const el = document.getElementById(id);
+    if (!rows || !rows.length){ el.innerHTML = '<div class="empty-row">لا توجد بيانات</div>'; return; }
+    const max = Math.max(1, ...rows.map(r => r.count));
+    el.innerHTML = rows.map(r => `<div class="st-row"><span class="n">${esc(r.name)}</span><span class="b"><i style="width:${Math.round(100 * r.count / max)}%"></i></span><span class="c">${numAr(r.count)}</span></div>`).join('');
+  }
   async function loadOverview(){
-    let kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0, weekly_activity: []};
-    let activity = [];
+    document.getElementById('stPeriod').innerHTML = [7, 30, 90].map(d => `<button class="${d === statsDays ? 'on' : ''}" onclick="statsDays=${d}; loadOverview()">آخر ${d} يوم</button>`).join('');
+    let st = null;
     if (liveMode){
-      try {
-        kpi = await apiFetch('/api/admin/overview');
-        activity = await apiFetch('/api/admin/logs?limit=6');
-      } catch(e){
-        showToast(e.detail || 'تعذّر تحميل بيانات النظرة العامة', 'error');
-        kpi = {total_students: 0, active_activations: 0, revenue_total: 0, pending_bans: 0, weekly_activity: []};
-        activity = [];
-      }
+      try { st = await apiFetch('/api/admin/stats?days=' + statsDays); }
+      catch (e){ showToast(e.detail || 'تعذّر تحميل الإحصائيات', 'error'); }
     }
-    // Real answers-per-day for the last week. This chart used to draw a
-    // fixed [40,55,48,70,62,80,58] and was labelled "(توضيحي)".
-    drawSeries('weeklyBars', kpi.weekly_activity);
-    document.getElementById('kpiStudents').textContent = kpi.total_students.toLocaleString('en-US');
-    document.getElementById('kpiActivations').textContent = kpi.active_activations.toLocaleString('en-US');
-    document.getElementById('kpiRevenue').textContent = fmtIQD(kpi.revenue_total);
-    document.getElementById('kpiBans').textContent = kpi.pending_bans;
-    document.getElementById('overviewActivity').innerHTML = activity.map(a => `
-      <div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(a.action)}</span><span class="activity-time">${fmtDate(a.created_at)}</span></div>
-    `).join('') || '<div class="empty-row">لا يوجد نشاط بعد</div>';
+    if (!st) st = {students: 0, new_students: 0, active_students: 0, answers: 0, accuracy: null, revenue: 0, orders: 0, activations: 0, pending_bans: 0, daily_answers: [], daily_signups: [], top_subjects: [], students_by_university: []};
+    const k = (l, v, sub) => `<div class="st-kpi"><div class="l">${l}</div><div class="v mono">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+    document.getElementById('stKpis').innerHTML =
+      k('إجمالي الطلاب', numAr(st.students), `+${numAr(st.new_students)} جديد في الفترة`) +
+      k('طلاب نشطون', numAr(st.active_students), 'أجابوا على سؤال واحد على الأقل') +
+      k('أسئلة مجابة', numAr(st.answers), st.accuracy == null ? '' : `نسبة الصحيح ${st.accuracy}%`) +
+      k('الإيرادات', fmtIQD(st.revenue), `${numAr(st.orders)} طلب مدفوع`) +
+      k('أكواد فُعّلت', numAr(st.activations), '') +
+      k('حظر معلّق', numAr(st.pending_bans), '');
+    statBars('stAnswers', st.daily_answers);
+    statBars('stSignups', st.daily_signups);
+    statList('stSubjects', st.top_subjects);
+    statList('stUnis', st.students_by_university);
   }
 
   async function loadPeople(role){
@@ -2455,14 +2525,12 @@
   };
   const kebab = (type, id, withCopy) => `<button class="cat-kebab" title="خيارات" onclick="event.stopPropagation(); catMenu(event,'${type}','${id}',${withCopy})">⋯</button>`;
   function catMenu(ev, type, id, withCopy){
-    document.getElementById('catMenu')?.remove();
-    const m = document.createElement('div'); m.id = 'catMenu';
-    const r = ev.currentTarget.getBoundingClientRect();
-    m.style.cssText = `position:fixed;z-index:9998;top:${Math.min(r.bottom + 4, innerHeight - 130)}px;left:${Math.max(8, Math.min(r.left, innerWidth - 170))}px;background:var(--glass-bg-strong,#fff);border:1px solid var(--glass-border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;min-width:150px;`;
-    const item = (label, fn, danger) => `<button style="display:block;width:100%;text-align:start;padding:9px 12px;border-radius:8px;font:inherit;font-size:.82rem;font-weight:600;background:none;cursor:pointer;color:${danger ? 'var(--danger)' : 'var(--ink)'};" onmouseover="this.style.background='var(--track)'" onmouseout="this.style.background='none'" onclick="document.getElementById('catMenu').remove(); ${fn}">${label}</button>`;
-    m.innerHTML = item('تعديل الاسم', `promptRenameCatalog('${type}','${id}')`) + (withCopy ? item('نسخ', `promptDuplicateCatalog('${type}','${id}')`) : '') + item('حذف', `deleteCatalogNode('${type}','${id}')`, true);
-    document.body.appendChild(m);
-    setTimeout(() => document.addEventListener('click', () => m.remove(), {once: true}), 0);
+    const row = allCatalogRows.find(r => r.id === id);
+    openActionPage((CATALOG_TYPE_LABEL[type] || '') + (row ? ': ' + row.name : ''), [
+      {label: 'تعديل الاسم', fn: () => promptRenameCatalog(type, id)},
+      ...(withCopy ? [{label: 'نسخ مع كل ما تحته', fn: () => promptDuplicateCatalog(type, id)}] : []),
+      {label: 'حذف', danger: true, fn: () => deleteCatalogNode(type, id)},
+    ]);
   }
   const catCard = (type, row, sub, onclick) => `
     <div class="cat-card" onclick="${onclick}">
@@ -2545,7 +2613,7 @@
     document.getElementById('addDeptOverlay')?.remove();
     const ov = document.createElement('div');
     ov.id = 'addDeptOverlay';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    ov.className = 'page-layer'; ov.style.cssText = 'display:flex;';
     ov.innerHTML = `<div style="background:var(--glass-bg-strong,#fff);color:var(--ink);border-radius:18px;padding:20px;max-width:440px;width:100%;max-height:90vh;overflow:auto;">
       <div style="font-weight:800;font-size:1rem;margin-bottom:12px;">إضافة قسم</div>
       <label style="font-size:.78rem;font-weight:700;">اسم القسم (أو عدة أقسام، كل واحد بسطر)</label>

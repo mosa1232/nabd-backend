@@ -85,6 +85,51 @@ def overview(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/stats")
+def stats(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
+    """The statistics page: a few real numbers for the chosen period, two daily
+    charts and two short rankings. Nothing here is estimated."""
+    now = datetime.utcnow()
+    start = datetime.combine(now.date() - timedelta(days=days - 1), time.min)
+    S = models.User.role == models.Role.student
+
+    students = db.query(func.count(models.User.id)).filter(S).scalar() or 0
+    new_students = db.query(func.count(models.User.id)).filter(S, models.User.created_at >= start).scalar() or 0
+    SA = models.StudentAnswer
+    answers, correct = db.query(func.count(SA.id), func.sum(case((SA.is_correct.is_(True), 1), else_=0))).filter(SA.answered_at >= start).one()
+    answers, correct = int(answers or 0), int(correct or 0)
+    active = db.query(func.count(func.distinct(SA.user_id))).filter(SA.answered_at >= start).scalar() or 0
+    paid = models.Order.status.in_([models.OrderStatus.paid, models.OrderStatus.fulfilled])
+    revenue = db.query(func.coalesce(func.sum(models.Order.total), 0)).filter(paid, models.Order.created_at >= start).scalar() or 0
+    orders = db.query(func.count(models.Order.id)).filter(paid, models.Order.created_at >= start).scalar() or 0
+    activated = db.query(func.count(models.ActivationCode.id)).filter(models.ActivationCode.activated_at >= start).scalar() or 0
+    pending_bans = db.query(models.BanRecord).filter(models.BanRecord.status == models.BanStatus.active).count()
+
+    by_subject = (
+        db.query(models.Subject.name, func.count(SA.id).label("n"))
+        .join(models.Question, models.Question.subject_id == models.Subject.id)
+        .join(SA, SA.question_id == models.Question.id)
+        .filter(SA.answered_at >= start)
+        .group_by(models.Subject.id, models.Subject.name).order_by(func.count(SA.id).desc()).limit(6).all()
+    )
+    by_uni = (
+        db.query(models.University.name, func.count(models.User.id).label("n"))
+        .join(models.User, models.User.university_id == models.University.id)
+        .filter(S).group_by(models.University.id, models.University.name)
+        .order_by(func.count(models.User.id).desc()).limit(6).all()
+    )
+    return {
+        "days": days,
+        "students": students, "new_students": new_students, "active_students": active,
+        "answers": answers, "accuracy": round(100 * correct / answers) if answers else None,
+        "revenue": int(revenue), "orders": orders, "activations": activated, "pending_bans": pending_bans,
+        "daily_answers": _daily_counts(db, SA, SA.answered_at, days=days),
+        "daily_signups": _daily_counts(db, models.User, models.User.created_at, days=days, extra_filter=S),
+        "top_subjects": [{"name": n, "count": c} for n, c in by_subject],
+        "students_by_university": [{"name": n, "count": c} for n, c in by_uni],
+    }
+
+
 def _daily_counts(db: Session, model, date_column, days: int = 7, extra_filter=None) -> list[dict]:
     """Row counts per day for the last `days` days, oldest first, with empty
     days filled in as 0. The dashboard charts used to be hardcoded arrays
