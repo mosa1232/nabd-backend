@@ -1746,7 +1746,7 @@
     const p = myPerms();
     if (item.perm === 'any') return PROF_PERM_LIST.some(x => p.has(x));
     if (item.perm === 'owner') return currentRole === 'professor';
-    if (item.perm === 'viewas') return currentRole === 'admin' || currentRole === 'owner';
+    if (item.perm === 'viewas') return currentRole === 'owner' || (currentRole === 'admin' && p.has('users.manage'));
     if (item.perm === 'codes.any') return p.has('codes.view') || p.has('codes.generate');
     return p.has(item.perm);
   }
@@ -2053,6 +2053,12 @@
     await loadAccounts();
     renderAdmins();
   }
+  function permSummary(a){
+    if (a.role === 'owner') return 'كل الصلاحيات';
+    const held = (a.effective_permissions || []).filter(x => ALL_STAFF_PERMS.includes(x));
+    if (held.length >= ALL_STAFF_PERMS.length) return 'كل الصلاحيات';
+    return held.length ? `${held.length} من ${ALL_STAFF_PERMS.length} صلاحيات` : 'بدون صلاحيات';
+  }
   function renderAdmins(){
     const box = document.getElementById('adminsBody'); if (!box) return;
     const q = (document.getElementById('adminsSearch')?.value || '').trim().toLowerCase();
@@ -2061,7 +2067,7 @@
       const list = allAccounts.filter(a => a.role === role && (!q || a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)));
       if (!list.length) return '';
       return `<div style="font-weight:800; margin:6px 0 10px;">${title} <span class="cell-sub">· ${numAr(list.length)}</span></div>
-        <div class="cat-grid">${list.map(a => personCard(a)).join('')}</div>`;
+        <div class="cat-grid">${list.map(a => personCard(a, permSummary(a))).join('')}</div>`;
     }).join('') || '<div class="empty-row">لا توجد نتائج</div>';
   }
 
@@ -2394,7 +2400,7 @@
   // Only a full admin may create or edit admins, supervisors and store
   // managers — everyone else with account access sees just the other roles.
   const roleOptionsForMe = () => currentRole === 'owner' ? ROLE_OPTIONS
-    : currentRole === 'admin' ? ROLE_OPTIONS.filter(o => o.value !== 'owner')
+    : currentRole === 'admin' ? ROLE_OPTIONS.filter(o => !['owner', 'admin'].includes(o.value))
     : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
   const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({value: c, label: PERM_LABELS[c]}));
   // Where a representative works: a college inside a university (and
@@ -2446,7 +2452,7 @@
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
       {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: '', options: scope.depts},
       {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: '', options: scope.stages},
-      {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
+      {id: 'perms', label: 'الصلاحيات (للأدمن والسوبر فايزر ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
       // dashboard 404s, so the subject is collected here rather than left
       // as a step an admin has no way of knowing they still owe.
@@ -2473,7 +2479,7 @@
           scope_department_id: v.role === 'representative' ? (v.scopeDept || null) : null,
           // a reseller made here can view + take codes unless the store manager says otherwise
           permissions: v.role === 'reseller' ? ['codes.view', 'codes.generate']
-            : (['supervisor', 'store_manager'].includes(v.role) ? v.perms : []),
+            : (['supervisor', 'store_manager', 'admin'].includes(v.role) ? v.perms : []),
         }),
       });
       loadAccounts();
@@ -2533,7 +2539,9 @@
       ], v => save({}, () => apiFetch('/api/admin/professors/' + a.id, {method: 'PUT', body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'})})));
     } else if (['admin', 'supervisor', 'store_manager'].includes(role)){
       if (role === 'admin'){
-        if (await confirmModal(`تحويل ${a.full_name} إلى أدمن؟ سيملك صلاحيات الإدارة كاملة.`)) await save({});
+        openGenericModal('تعيين أدمن: ' + common, [
+          {id: 'perms', label: 'صلاحيات هذا الأدمن (وحدك كمالك تغيّرها لاحقًا)', type: 'checks', value: ALL_STAFF_PERMS.slice(), options: STAFF_PERM_OPTIONS},
+        ], v => save({permissions: v.perms}));
       } else {
         openGenericModal('تعيين ' + FIND_WORD[role] + ': ' + common, [
           {id: 'perms', label: 'الصلاحيات', type: 'checks', value: role === 'supervisor' ? ['dashboard.analytics', 'users.ban', 'content.manage', 'catalog.manage'] : ['store.manage', 'resellers.manage'], options: STAFF_PERM_OPTIONS},
@@ -4427,7 +4435,9 @@
     const btn = (label, fn, style = '') => `<button class="btn btn-ghost" style="padding:9px 16px; font-size:.8rem; ${style}" onclick="${fn}">${label}</button>`;
     const parent = a.parent_user_id ? accountName(a.parent_user_id) : '';
     const nm = id => esc(acctName(id) || '—');
-    const isStaff = ['supervisor', 'store_manager'].includes(a.role);
+    const isStaff = ['supervisor', 'store_manager', 'admin'].includes(a.role);
+    const canEditPerms = a.role !== 'admin' || currentRole === 'owner';
+    const heldPerms = a.role === 'admin' ? (a.effective_permissions || []).filter(x => ALL_STAFF_PERMS.includes(x)) : (a.extra_permissions || []);
 
     // ---- identity & contact
     const identity = card('البيانات الشخصية', ed
@@ -4460,9 +4470,9 @@
     if (a.role === 'representative') role = card('نطاق الممثل', ed
       ? row('الجامعة / الكلية', sel('efScopeUni', acctOpts.scope.unis, a.scope_university_id)) + row('القسم', sel('efScopeDept', acctOpts.scope.depts, a.scope_department_id)) + row('المرحلة', sel('efScopeStage', acctOpts.scope.stages, a.scope_stage_id))
       : row('يمثّل', nm(a.scope_university_id)) + row('القسم', a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام') + row('المرحلة', a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'));
-    if (isStaff) role = card('الصلاحيات الإضافية', ed
-      ? `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px;">${STAFF_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.84rem;"><input type="checkbox" class="efPerm" value="${o.value}" ${(a.extra_permissions || []).includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join('')}</div>`
-      : ((a.extra_permissions || []).length ? a.extra_permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join(' ') : '<span class="cell-sub">لا توجد</span>'));
+    if (isStaff) role = card(a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية', ed && canEditPerms
+      ? `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px;">${STAFF_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.84rem;"><input type="checkbox" class="efPerm" value="${o.value}" ${heldPerms.includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join('')}</div>${a.role === 'admin' ? '<div class="cell-sub" style="margin-top:8px;">الأدمن يرى ويفعل ما تحدده هنا فقط. الصلاحيات من صلاحية المالك وحده.</div>' : ''}`
+      : (heldPerms.length ? heldPerms.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join(' ') : '<span class="cell-sub">لا توجد</span>'));
     if (ov && ov.teaches && ov.teaches.length && !ed) role += card('المواد التي يدرّسها', ov.teaches.map(t => `<span class="cat-chip">${esc(t.subject)}</span>`).join(' '));
 
     // ---- account & security
@@ -4556,7 +4566,8 @@
       if (!v('efScopeUni')){ showToast('اختر الجامعة/الكلية التي يمثّلها', 'error'); return; }
       body.scope_university_id = v('efScopeUni'); body.scope_department_id = v('efScopeDept') || null; body.scope_stage_id = v('efScopeStage') || null;
     }
-    if (['supervisor', 'store_manager'].includes(role)) body.permissions = [...document.querySelectorAll('.efPerm:checked')].map(x => x.value);
+    if (['supervisor', 'store_manager'].includes(role) || (role === 'admin' && currentRole === 'owner' && document.querySelector('.efPerm')))
+      body.permissions = [...document.querySelectorAll('.efPerm:checked')].map(x => x.value);
     try {
       await apiFetch('/api/admin/users/' + a.id, {method: 'PUT', body: JSON.stringify(body)});
       if (a.role === 'student' && role === 'student' && document.getElementById('apUni')){

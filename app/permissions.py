@@ -74,8 +74,13 @@ def serialize_permissions(perms) -> str:
 def effective_permissions(role, raw_extra: str | None) -> set[str]:
     role = getattr(role, "value", role)  # accept the Role enum or its string
     base = ROLE_DEFAULTS.get(role, set())
-    if role in ("owner", "admin"):
+    if role == "owner":
         return set(PERMISSIONS)
+    if role == "admin":
+        # An admin whose permissions the owner has limited gets only those; an
+        # admin with none recorded (older accounts) keeps full access.
+        chosen = parse_permissions(raw_extra) & STAFF_PERMS
+        return chosen if chosen else set(PERMISSIONS)
     return set(base) | parse_permissions(raw_extra)
 
 

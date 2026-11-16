@@ -198,6 +198,9 @@ def _guard_role_change(actor: models.User, new_role: str, existing: models.User 
     # Only the owner may create, edit or remove an owner.
     if new_role == models.Role.owner.value or (existing is not None and existing.role == models.Role.owner):
         raise HTTPException(403, "حساب المالك لا يعدّله إلا المالك")
+    # Admin accounts (and their permissions) are the owner's to create and change.
+    if new_role == models.Role.admin.value or (existing is not None and existing.role == models.Role.admin):
+        raise HTTPException(403, "إنشاء الأدمن وتعديله وتحديد صلاحياته للمالك فقط")
     if actor.role == models.Role.admin:
         return
     if new_role in PRIVILEGED_ROLES or (existing is not None and existing.role.value in PRIVILEGED_ROLES):
@@ -208,6 +211,7 @@ def _clean_permissions(role: str, perms: list[str]) -> str:
     """Keep only grants that make sense for the role, so e.g. nobody ends up
     with a reseller holding users.manage."""
     allowed = {
+        "admin": STAFF_PERMS,
         "supervisor": STAFF_PERMS,
         "store_manager": STAFF_PERMS,
         "reseller": RESELLER_PERMS,
@@ -400,7 +404,10 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
         raise HTTPException(404, "المستخدم غير موجود")
     if body.role not in VALID_ROLES:
         raise HTTPException(400, "دور غير صالح")
-    _guard_role_change(actor, body.role, user)
+    if not (user.id == actor.id and actor.role == models.Role.admin and body.role == models.Role.admin.value):
+        _guard_role_change(actor, body.role, user)
+    else:
+        body.permissions = None   # an admin cannot widen or narrow their own permissions
     if user.role in (models.Role.admin, models.Role.owner) and body.role not in (models.Role.admin.value, models.Role.owner.value):
         if db.query(models.User).filter(models.User.role.in_([models.Role.admin, models.Role.owner]), models.User.id != user.id).count() == 0:
             raise HTTPException(400, "لا يمكن إزالة آخر مدير في المنصة")
@@ -644,6 +651,8 @@ def reveal_user_password(user_id: str, db: Session = Depends(get_db), actor: mod
     user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "المستخدم غير موجود")
+    if user.role in (models.Role.owner, models.Role.admin) and actor.role != models.Role.owner and user.id != actor.id:
+        raise HTTPException(403, "كلمة مرور المالك والأدمن يراها المالك فقط")
     pw = recall_password(user)
     db.add(models.ActivityLog(user_id=actor.id, action=f"عرض كلمة مرور {user.email}", ip_address=""))
     db.commit()

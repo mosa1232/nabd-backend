@@ -43,7 +43,8 @@ def get_current_user_allow_banned(
     # dashboard by naming that account in X-View-As. The request then runs as
     # that account (its data, its permissions); nobody else may use this header.
     view_as = request.headers.get("x-view-as")
-    if view_as and user.role in (models.Role.owner, models.Role.admin) and view_as != user.id:
+    if view_as and view_as != user.id and (user.role == models.Role.owner or (
+            user.role == models.Role.admin and "users.manage" in permissions.effective_permissions(user.role.value, user.permissions))):
         target = db.get(models.User, view_as)
         if target and target.role not in (models.Role.owner, models.Role.admin):
             target._viewed_by = user.id
