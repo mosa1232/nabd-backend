@@ -39,6 +39,15 @@ def get_current_user_allow_banned(
         session.ip_address = ip
         session.user_agent = session.user_agent or (ua[:300] or None)
         db.commit()
+    # The owner (admin) can open a doctor's / reseller's / representative's own
+    # dashboard by naming that account in X-View-As. The request then runs as
+    # that account (its data, its permissions); nobody else may use this header.
+    view_as = request.headers.get("x-view-as")
+    if view_as and user.role == models.Role.admin and view_as != user.id:
+        target = db.get(models.User, view_as)
+        if target and target.role != models.Role.admin:
+            target._viewed_by = user.id
+            user = target
     # A doctor who teaches several subjects (possibly in different departments)
     # says which one a request is for; see professors._get_own_profile.
     user._active_subject_id = request.headers.get("x-subject-id") or None

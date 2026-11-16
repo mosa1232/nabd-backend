@@ -420,6 +420,7 @@
     </div>
 
     <div class="dash-content" id="dashContent">
+      <div id="viewAsBar" style="display:none; margin-bottom:16px;"></div>
 
       <!-- ===== ADMIN: Overview ===== -->
       <section class="dash-section" id="sec-overview">
@@ -1163,6 +1164,26 @@
   }
 
   let activeSubjectId = null;   // doctor with several subjects: which one requests are for
+  // The owner can open a doctor's / reseller's / representative's own dashboard:
+  // pick the account, and every call from those pages runs as that account.
+  const VIEWAS_GROUPS = {doctor: ['p-'], reseller: ['r-'], rep: ['rep-']};
+  var viewAsSection = '';
+  var viewAsPick = {doctor: '', reseller: '', rep: ''};
+  function viewAsGroupOf(sectionId){
+    if (!sectionId) return null;
+    if (sectionId.startsWith('rep-')) return 'rep';
+    if (sectionId.startsWith('p-')) return 'doctor';
+    if (sectionId.startsWith('r-')) return 'reseller';
+    return null;
+  }
+  function viewAsHeader(path){
+    if (path.startsWith('/api/admin/') || path.startsWith('/auth/')) return {};
+    let admin = false;
+    try { admin = currentRole === 'admin'; } catch (e) { /* not signed in yet */ }
+    const g = admin ? viewAsGroupOf(viewAsSection) : null;
+    return g && viewAsPick[g] ? {'X-View-As': viewAsPick[g]} : {};
+  }
+
   async function apiFetch(path, options = {}){
     const res = await fetch(API_BASE_URL + path, {
       ...options,
@@ -1174,6 +1195,7 @@
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
         ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}),
+        ...viewAsHeader(path),
         ...(options.headers || {}),
       },
     });
@@ -1655,6 +1677,7 @@
     const p = myPerms();
     if (item.perm === 'any') return PROF_PERM_LIST.some(x => p.has(x));
     if (item.perm === 'owner') return currentRole === 'professor';
+    if (item.perm === 'viewas') return currentRole === 'admin';
     if (item.perm === 'codes.any') return p.has('codes.view') || p.has('codes.generate');
     return p.has(item.perm);
   }
@@ -1693,8 +1716,23 @@
   const REP_NAV = [
     {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'rep.codes'},
   ];
+  // The owner also sees the other roles' own dashboards (acting as a chosen account).
+  const VIEWAS_NAV = [
+    {id:'p-overview', label:'نظرة عامة', icon:'grid', perm:'viewas', group:'لوحة الدكتور'},
+    {id:'p-questions', label:'بنك الأسئلة', icon:'pdf', perm:'viewas'},
+    {id:'p-pearls', label:'لمحات سريرية', icon:'book', perm:'viewas'},
+    {id:'p-exams', label:'الامتحانات (كوزات)', icon:'exam', perm:'viewas'},
+    {id:'p-booklets', label:'الملازم', icon:'pdf', perm:'viewas'},
+    {id:'p-courses', label:'الكورسات', icon:'log', perm:'viewas'},
+    {id:'p-students', label:'الطلاب', icon:'student', perm:'viewas'},
+    {id:'p-assistants', label:'المساعدون', icon:'users', perm:'viewas'},
+    {id:'r-overview', label:'رصيد الأكواد', icon:'key', perm:'viewas', group:'لوحة المندوب'},
+    {id:'r-codes', label:'الأكواد', icon:'pdf', perm:'viewas'},
+    {id:'r-sales', label:'سجل المبيعات', icon:'log', perm:'viewas'},
+    {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'viewas', group:'لوحة الممثل العام'},
+  ];
   const ROLE_NAV = {
-    admin: STAFF_NAV, supervisor: STAFF_NAV, store_manager: STAFF_NAV,
+    admin: STAFF_NAV.concat(VIEWAS_NAV), supervisor: STAFF_NAV, store_manager: STAFF_NAV,
     professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV, representative: REP_NAV,
   };
   const ROLE_LABELS = {
@@ -1730,6 +1768,7 @@
 
   function renderSidebar(){
     document.getElementById('sidebarNav').innerHTML = roles[currentRole].items.map(it => `
+      ${it.group ? `<div style="margin:14px 8px 4px; font-size:.68rem; font-weight:800; color:var(--ink-faint); letter-spacing:.02em;">${it.group}</div>` : ''}
       <button class="nav-item" data-sec="${it.id}" onclick="showSection('${it.id}')">
         ${ICONS[it.icon]}<span>${it.label}</span>
       </button>
@@ -1761,7 +1800,27 @@
     const item = roles[currentRole].items.find(it => it.id === id);
     document.getElementById('dashTitle').textContent = item ? item.label : '';
     closeSidebarMobile();
+    viewAsSection = id;
+    if (currentRole === 'admin' && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
+    document.getElementById('viewAsBar').style.display = 'none';
     loadSection(id);
+  }
+
+  const VIEWAS_ROLE = {doctor: 'professor', reseller: 'reseller', rep: 'representative'};
+  const VIEWAS_WORD = {doctor: 'دكتور', reseller: 'مندوب', rep: 'ممثل'};
+  async function renderViewAsBar(sectionId){
+    const g = viewAsGroupOf(sectionId), bar = document.getElementById('viewAsBar');
+    bar.style.display = 'block';
+    if (!allAccounts.length && liveMode){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
+    const list = allAccounts.filter(a => a.role === VIEWAS_ROLE[g]);
+    if (!list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = list[0] ? list[0].id : '';
+    bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
+      <span style="font-weight:800; font-size:.86rem;">عرض لوحة ${VIEWAS_WORD[g]}:</span>
+      <select id="viewAsSelect" style="flex:1; min-width:200px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="viewAsPick['${g}']=this.value; loadSection('${sectionId}')">
+        ${list.map(a => `<option value="${a.id}" ${a.id === viewAsPick[g] ? 'selected' : ''}>${esc(a.full_name)}</option>`).join('') || '<option value="">لا يوجد حسابات</option>'}
+      </select>
+      <span class="cell-sub">أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.</span></div>`;
+    if (viewAsPick[g]) loadSection(sectionId);
   }
 
   function toggleSidebar(){
@@ -4377,7 +4436,7 @@
   async function apiForm(path, formData){
     const res = await fetch(API_BASE_URL + path, {
       method: 'POST', body: formData, credentials: 'include',
-      headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {},
+      headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...viewAsHeader(path)},
     });
     let data = null; try { data = await res.json(); } catch (e) { /* no body */ }
     if (!res.ok){
