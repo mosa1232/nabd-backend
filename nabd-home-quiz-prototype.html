@@ -1493,6 +1493,14 @@
   .more-label{flex:1;} .more-chev{width:16px; height:16px; opacity:.4;}
   .soon-line{text-align:center; font-size:.8rem; color:var(--ink-faint); margin:4px 0 22px;}
   @media (max-width:720px){ .tiles-main{grid-template-columns:repeat(2,1fr);} .hero-actions .btn{flex:1 1 100%; justify-content:center;} }
+
+  /* ---- polish ---- */
+  .bs-top svg, .bs-card svg{width:18px; height:18px; flex:none;}
+  .bs-card{padding:16px 18px; border-radius:18px; background:var(--surface); border:1px solid var(--line);}
+  .bs-card:hover{border-color:var(--accent);}
+  #homePathCard[style*="display: block"], #homePathCard[style*="display:block"]{display:flex !important;}
+  .stat-chip b{white-space:nowrap;}
+  .page-head{margin-bottom:14px;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -1649,22 +1657,6 @@
       </div>
     </div>
 
-    <!-- التوثيق: الكود الذي يستلمه الطالب من ممثل دفعته -->
-    <div class="glass" id="verifyCard" style="display:none; padding:16px 18px; margin-bottom:16px;">
-      <div style="font-weight:800; margin-bottom:4px;" data-i18n="verifyTitle">وثّق حسابك</div>
-      <div class="item-meta" style="margin-bottom:10px;" data-i18n="verifySub">أدخل الكود الذي استلمته من ممثل دفعتك، فتُربط جامعتك ومرحلتك بحسابك تلقائيًا.</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <div class="form-field" style="flex:1; min-width:170px; margin:0;"><input id="verifyCode" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="XXXX-XXXX" style="text-transform:uppercase; letter-spacing:.12em; text-align:center; font-weight:700;" onkeydown="if(event.key==='Enter'){submitVerify()}" /></div>
-        <button class="btn" id="verifyBtn" onclick="submitVerify()" data-i18n="verifyBtn">توثيق</button>
-      </div>
-      <div id="verifyMsg" style="display:none; font-size:.8rem; margin-top:8px;"></div>
-    </div>
-
-    <button class="glass" id="homePathCard" style="display:none; width:100%; text-align:start; padding:16px 18px; margin-bottom:16px; cursor:pointer;" onclick="goToAccountEdit()">
-      <div class="item-meta" style="margin-bottom:6px;" data-i18n="pathLabel">المسار الدراسي</div>
-      <div id="homePathTags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
-    </button>
-
     <div class="home-sec" data-i18n="homeStart">ابدأ من هنا</div>
     <div class="tiles tiles-main">
       <button class="tile tile-card" onclick="goToBankSelect()">
@@ -1705,6 +1697,23 @@
       </button>
     </div>
     <div class="soon-line" data-i18n="homeSoonLine">قريبًا: أكاديمية الفيديو والتدريب الصيفي</div>
+
+    <!-- التوثيق: الكود الذي يستلمه الطالب من ممثل دفعته -->
+    <div class="glass" id="verifyCard" style="display:none; padding:16px 18px; margin-bottom:16px;">
+      <div style="font-weight:800; margin-bottom:4px;" data-i18n="verifyTitle">وثّق حسابك</div>
+      <div class="item-meta" style="margin-bottom:10px;" data-i18n="verifySub">أدخل الكود الذي استلمته من ممثل دفعتك، فتُربط جامعتك ومرحلتك بحسابك تلقائيًا.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="form-field" style="flex:1; min-width:170px; margin:0;"><input id="verifyCode" type="text" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="XXXX-XXXX" style="text-transform:uppercase; letter-spacing:.12em; text-align:center; font-weight:700;" onkeydown="if(event.key==='Enter'){submitVerify()}" /></div>
+        <button class="btn" id="verifyBtn" onclick="submitVerify()" data-i18n="verifyBtn">توثيق</button>
+      </div>
+      <div id="verifyMsg" style="display:none; font-size:.8rem; margin-top:8px;"></div>
+    </div>
+
+    <button class="glass" id="homePathCard" style="display:none; width:100%; text-align:start; padding:12px 16px; margin-bottom:12px; cursor:pointer; display:none; align-items:center; gap:10px; flex-wrap:wrap;" onclick="goToAccountEdit()">
+      <div class="item-meta" style="margin:0;" data-i18n="pathLabel">المسار الدراسي</div>
+      <div id="homePathTags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </button>
+
 
     <button class="continue-card glass" id="continueCourseCard" style="width:100%; cursor:pointer; display:none; margin-bottom:12px;">
       <div class="continue-ring" id="continueCourseRing" style="--p:0;"></div>
