@@ -113,25 +113,44 @@ def _text_of(response: dict) -> str:
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
+GEMINI_FALLBACKS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]
+
+
 def _gemini_post(body: dict) -> dict:
-    """The one place that talks to Gemini (tests replace it)."""
-    try:
-        r = httpx.post(
-            GEMINI_URL.format(model=settings.gemini_model), json=body,
-            headers={"x-goog-api-key": settings.gemini_api_key, "content-type": "application/json"},
-            timeout=settings.ai_timeout_seconds,
-        )
-    except httpx.TimeoutException:
-        raise AIError("انتهت مهلة الاتصال بالمساعد الذكي — حاول مرة أخرى (أو جرّب ملفًا أصغر)")
-    except httpx.HTTPError:
-        raise AIError("تعذّر الاتصال بخدمة الذكاء الاصطناعي")
-    if r.status_code in (400, 401, 403) and "API key" in r.text:
-        raise AIError("مفتاح الذكاء الاصطناعي على الخادم غير صالح")
-    if r.status_code == 429:
-        raise AIError("وصلنا للحد المجاني لخدمة الذكاء الاصطناعي الآن — حاول بعد دقيقة (أو غدًا إن انتهت حصة اليوم)")
-    if r.status_code >= 400:
+    """The one place that talks to Gemini (tests replace it). Free-tier models
+    are often busy (503) or rate-limited (429) and each has its own quota, so
+    on those errors the next model in the chain is tried."""
+    models_to_try = []
+    for m in [settings.gemini_model] + GEMINI_FALLBACKS:
+        if m and m not in models_to_try:
+            models_to_try.append(m)
+    last = "رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)"
+    for model in models_to_try:
+        try:
+            r = httpx.post(
+                GEMINI_URL.format(model=model), json=body,
+                headers={"x-goog-api-key": settings.gemini_api_key, "content-type": "application/json"},
+                timeout=min(settings.ai_timeout_seconds, 60),
+            )
+        except httpx.TimeoutException:
+            last = "انتهت مهلة الاتصال بالمساعد الذكي — حاول مرة أخرى (أو جرّب ملفًا أصغر)"
+            continue
+        except httpx.HTTPError:
+            last = "تعذّر الاتصال بخدمة الذكاء الاصطناعي"
+            continue
+        if r.status_code == 200:
+            return r.json()
+        if r.status_code in (400, 401, 403) and "API key" in r.text:
+            raise AIError("مفتاح الذكاء الاصطناعي على الخادم غير صالح")
+        if r.status_code == 429:
+            last = "وصلنا للحد المجاني لخدمة الذكاء الاصطناعي الآن — حاول بعد دقيقة (أو غدًا إن انتهت حصة اليوم)"
+            continue
+        if r.status_code in (404, 500, 502, 503, 504):
+            last = "خدمة الذكاء الاصطناعي مشغولة الآن — حاول بعد دقيقة"
+            continue
+        # 400 etc.: the request itself was refused (e.g. file too large) — another model won't help
         raise AIError("رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)")
-    return r.json()
+    raise AIError(last)
 
 
 def _gemini_parts(content) -> list[dict]:
