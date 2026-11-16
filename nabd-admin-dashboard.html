@@ -227,6 +227,11 @@
   .ai-draft input[type=checkbox]{width:18px; height:18px; margin-top:3px; flex:none; padding:0;}
   /* curriculum page */
   .cat-search{width:100%; max-width:340px;}
+  body.acct-full .sidebar{display:none;}
+  body.acct-full .dash-content{padding:22px clamp(16px,3vw,48px);}
+  .acct-grid{columns:2 400px; column-gap:16px;}
+  .acct-grid > .dash-card{margin:0 0 16px !important; break-inside:avoid;}
+  .acct-grid > .acct-wide{column-span:all;}
   .cat-top{margin-bottom:6px;} .cat-back{background:none; font:inherit; font-size:.82rem; font-weight:700; color:var(--accent); cursor:pointer; padding:4px 0;}
   .cat-title2{display:flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:800; margin:4px 0 16px;}
   .cat-kebab{width:28px; height:28px; border-radius:50%; background:transparent; font-size:1.1rem; line-height:1; color:var(--ink-faint); cursor:pointer;}
@@ -1733,6 +1738,7 @@
   }
 
   function showSection(id){
+    document.body.classList.remove('acct-full');
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('sec-' + id);
     if (target) target.classList.add('active');
@@ -4037,6 +4043,7 @@
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     document.getElementById('sec-account').classList.add('active');
     document.getElementById('dashTitle').textContent = 'الحسابات';
+    document.body.classList.add('acct-full');
     window.scrollTo(0, 0);
     renderAccountPage();
     if (!liveMode) return;
@@ -4046,7 +4053,7 @@
     } catch (e) { /* page still shows the account row */ }
     if (acctPageId === id) renderAccountPage();
   }
-  function closeAccountPage(){ acctPageId = null; acctEdit = false; showSection('accounts'); }
+  function closeAccountPage(){ acctPageId = null; acctEdit = false; document.body.classList.remove('acct-full'); showSection('accounts'); }
 
   async function startAccountEdit(){
     const a = allAccounts.find(x => x.id === acctPageId); if (!a) return;
@@ -4060,11 +4067,19 @@
   }
   function cancelAccountEdit(){ acctEdit = false; renderAccountPage(); }
 
+  function fmtDT(iso){
+    if (!iso) return '—';
+    const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z');
+    if (isNaN(d)) return '—';
+    const day = d.toLocaleDateString('en-GB'), t = d.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+    return `<bdi dir="ltr">${day} ${t}</bdi>`;
+  }
+
   function renderAccountPage(){
     const a = allAccounts.find(x => x.id === acctPageId);
     if (!a) return;
     const ov = acctOv, ed = acctEdit;
-    const fmt = iso => iso ? new Date(iso).toLocaleString('ar-IQ') : '—';
+    const fmt = fmtDT;
     const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:.86rem; align-items:center;"><span style="width:130px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
     const card = (title, inner) => `<div class="dash-card glass" style="margin-bottom:14px;"><div class="dash-card-head"><span class="dash-card-title">${title}</span></div>${inner}</div>`;
     const field = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.86rem;';
@@ -4113,7 +4128,7 @@
     // ---- account & security
     const security = card('الحساب والأمان',
       row('كلمة المرور', (a.has_password ? 'معيّنة' + (a.password_changed_at ? ' — آخر تغيير ' + fmt(a.password_changed_at) : '') : 'غير معيّنة (يدخل عبر Google)') +
-        (currentRole === 'admin' && a.has_password ? ` <button class="btn btn-ghost" style="padding:5px 12px; font-size:.74rem; margin-inline-start:8px;" onclick="revealAccountPassword()">إظهارها</button><div id="apShown" style="margin-top:8px;"></div>` : '')) +
+        (currentRole === 'admin' && a.has_password ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:5px 14px; font-size:.74rem;" onclick="revealAccountPassword()">إظهار كلمة المرور</button><span id="apShown"></span></div>` : '')) +
       (ov ? row('ربط Google', ov.has_google ? 'مربوط' : 'غير مربوط') : '') +
       row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
       row('الحالة', a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>') +
@@ -4127,8 +4142,11 @@
       const stats = a.role === 'student' ? row('الأسئلة المجابة', `${ov.answered}${ov.accuracy != null ? ' — دقة ' + ov.accuracy + '%' : ''}`) +
         row('الامتحانات المنجزة', `${ov.exams_done}${ov.exam_pct != null ? ' — معدل ' + ov.exam_pct + '%' : ''}`) : '';
       const subs = ov.subscriptions.length ? ov.subscriptions.map(s => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(s.subject)}</span><span class="activity-time">${s.expires_at ? 'حتى ' + fmtDate(s.expires_at) : 'بلا انتهاء'}</span></div>`).join('') : '<div class="cell-sub">لا توجد اشتراكات مفعّلة</div>';
-      const dev = `<div class="cell-sub" style="margin-bottom:6px;">${ov.devices_total} تسجيل دخول — ${ov.distinct_devices} جهاز مختلف — ${ov.distinct_ips} عنوان IP</div>` +
-        (ov.devices.map(d => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(d.label)} <span class="mono" dir="ltr" style="color:var(--ink-faint);">${esc(d.ip || 'IP غير مسجّل')}</span>${d.active ? ' <span class="badge badge-active">نشط الآن</span>' : ''}</span><span class="activity-time">${fmt(d.at)}</span></div>`).join('') || '<div class="cell-sub">لا يوجد</div>');
+      const grid = 'display:grid; grid-template-columns:minmax(120px,1.2fr) minmax(110px,1fr) minmax(120px,1fr) 70px; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--glass-border); font-size:.82rem;';
+      const dev = `<div class="cell-sub" style="margin-bottom:8px;">${ov.devices_total} تسجيل دخول — ${ov.distinct_devices} جهاز مختلف — ${ov.distinct_ips} عنوان IP</div>` +
+        (ov.devices.length ? `<div style="${grid} color:var(--ink-faint); font-size:.74rem;"><span>الجهاز</span><span>عنوان IP</span><span>وقت الدخول</span><span></span></div>` +
+          ov.devices.map(d => `<div style="${grid}"><span>${esc(d.label)}</span><span class="mono"><bdi dir="ltr">${esc(d.ip || '—')}</bdi></span><span>${fmt(d.at)}</span><span>${d.active ? '<span class="badge badge-active">نشط</span>' : ''}</span></div>`).join('')
+          : '<div class="cell-sub">لا يوجد</div>');
       const bans = ov.bans.map(b => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(b.reason)} <span class="cell-sub">(${esc(b.status)})</span></span><span class="activity-time">${fmtDate(b.at)}</span></div>`).join('');
       const logs = ov.activity.map(l => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(l.action)}</span><span class="activity-time">${fmtDate(l.at)}</span></div>`).join('');
       activity = card('النشاط', stats + row('الطلبات', `${ov.orders.count} طلب — ${fmtIQD(ov.orders.total)}`) +
@@ -4153,7 +4171,7 @@
         <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>
           <div style="margin-top:4px;">${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
       </div>
-      <div style="max-width:780px;">${identity}${study}${role}${security}${activity}${actions}</div>`;
+      <div class="acct-grid">${identity}${study}${role}${security}${activity.replace('class="dash-card glass"', 'class="dash-card glass acct-wide"')}${actions}</div>`;
     if (a.role === 'student' && ed) apInit(a);
   }
   function acctName(id){
