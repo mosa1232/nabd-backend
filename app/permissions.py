@@ -46,6 +46,7 @@ PROF_PERMS = {"prof.questions", "prof.exams", "prof.courses", "prof.booklets", "
 
 # What each role gets with no extra grants.
 ROLE_DEFAULTS: dict[str, set[str]] = {
+    "owner": set(PERMISSIONS),
     "admin": set(PERMISSIONS),
     "supervisor": {"dashboard.analytics", "users.ban", "content.manage", "catalog.manage"},
     "store_manager": {"store.manage", "resellers.manage"},
@@ -57,9 +58,9 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
 }
 
 # Roles that may open the dashboard at /admin.
-DASHBOARD_ROLES = {"admin", "supervisor", "store_manager", "professor", "assistant", "reseller", "representative"}
+DASHBOARD_ROLES = {"owner", "admin", "supervisor", "store_manager", "professor", "assistant", "reseller", "representative"}
 # Roles that may use /api/admin/* (still subject to per-route permissions).
-BACKOFFICE_ROLES = {"admin", "supervisor", "store_manager"}
+BACKOFFICE_ROLES = {"owner", "admin", "supervisor", "store_manager"}
 
 
 def parse_permissions(raw: str | None) -> set[str]:
@@ -73,7 +74,7 @@ def serialize_permissions(perms) -> str:
 def effective_permissions(role, raw_extra: str | None) -> set[str]:
     role = getattr(role, "value", role)  # accept the Role enum or its string
     base = ROLE_DEFAULTS.get(role, set())
-    if role == "admin":
+    if role in ("owner", "admin"):
         return set(PERMISSIONS)
     return set(base) | parse_permissions(raw_extra)
 

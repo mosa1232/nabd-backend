@@ -163,7 +163,7 @@ ROLE_GUIDES["representative"] = (
     "ثم ينزّل الملف (الاسم + الكود) ويوزّعه على طلابه. الطالب يوثّق حسابه بإدخال كوده فيُربط تلقائيًا بجامعته ومرحلته. "
     "الكود يُستعمل مرة واحدة فقط، ويمكنه إلغاء كود أو إعادة توليده إن لم يُستعمل. لا يرى بيانات حسابات الطلاب."
 )
-ROLE_GUIDES["supervisor"] = ROLE_GUIDES["store_manager"] = ROLE_GUIDES["admin"]
+ROLE_GUIDES["supervisor"] = ROLE_GUIDES["store_manager"] = ROLE_GUIDES["owner"] = ROLE_GUIDES["admin"]
 
 
 def _label(db, model, pk):

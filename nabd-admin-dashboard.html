@@ -197,6 +197,7 @@
   .cell-name{font-weight:700; font-size:.8rem;}
   .cell-sub{font-size:.7rem; color:var(--ink-faint); margin-top:1px;}
   .badge{display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:.66rem; font-weight:700; white-space:nowrap;}
+  .badge-owner{background:rgba(124,92,255,.14); color:#7c5cff;}
   .badge-admin{background:rgba(229,72,77,.12); color:var(--danger);}
   .badge-student{background:var(--track); color:var(--accent);}
   .badge-professor{background:rgba(31,174,114,.14); color:var(--success);}
@@ -1202,7 +1203,7 @@
   function viewAsHeader(path){
     if (path.startsWith('/api/admin/') || path.startsWith('/auth/')) return {};
     let admin = false;
-    try { admin = currentRole === 'admin'; } catch (e) { /* not signed in yet */ }
+    try { admin = currentRole === 'admin' || currentRole === 'owner'; } catch (e) { /* not signed in yet */ }
     const g = admin ? viewAsGroupOf(viewAsSection) : null;
     return g && viewAsPick[g] ? {'X-View-As': viewAsPick[g]} : {};
   }
@@ -1724,7 +1725,7 @@
   function myPerms(){
     if (liveMode && currentUser && currentUser.effective_permissions) return new Set(currentUser.effective_permissions);
     // offline preview: show everything the previewed role would
-    if (currentRole === 'admin') return new Set([...ALL_STAFF_PERMS, 'codes.view', 'codes.generate', ...PROF_PERM_LIST]);
+    if (currentRole === 'admin' || currentRole === 'owner') return new Set([...ALL_STAFF_PERMS, 'codes.view', 'codes.generate', ...PROF_PERM_LIST]);
     if (currentRole === 'professor') return new Set(PROF_PERM_LIST);
     if (currentRole === 'reseller') return new Set(['codes.view', 'codes.generate']);
     return new Set();
@@ -1734,7 +1735,7 @@
     const p = myPerms();
     if (item.perm === 'any') return PROF_PERM_LIST.some(x => p.has(x));
     if (item.perm === 'owner') return currentRole === 'professor';
-    if (item.perm === 'viewas') return currentRole === 'admin';
+    if (item.perm === 'viewas') return currentRole === 'admin' || currentRole === 'owner';
     if (item.perm === 'codes.any') return p.has('codes.view') || p.has('codes.generate');
     return p.has(item.perm);
   }
@@ -1789,11 +1790,12 @@
     {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'viewas', group:'لوحة الممثل العام'},
   ];
   const ROLE_NAV = {
+    owner: STAFF_NAV.concat(VIEWAS_NAV),
     admin: STAFF_NAV.concat(VIEWAS_NAV), supervisor: STAFF_NAV, store_manager: STAFF_NAV,
     professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV, representative: REP_NAV,
   };
   const ROLE_LABELS = {
-    admin:'المشرف (أدمن)', supervisor:'سوبر فايزر', store_manager:'مدير المتجر',
+    owner:'المالك', admin:'المشرف (أدمن)', supervisor:'سوبر فايزر', store_manager:'مدير المتجر',
     professor:'لوحة الدكتور', assistant:'مساعد الدكتور', reseller:'لوحة المندوب', representative:'الممثل العام',
   };
   // `roles[x]` stays the lookup the rest of this file already uses (existence
@@ -1858,7 +1860,7 @@
     document.getElementById('dashTitle').textContent = item ? item.label : '';
     closeSidebarMobile();
     viewAsSection = id;
-    if (currentRole === 'admin' && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
+    if ((currentRole === 'admin' || currentRole === 'owner') && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
     document.getElementById('viewAsBar').style.display = 'none';
     loadSection(id);
   }
@@ -1894,7 +1896,7 @@
   function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleDateString('ar-IQ', {day:'numeric', month:'short'}); }
   function initialsOf(name){ return (name||'').trim().split(' ').map(w=>w[0]).slice(0,2).join(''); }
   function roleBadge(role){
-    const map = {admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور', representative:'ممثل عام'};
+    const map = {owner:'المالك', admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور', representative:'ممثل عام'};
     return `<span class="badge badge-${role}">${map[role]||role}</span>`;
   }
   // Weekday label for a YYYY-MM-DD string, so a real per-day series can
@@ -2007,8 +2009,8 @@
   let allAccounts = [];
   let allCatalogRows = [];
   async function loadAccounts(){
-    const chips = ['all','admin','supervisor','store_manager','professor','assistant','reseller','representative','student'];
-    const labels = {all:'الكل', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', representative:'ممثلون', student:'طلاب'};
+    const chips = ['all','owner','admin','supervisor','store_manager','professor','assistant','reseller','representative','student'];
+    const labels = {all:'الكل', owner:'المالك', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', representative:'ممثلون', student:'طلاب'};
     document.getElementById('accountFilters').innerHTML = chips.map(c => `
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
@@ -2299,10 +2301,12 @@
     {value: 'store_manager', label: 'مدير المتجر'},
     {value: 'supervisor', label: 'سوبر فايزر'},
     {value: 'admin', label: 'أدمن (مشرف المنصة)'},
+    {value: 'owner', label: 'المالك (كل الصلاحيات)'},
   ];
   // Only a full admin may create or edit admins, supervisors and store
   // managers — everyone else with account access sees just the other roles.
-  const roleOptionsForMe = () => currentRole === 'admin' ? ROLE_OPTIONS
+  const roleOptionsForMe = () => currentRole === 'owner' ? ROLE_OPTIONS
+    : currentRole === 'admin' ? ROLE_OPTIONS.filter(o => o.value !== 'owner')
     : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
   const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({value: c, label: PERM_LABELS[c]}));
   // Where a representative works: a college inside a university (and
@@ -4204,7 +4208,7 @@
   }
 
   // ===== ADMIN: full account details =====
-  const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
+  const ROLE_NAME = {owner: 'المالك', admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
   // ===== ADMIN: full-page account (view + edit in place) =====
   let acctFrom = 'accounts', lastSectionId = 'accounts';
   let acctPageId = null, acctTree = null, acctEdit = false, acctOv = null, acctOpts = null;
@@ -4302,7 +4306,7 @@
     // ---- account & security
     const security = card('الحساب والأمان',
       row('كلمة المرور', (a.has_password ? 'معيّنة' + (a.password_changed_at ? ' — آخر تغيير ' + fmt(a.password_changed_at) : '') : 'غير معيّنة (يدخل عبر Google)') +
-        (currentRole === 'admin' && a.has_password ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:5px 14px; font-size:.74rem;" onclick="revealAccountPassword()">إظهار كلمة المرور</button><span id="apShown"></span></div>` : '')) +
+        ((currentRole === 'admin' || currentRole === 'owner') && a.has_password ? `<div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><button class="btn btn-ghost" style="padding:5px 14px; font-size:.74rem;" onclick="revealAccountPassword()">إظهار كلمة المرور</button><span id="apShown"></span></div>` : '')) +
       (ov ? row('ربط Google', ov.has_google ? 'مربوط' : 'غير مربوط') : '') +
       row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
       row('الحالة', a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>') +
@@ -4329,7 +4333,7 @@
         (logs ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الإجراءات</div>${logs}` : ''));
     }
 
-    const actionBtns = (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`) : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
+    const actionBtns = (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`) : (['admin', 'owner'].includes(a.role) ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
       (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '');
     const actions = (ed || !actionBtns) ? '' : card('إجراءات', `<div style="display:flex; gap:8px; flex-wrap:wrap;">${actionBtns}</div>`);
 

@@ -17,6 +17,7 @@ def gen_id() -> str:
 class Role(str, enum.Enum):
     student = "student"
     professor = "professor"
+    owner = "owner"                  # المالك: كل شيء مفتوح، وهو وحده يدير المدراء
     admin = "admin"
     reseller = "reseller"
     supervisor = "supervisor"        # سوبر فايزر

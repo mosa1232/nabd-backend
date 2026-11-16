@@ -59,7 +59,7 @@ def _should_bootstrap_admin(db: Session, email: str) -> bool:
     expected = (settings.bootstrap_admin_email or "").strip().lower()
     if not expected or email.strip().lower() != expected:
         return False
-    return db.query(models.User).filter(models.User.role == models.Role.admin).first() is None
+    return db.query(models.User).filter(models.User.role.in_([models.Role.admin, models.Role.owner])).first() is None
 
 
 MAX_FAILED_ATTEMPTS = 5
@@ -97,7 +97,7 @@ def _find_or_create_user(db: Session, email: str, name: str, sub: str) -> models
         # on sign-in while the platform still has no admin, so there's never
         # a dead end with no way into the admin dashboard — without handing
         # the role to whoever happens to sign in first.
-        if user.role != models.Role.admin and _should_bootstrap_admin(db, email):
+        if user.role not in (models.Role.admin, models.Role.owner) and _should_bootstrap_admin(db, email):
             user.role = models.Role.admin
             db.commit()
         return user
@@ -129,7 +129,7 @@ def _issue_session_and_redirect(db: Session, user: models.User, device_label: st
 # `roles` map on the dashboard's own side (nabd-admin-dashboard.html), which
 # rejects anything else with the same message this returns via #google_error.
 ADMIN_DASHBOARD_ROLES = {
-    models.Role.admin, models.Role.supervisor, models.Role.store_manager,
+    models.Role.owner, models.Role.admin, models.Role.supervisor, models.Role.store_manager,
     models.Role.professor, models.Role.assistant, models.Role.reseller, models.Role.representative,
 }
 

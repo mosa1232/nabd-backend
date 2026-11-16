@@ -43,9 +43,9 @@ def get_current_user_allow_banned(
     # dashboard by naming that account in X-View-As. The request then runs as
     # that account (its data, its permissions); nobody else may use this header.
     view_as = request.headers.get("x-view-as")
-    if view_as and user.role == models.Role.admin and view_as != user.id:
+    if view_as and user.role in (models.Role.owner, models.Role.admin) and view_as != user.id:
         target = db.get(models.User, view_as)
-        if target and target.role != models.Role.admin:
+        if target and target.role not in (models.Role.owner, models.Role.admin):
             target._viewed_by = user.id
             user = target
     # A doctor who teaches several subjects (possibly in different departments)
@@ -97,7 +97,7 @@ def admin_gate(request: Request, user: models.User = Depends(get_current_user)) 
         raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية الوصول")
     needed = permissions.required_admin_permission(request.url.path)
     if needed is None:
-        if user.role != models.Role.admin:
+        if user.role not in (models.Role.owner, models.Role.admin):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "هذا الإجراء للمدير فقط")
     elif needed not in user_permissions(user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "لا تملك صلاحية لهذا الإجراء")

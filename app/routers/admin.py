@@ -170,13 +170,18 @@ def list_users(role: str | None = None, db: Session = Depends(get_db)):
 
 
 # Roles only a full admin may hand out or take away.
-PRIVILEGED_ROLES = {models.Role.admin.value, models.Role.supervisor.value, models.Role.store_manager.value}
+PRIVILEGED_ROLES = {models.Role.owner.value, models.Role.admin.value, models.Role.supervisor.value, models.Role.store_manager.value}
 
 
 def _guard_role_change(actor: models.User, new_role: str, existing: models.User | None = None) -> None:
     """A staff member who may manage accounts (users.manage) still must not be
     able to mint admins or edit one — that would make the permission system
     pointless."""
+    if actor.role == models.Role.owner:
+        return
+    # Only the owner may create, edit or remove an owner.
+    if new_role == models.Role.owner.value or (existing is not None and existing.role == models.Role.owner):
+        raise HTTPException(403, "حساب المالك لا يعدّله إلا المالك")
     if actor.role == models.Role.admin:
         return
     if new_role in PRIVILEGED_ROLES or (existing is not None and existing.role.value in PRIVILEGED_ROLES):
@@ -380,8 +385,8 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
     if body.role not in VALID_ROLES:
         raise HTTPException(400, "دور غير صالح")
     _guard_role_change(actor, body.role, user)
-    if user.role == models.Role.admin and body.role != models.Role.admin.value:
-        if db.query(models.User).filter(models.User.role == models.Role.admin, models.User.id != user.id).count() == 0:
+    if user.role in (models.Role.admin, models.Role.owner) and body.role not in (models.Role.admin.value, models.Role.owner.value):
+        if db.query(models.User).filter(models.User.role.in_([models.Role.admin, models.Role.owner]), models.User.id != user.id).count() == 0:
             raise HTTPException(400, "لا يمكن إزالة آخر مدير في المنصة")
     dup = db.query(models.User).filter(models.User.email == body.email.strip(), models.User.id != user_id).first()
     if dup:
@@ -618,7 +623,7 @@ def reveal_user_password(user_id: str, db: Session = Depends(get_db), actor: mod
     """Shows the password the account is currently using, if the server has it
     (it is captured when the password is set or the user signs in with it).
     Full admins only; every reveal is written to the activity log."""
-    if actor.role != models.Role.admin:
+    if actor.role not in (models.Role.owner, models.Role.admin):
         raise HTTPException(403, "عرض كلمة المرور للمدير فقط")
     user = db.get(models.User, user_id)
     if not user:
