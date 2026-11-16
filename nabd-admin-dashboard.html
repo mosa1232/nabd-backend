@@ -802,6 +802,47 @@
         </div>
       </section>
 
+      <!-- ===== RESELLER: Overview ===== -->
+      <section class="dash-section" id="sec-r-overview">
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="kpi-card glass"><div class="kpi-label">أكواد متاحة</div><div class="kpi-value mono" id="rKpiAvailable">—</div></div>
+          <div class="kpi-card glass"><div class="kpi-label">أكواد مباعة</div><div class="kpi-value mono" id="rKpiSold">—</div></div>
+          <div class="kpi-card glass"><div class="kpi-label">أكواد مفعّلة</div><div class="kpi-value mono" id="rKpiActivated">—</div></div>
+        </div>
+        <div class="dash-card glass">
+          <div class="dash-card-head"><span class="dash-card-title">المبيعات آخر 7 أيام</span></div>
+          <div class="bar-chart" id="resellerBars"></div>
+        </div>
+      </section>
+
+      <!-- ===== RESELLER: Sales ===== -->
+      <section class="dash-section" id="sec-r-sales">
+        <div class="dash-card glass">
+          <div class="dash-card-head"><span class="dash-card-title">سجل المبيعات</span></div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>الكود</th><th>الحالة</th><th>تاريخ البيع</th></tr></thead>
+              <tbody id="resellerCodesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== RESELLER: Codes (self-service) ===== -->
+      <section class="dash-section" id="sec-r-codes">
+        <div class="dash-card glass">
+          <div id="rQuotaInfo" class="item-meta" style="margin-bottom:10px;"></div>
+          <button class="btn" id="rTakeBtn" style="margin-bottom:12px;" onclick="promptTakeCode()">+ أخذ كود</button>
+          <div class="dash-card-head"><span class="dash-card-title">الأكواد</span></div>
+          <div class="table-wrap">
+            <table class="dash-table">
+              <thead><tr><th>الكود</th><th>المادة</th><th>الحالة</th><th>تاريخ البيع</th></tr></thead>
+              <tbody id="rCodesFullBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ===== PROFESSOR / ASSISTANT: question bank ===== -->
       <section class="dash-section" id="sec-p-questions">
         <div class="dash-card glass">
@@ -1958,6 +1999,57 @@
     'r-overview': loadResellerOverview, 'r-sales': loadResellerSales, 'r-codes': loadResellerCodes,
     store: loadStore,
   };
+  // ---------- doctor / reseller / representative pages: KPI strip + live search ----------
+  // The page tables keep their own renderers; this adds, on top of each one, a
+  // strip of real numbers and a search box that filters the rows on screen.
+  function kpiHost(sectionId){
+    const sec = document.getElementById('sec-' + sectionId);
+    let host = document.getElementById('kpi-' + sectionId);
+    if (!host){ host = document.createElement('div'); host.id = 'kpi-' + sectionId; host.className = 'st-kpis'; sec.insertBefore(host, sec.firstChild); }
+    return host;
+  }
+  function tableSearch(tbodyId, placeholder){
+    const tbody = document.getElementById(tbodyId); if (!tbody) return;
+    const wrap = tbody.closest('.table-wrap'); if (!wrap) return;
+    let box = document.getElementById('ts-' + tbodyId);
+    if (!box){
+      box = document.createElement('input'); box.type = 'text'; box.id = 'ts-' + tbodyId; box.className = 'search-input'; box.placeholder = placeholder || 'ابحث...';
+      box.style.cssText = 'width:100%; margin-bottom:12px;';
+      box.oninput = () => { const q = box.value.trim().toLowerCase(); tbody.querySelectorAll('tr').forEach(tr => { tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+      wrap.parentNode.insertBefore(box, wrap);
+    } else box.oninput();
+  }
+  const fmtHours = sec => sec >= 3600 ? (sec / 3600).toFixed(1) + ' ساعة' : Math.round(sec / 60) + ' دقيقة';
+  const PANEL_DECOR = {
+    'p-booklets': async () => { const d = await fetchProfDashboard(); const b = d.booklets || [];
+      kpiHost('p-booklets').innerHTML = kpiRow([['الملازم', numAr(b.length)], ['مجموع الصفحات', numAr(b.reduce((a, x) => a + (x.pages || 0), 0))], ['بدون ملف مرفوع', numAr(b.filter(x => !x.file_url).length), b.some(x => !x.file_url) ? 'ارفع ملفها ليراها الطلاب' : '']]);
+      tableSearch('pBookletsBody', 'ابحث في عناوين الملازم...'); },
+    'p-exams': async () => { const d = await fetchProfDashboard(); const e = d.exams || [];
+      kpiHost('p-exams').innerHTML = kpiRow([['الامتحانات', numAr(e.length)], ['نظري', numAr(e.filter(x => x.exam_type !== 'practical').length)], ['عملي (صور)', numAr(e.filter(x => x.exam_type === 'practical').length)], ['مجموع الأسئلة', numAr(e.reduce((a, x) => a + (x.question_count || 0), 0))]]);
+      tableSearch('pExamsBody', 'ابحث في عناوين الامتحانات...'); },
+    'p-courses': async () => { const c = myCourses || []; const lec = c.flatMap(x => x.lectures || []);
+      kpiHost('p-courses').innerHTML = kpiRow([['الكورسات', numAr(c.length)], ['المحاضرات', numAr(lec.length)], ['بدون فيديو', numAr(lec.filter(l => !l.video_url).length), lec.some(l => !l.video_url) ? 'ارفع الفيديو ليظهر للطلاب' : ''], ['المدة الكلية', fmtHours(lec.reduce((a, l) => a + (l.duration_seconds || 0), 0))]]);
+      tableSearch('pCoursesBody', 'ابحث في الكورسات...'); },
+    'p-pearls': async () => { const pl = myPearls || []; const tags = {}; pl.forEach(x => { if (x.tag) tags[x.tag] = (tags[x.tag] || 0) + 1; });
+      kpiHost('p-pearls').innerHTML = kpiRow([['اللمحات', numAr(pl.length)], ['التصنيفات', numAr(Object.keys(tags).length)], ['الأكثر تصنيفًا', Object.entries(tags).sort((a, b) => b[1] - a[1])[0]?.[0] || '—']]);
+      tableSearch('pPearlsBody', 'ابحث في اللمحات...'); },
+    'p-assistants': async () => { const a = myAssistants || [];
+      kpiHost('p-assistants').innerHTML = kpiRow([['المساعدون', numAr(a.length)], ['بلا صلاحيات', numAr(a.filter(x => !(x.permissions || []).length).length), 'لا يستطيعون فعل شيء']]);
+      tableSearch('pAssistantsBody', 'ابحث باسم المساعد...'); },
+    'r-codes': async () => { let codes = []; try { if (can('codes.view')) codes = await apiFetch('/api/reseller/codes'); } catch (e) {}
+      kpiHost('r-codes').innerHTML = kpiRow([['إجمالي الأكواد', numAr(codes.length)], ['متاحة', numAr(codes.filter(c => c.status === 'idle').length), 'غير مباعة'], ['مباعة', numAr(codes.filter(c => c.sold_at).length)], ['مفعّلة', numAr(codes.filter(c => c.status === 'active').length)]]);
+      tableSearch('rCodesFullBody', 'ابحث بالكود أو المادة...'); },
+    'r-sales': async () => { let codes = []; try { codes = await apiFetch('/api/reseller/codes'); } catch (e) {}
+      const sold = codes.filter(c => c.sold_at), week = Date.now() - 7 * 864e5;
+      kpiHost('r-sales').innerHTML = kpiRow([['مباعة', numAr(sold.length)], ['مباعة آخر 7 أيام', numAr(sold.filter(c => new Date(/[zZ]/.test(c.sold_at) ? c.sold_at : c.sold_at + 'Z') >= week).length)], ['فعّلها الطلاب', numAr(sold.filter(c => c.status === 'active').length), pc(sold.length ? Math.round(100 * sold.filter(c => c.status === 'active').length / sold.length) : null) + ' من المباع']]);
+      tableSearch('resellerCodesBody', 'ابحث بالكود...'); },
+    'rep-codes': async () => { tableSearch('repBatchesBody', 'ابحث في الدفعات...'); },
+  };
+  Object.entries(PANEL_DECOR).forEach(([id, deco]) => {
+    const base = sectionLoaders[id];
+    sectionLoaders[id] = async () => { try { if (base) await base(); await deco(); } catch (e) { /* the page itself still rendered */ } };
+  });
+
   function loadSection(id){
     const fn = sectionLoaders[id];
     if (fn) fn();
