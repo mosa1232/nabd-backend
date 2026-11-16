@@ -32,8 +32,18 @@ class StatusIn(BaseModel):
     status: str
 
 
-def _msg(m: models.SupportMessage) -> dict:
-    return {"id": m.id, "from_staff": bool(m.from_staff), "body": m.body, "at": m.created_at}
+def _msg(m: models.SupportMessage, people: dict | None = None) -> dict:
+    out = {"id": m.id, "from_staff": bool(m.from_staff), "body": m.body, "at": m.created_at}
+    if m.from_staff and people is not None:
+        who = people.get(m.sender_id)
+        out["staff_name"] = who.full_name if who else None
+        out["staff_photo"] = who.photo_url if who else None
+    return out
+
+
+def _people(db: Session, msgs) -> dict:
+    ids = {m.sender_id for m in msgs if m.from_staff and m.sender_id}
+    return {u.id: u for u in db.query(models.User).filter(models.User.id.in_(ids)).all()} if ids else {}
 
 
 def _clean(body: str) -> str:
@@ -55,7 +65,8 @@ def my_thread(db: Session = Depends(get_db), user: models.User = Depends(get_cur
     thread.student_unread = 0
     db.commit()
     msgs = db.query(models.SupportMessage).filter(models.SupportMessage.thread_id == thread.id).order_by(models.SupportMessage.created_at.asc()).limit(300).all()
-    return {"thread": {"id": thread.id, "status": thread.status}, "messages": [_msg(m) for m in msgs]}
+    ppl = _people(db, msgs)
+    return {"thread": {"id": thread.id, "status": thread.status}, "messages": [_msg(m, ppl) for m in msgs]}
 
 
 @student_router.post("/messages")
@@ -127,13 +138,14 @@ def get_thread(thread_id: str, db: Session = Depends(get_db)):
     t.staff_unread = 0
     db.commit()
     msgs = db.query(models.SupportMessage).filter(models.SupportMessage.thread_id == t.id).order_by(models.SupportMessage.created_at.asc()).limit(500).all()
+    ppl = _people(db, msgs)
     uni = db.get(models.University, u.university_id) if u.university_id else None
     stage = db.get(models.Stage, u.stage_id) if u.stage_id else None
     return {
         "id": t.id, "status": t.status,
         "student": {"id": u.id, "name": u.full_name, "email": u.email, "phone": u.phone, "role": u.role.value,
                     "university": uni.name if uni else None, "stage": stage.name if stage else None, "banned": bool(u.is_banned)},
-        "messages": [_msg(m) | {"mine": False} for m in msgs],
+        "messages": [_msg(m, ppl) for m in msgs],
     }
 
 

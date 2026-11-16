@@ -154,6 +154,10 @@
   .nav-item:hover:not(.active){background:var(--track);}
   .sidebar-footer{margin-top:auto; padding-top:14px; border-top:1px solid var(--glass-border);}
   .admin-mini{display:flex; align-items:center; gap:10px; padding:8px; border-radius:13px;}
+  .admin-mini:hover{background:var(--track);}
+  .admin-mini-avatar img, .cell-avatar img, .cat-avatar img, .me-avatar img{width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block;}
+  .admin-mini-avatar{overflow:hidden;}
+  .me-avatar{width:104px; height:104px; border-radius:28px; overflow:hidden; display:grid; place-items:center; background:linear-gradient(145deg,var(--accent),var(--accent-2)); color:#fff; font-weight:800; font-size:2rem; flex:none; position:relative;}
   .admin-mini-avatar{width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:linear-gradient(145deg, var(--accent), var(--accent-2)); color:#fff; font-weight:700; font-size:.72rem; flex:none;}
   .admin-mini-name{font-size:.78rem; font-weight:700;}
   .admin-mini-role{font-size:.68rem; color:var(--ink-faint);}
@@ -481,9 +485,9 @@
     <nav id="sidebarNav" style="display:flex; flex-direction:column; gap:3px;"></nav>
 
     <div class="sidebar-footer">
-      <div class="admin-mini">
+      <div class="admin-mini" onclick="openMyProfile()" style="cursor:pointer;" title="ملفي الشخصي">
         <div class="admin-mini-avatar" id="miniAvatar">؟</div>
-        <div>
+        <div style="min-width:0;">
           <div class="admin-mini-name" id="miniName">—</div>
           <div class="admin-mini-role" id="miniRole">—</div>
         </div>
@@ -524,6 +528,9 @@
         <div class="st-head"><div class="st-tabs" id="stTabs"></div><div class="st-period" id="stPeriod"></div></div>
         <div id="stBody"></div>
       </section>
+
+      <!-- ===== MY PROFILE ===== -->
+      <section class="dash-section" id="sec-me"><div id="meBox"></div></section>
 
       <!-- ===== ADMIN: Support inbox ===== -->
       <section class="dash-section" id="sec-support"><div class="dash-card glass" id="supportBox"></div></section>
@@ -1697,7 +1704,7 @@
     document.getElementById('liveBadgeDot').className = 'status-dot ' + (liveMode ? 'live' : 'offline');
     document.getElementById('liveBadgeText').textContent = liveMode ? 'بيانات حقيقية' : 'معاينة بدون اتصال';
     document.getElementById('miniName').textContent = currentUser.full_name;
-    document.getElementById('miniAvatar').textContent = currentUser.full_name.trim().split(' ').map(w => w[0]).slice(0,2).join('');
+    paintMiniProfile();
     switchRole(role);
     aiShowFab(liveMode);
   }
@@ -2167,6 +2174,113 @@
     } catch (e) { body.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الإحصائيات')}</div>`; }
   }
 
+  // ===== My profile (every staff account: photo, name, phone, bio, password, devices) =====
+  const photoUrl = u => u && u.photo_url ? (u.photo_url.startsWith('http') ? u.photo_url : API_BASE_URL + u.photo_url) : '';
+  // avatar content for any account: the photo when there is one, else initials
+  const avatarInner = u => photoUrl(u) ? `<img src="${esc(photoUrl(u))}" alt="" loading="lazy" />` : esc(initialsOf((u && (u.full_name || u.name)) || '؟'));
+  function paintMiniProfile(){
+    if (!currentUser) return;
+    document.getElementById('miniAvatar').innerHTML = avatarInner(currentUser);
+    document.getElementById('miniName').textContent = currentUser.full_name;
+  }
+  async function openMyProfile(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    document.querySelectorAll('.dash-section').forEach(x => x.classList.remove('active'));
+    document.getElementById('sec-me').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('dashTitle').textContent = 'ملفي الشخصي';
+    lastSectionId = 'me'; viewAsSection = 'me';
+    closeSidebarMobile();
+    window.scrollTo(0, 0);
+    renderMyProfile();
+    try { const sess = await apiFetch('/auth/me/sessions'); renderMySessions(sess); } catch (e) {}
+    if (can('dashboard.analytics')){ try { const d = await apiFetch(`/api/admin/logs/search?user_id=${currentUser.id}&limit=8`); renderMyActivity(d.items); } catch (e) {} }
+  }
+  function renderMyProfile(){
+    const u = currentUser, box = document.getElementById('meBox');
+    const field = 'width:100%; padding:11px 13px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.88rem;';
+    const lab = t => `<label style="display:block; font-size:.76rem; font-weight:700; margin:12px 0 6px;">${t}</label>`;
+    const card = (title, inner, id) => `<div class="dash-card glass" style="margin-bottom:16px;" ${id ? `id="${id}"` : ''}><div class="dash-card-head"><span class="dash-card-title">${title}</span></div>${inner}</div>`;
+    box.innerHTML = `<div class="acct-cols">
+      <div class="acct-col">
+        ${card('بياناتي', `
+          <div style="display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+            <div class="me-avatar" id="meAvatar">${avatarInner(u)}</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button class="btn" onclick="document.getElementById('mePhotoInput').click()">${u.photo_url ? 'تغيير الصورة' : 'رفع صورة'}</button>
+              ${u.photo_url ? '<button class="btn btn-ghost" style="color:var(--danger);" onclick="removeMyPhoto()">إزالة الصورة</button>' : ''}
+              <span class="cell-sub">صورة مربعة أوضح (JPG أو PNG).</span>
+              <input type="file" id="mePhotoInput" accept="image/*" style="display:none;" onchange="uploadMyAdminPhoto(this.files[0])" />
+            </div>
+          </div>
+          ${lab('الاسم الكامل')}<input id="meName" type="text" maxlength="120" value="${esc(u.full_name)}" style="${field}" />
+          ${lab('رقم الهاتف')}<input id="mePhone" type="tel" maxlength="30" dir="ltr" value="${esc(u.phone || '')}" placeholder="07xxxxxxxxx" style="${field} text-align:start;" />
+          ${lab('المسمى أو نبذة قصيرة (تظهر للطلاب عند ردّك على رسائلهم)')}<input id="meCaption" type="text" maxlength="200" value="${esc(u.caption || '')}" placeholder="مثال: مشرف الدعم" style="${field}" />
+          ${lab('البريد الإلكتروني')}<input type="text" dir="ltr" value="${esc(u.email)}" disabled style="${field} opacity:.7; text-align:start;" />
+          ${u.username ? `${lab('اسم المستخدم')}<input type="text" dir="ltr" value="${esc(u.username)}" disabled style="${field} opacity:.7; text-align:start;" />` : ''}
+          <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">${roleBadge(u.role)}<span class="cell-sub">انضممت ${u.created_at ? fmtDT(u.created_at) : '—'}</span></div>
+          <button class="btn" style="margin-top:16px;" onclick="saveMyProfile()">حفظ التغييرات</button>`)}
+      </div>
+      <div class="acct-col">
+        ${card('كلمة المرور والأمان', `
+          <div class="cell-sub" style="margin-bottom:6px;">${u.has_password ? 'غيّر كلمة مرورك. سيُسجَّل خروجك من أجهزتك الأخرى.' : 'حسابك يدخل عبر Google — تقدر تحدد كلمة مرور أيضًا.'}</div>
+          ${u.has_password ? `${lab('كلمة المرور الحالية')}<input id="mePwOld" type="password" autocomplete="current-password" style="${field}" />` : ''}
+          ${lab('كلمة المرور الجديدة (8 أحرف على الأقل)')}<input id="mePwNew" type="password" autocomplete="new-password" style="${field}" />
+          ${lab('أعد كتابتها')}<input id="mePwNew2" type="password" autocomplete="new-password" style="${field}" />
+          <button class="btn" style="margin-top:14px;" onclick="changeMyPassword()">تغيير كلمة المرور</button>
+          <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--glass-border); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="flex:1;"><b>التحقق بخطوتين</b><span class="cell-sub" style="display:block;">${u.totp_enabled ? 'مفعّل ✓' : 'غير مفعّل — يُنصح بتفعيله لحسابات الإدارة'}</span></span>
+            <button class="btn btn-ghost" onclick="openSecuritySettings()">${u.totp_enabled ? 'إدارته' : 'تفعيله'}</button>
+          </div>`)}
+        ${card('أجهزتي', '<div id="meSessions"><div class="empty-row">جارٍ التحميل…</div></div>')}
+        ${can('dashboard.analytics') ? card('آخر نشاطي', '<div id="meActivity"><div class="empty-row">جارٍ التحميل…</div></div>') : ''}
+      </div></div>`;
+  }
+  function renderMySessions(list){
+    const el = document.getElementById('meSessions'); if (!el) return;
+    el.innerHTML = list.map(x => `<div style="display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:.84rem;">
+      <span style="flex:1;"><b>${esc(x.device_label)}</b><span class="cell-sub mono" dir="ltr" style="display:block; text-align:start;">${esc(x.ip_address || 'IP غير مسجّل')}</span></span>
+      <span class="cell-sub">${fmtDT(x.created_at)}</span><span class="badge badge-active">نشط</span></div>`).join('') || '<div class="empty-row">لا يوجد</div>';
+  }
+  function renderMyActivity(items){
+    const el = document.getElementById('meActivity'); if (!el) return;
+    el.innerHTML = items.map(x => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(x.action)}</span><span class="activity-time">${ago(x.at)}</span></div>`).join('') || '<div class="empty-row">لا يوجد نشاط مسجّل</div>';
+  }
+  async function saveMyProfile(){
+    const name = document.getElementById('meName').value.trim();
+    if (name.length < 2){ showToast('الاسم مطلوب', 'error'); return; }
+    try {
+      currentUser = await apiFetch('/auth/me/basic', {method: 'PUT', body: JSON.stringify({full_name: name, phone: document.getElementById('mePhone').value, caption: document.getElementById('meCaption').value})});
+      paintMiniProfile(); showToast('تم حفظ بياناتك');
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
+  }
+  async function uploadMyAdminPhoto(file){
+    if (!file) return;
+    const form = new FormData(); form.append('file', file);
+    try {
+      const res = await fetch(API_BASE_URL + '/auth/me/photo', {method: 'POST', credentials: 'include', headers: {'Authorization': 'Bearer ' + authToken}, body: form});
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw {detail: typeof data.detail === 'string' ? data.detail : 'تعذّر رفع الصورة'};
+      currentUser = data; paintMiniProfile(); renderMyProfile(); showToast('تم تحديث صورتك');
+      apiFetch('/auth/me/sessions').then(renderMySessions).catch(() => {});
+    } catch (e) { showToast(e.detail || 'تعذّر رفع الصورة', 'error'); }
+  }
+  async function removeMyPhoto(){
+    if (!await confirmModal('إزالة صورتك الشخصية؟')) return;
+    try { currentUser = await apiFetch('/auth/me/photo', {method: 'DELETE'}); paintMiniProfile(); renderMyProfile(); showToast('أُزيلت الصورة'); }
+    catch (e) { showToast(e.detail || 'تعذّرت الإزالة', 'error'); }
+  }
+  async function changeMyPassword(){
+    const n1 = document.getElementById('mePwNew').value, n2 = document.getElementById('mePwNew2').value, old = document.getElementById('mePwOld')?.value || '';
+    if (n1.length < 8){ showToast('كلمة المرور الجديدة 8 أحرف على الأقل', 'error'); return; }
+    if (n1 !== n2){ showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
+    try {
+      await apiFetch('/auth/change-password', {method: 'POST', body: JSON.stringify({current_password: old, new_password: n1})});
+      ['mePwOld', 'mePwNew', 'mePwNew2'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+      currentUser = await apiFetch('/auth/me'); showToast('تم تغيير كلمة المرور');
+    } catch (e) { showToast(e.detail || 'تعذّر التغيير', 'error'); }
+  }
+
   // ===== Support inbox (المحادثات مع الطلاب) =====
   let supportFilter = 'open', supportOpen = null, supportTimer = null, supportSig = '';
   async function refreshSupportBadge(){
@@ -2233,7 +2347,7 @@
         <div><div style="font-size:1.15rem; font-weight:800;">${esc(st.name)} ${d.status === 'closed' ? '<span class="badge">مغلقة</span>' : ''}</div>
           <div class="cell-sub" dir="auto">${esc(st.email)}${st.phone ? ' · ' + esc(st.phone) : ''}${st.university ? ' · ' + esc(st.university) : ''}${st.stage ? ' · ' + esc(st.stage) : ''}${st.banned ? ' · <b style="color:var(--danger)">محظور</b>' : ''}</div></div>
       </div>
-      <div class="sup-msgs" id="supMsgs">${d.messages.map(m => `<div class="sup-msg ${m.from_staff ? 'staff' : 'student'}">${esc(m.body)}<small>${m.from_staff ? 'الدعم · ' : ''}${fmtDT(m.at)}</small></div>`).join('')}</div>
+      <div class="sup-msgs" id="supMsgs">${d.messages.map(m => `<div class="sup-msg ${m.from_staff ? 'staff' : 'student'}">${esc(m.body)}<small>${m.from_staff ? esc(m.staff_name || 'الدعم') + ' · ' : ''}${fmtDT(m.at)}</small></div>`).join('')}</div>
       <div style="display:flex; gap:8px; margin-top:12px; align-items:flex-end;">
         <textarea id="supInput" rows="2" maxlength="2000" placeholder="اكتب ردّك... (Enter للإرسال، Shift+Enter لسطر جديد)" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupportReply('${d.id}');}"
           style="flex:1; padding:12px 14px; border-radius:14px; border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; resize:vertical;"></textarea>
@@ -2295,9 +2409,9 @@
   }
   function personCard(a, sub){
     return `<div class="cat-card" onclick="showAccountDetails('${a.id}')">
-      <div class="cat-avatar">${esc(initialsOf(a.full_name).charAt(0) || '?')}</div>
+      <div class="cat-avatar">${avatarInner(a)}</div>
       <div class="cat-card-name">${esc(a.full_name)}</div>
-      <div class="cat-card-sub" dir="auto">${sub !== undefined ? sub : esc(a.email)}</div>
+      <div class="cat-card-sub" dir="auto">${sub !== undefined ? sub : esc(a.caption ? a.caption : a.email)}</div>
       <div>${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : ''}</div></div>`;
   }
   function renderRoles(){
@@ -2373,7 +2487,7 @@
     };
     box.innerHTML = `<div class="cat-grid">${list.map(a => `
       <div class="cat-card" onclick="showAccountDetails('${a.id}')">
-        <div class="cat-avatar">${esc(initialsOf(a.full_name).charAt(0) || '?')}</div>
+        <div class="cat-avatar">${avatarInner(a)}</div>
         <div class="cat-card-name">${esc(a.full_name)}</div>
         <div class="cat-card-sub">${sub(a)}</div>
         <div>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div>
@@ -5044,8 +5158,8 @@
           : `<button class="btn" onclick="startAccountEdit()">تعديل</button>`}</span>
       </div>
       <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
-        <div class="cell-avatar" style="background:var(--accent); width:60px; height:60px; font-size:1.3rem;">${initialsOf(a.full_name)}</div>
-        <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>
+        <div class="cell-avatar" style="background:var(--accent); width:60px; height:60px; font-size:1.3rem;">${avatarInner(a)}</div>
+        <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>${a.caption ? `<div class="cell-sub">${esc(a.caption)}</div>` : ''}
           <div style="margin-top:4px;">${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
       </div>
       <div class="acct-cols">

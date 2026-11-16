@@ -401,6 +401,25 @@ def change_my_stage(
     return user
 
 
+@router.put("/me/basic", response_model=schemas.UserOut)
+def update_my_basic(
+    body: schemas.BasicProfileIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Name, phone and a short bio/title for any account — the staff "my profile"
+    page. (/me/profile is the student onboarding form and needs a university.)"""
+    name = body.full_name.strip()
+    if len(name) < 2:
+        raise HTTPException(400, "الاسم مطلوب")
+    user.full_name = name[:120]
+    user.phone = body.phone.strip()[:30] or None
+    user.caption = body.caption.strip()[:200]
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.put("/me/caption", response_model=schemas.UserOut)
 def update_my_caption(
     body: schemas.CaptionUpdateIn,
@@ -483,6 +502,15 @@ async def upload_my_photo(
     storage.save(stored_name, contents, ctype)
     delete_stored_upload(user.photo_url)  # don't strand the photo being replaced
     user.photo_url = media_url(stored_name)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/me/photo", response_model=schemas.UserOut)
+def remove_my_photo(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    delete_stored_upload(user.photo_url)
+    user.photo_url = None
     db.commit()
     db.refresh(user)
     return user

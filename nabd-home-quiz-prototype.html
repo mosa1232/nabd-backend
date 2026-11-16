@@ -6436,7 +6436,7 @@
       supportLast = sig;
       const stick = first || (box.scrollHeight - box.scrollTop - box.clientHeight < 80);
       const when = iso => { const dt = new Date(iso.endsWith('Z') ? iso : iso + 'Z'); return dt.toLocaleTimeString('ar-IQ', {hour: '2-digit', minute: '2-digit'}) + ' · ' + dt.toLocaleDateString('ar-IQ', {day: 'numeric', month: 'short'}); };
-      box.innerHTML = d.messages.length ? d.messages.map(m => `<div class="sp-msg ${m.from_staff ? 'staff' : 'me'}">${esc(m.body)}<small>${m.from_staff ? esc(t('supportTeam')) + ' · ' : ''}${when(m.at)}</small></div>`).join('')
+      box.innerHTML = d.messages.length ? d.messages.map(m => `<div class="sp-msg ${m.from_staff ? 'staff' : 'me'}">${esc(m.body)}<small>${m.from_staff ? esc(m.staff_name || t('supportTeam')) + ' · ' : ''}${when(m.at)}</small></div>`).join('')
         : `<div class="sp-empty">${esc(t('supportEmpty'))}</div>`;
       document.getElementById('supportClosed').style.display = d.thread && d.thread.status === 'closed' ? 'block' : 'none';
       if (stick) box.scrollTop = box.scrollHeight;

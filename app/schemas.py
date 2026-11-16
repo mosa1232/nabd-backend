@@ -147,6 +147,12 @@ class CaptionUpdateIn(BaseModel):
     caption: str = ""
 
 
+class BasicProfileIn(BaseModel):
+    full_name: str
+    phone: str = ""
+    caption: str = ""
+
+
 class SkillIn(BaseModel):
     text: str
 
@@ -524,6 +530,8 @@ class SessionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     device_label: str
     created_at: datetime
+    ip_address: Optional[str] = None
+    is_active: bool = True
 
 
 class AppealIn(BaseModel):
