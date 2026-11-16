@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Query
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
@@ -529,7 +529,8 @@ def user_overview(user_id: str, db: Session = Depends(get_db)):
     u = db.get(models.User, user_id)
     if not u:
         raise HTTPException(404, "المستخدم غير موجود")
-    answers = db.query(func.count(models.StudentAnswer.id), func.sum(models.StudentAnswer.is_correct)).filter(
+    answers = db.query(func.count(models.StudentAnswer.id),
+                       func.sum(case((models.StudentAnswer.is_correct.is_(True), 1), else_=0))).filter(
         models.StudentAnswer.user_id == u.id).one()
     answered, correct = int(answers[0] or 0), int(answers[1] or 0)
     attempts = db.query(models.ExamAttempt).filter(models.ExamAttempt.user_id == u.id, models.ExamAttempt.finished_at.isnot(None)).all()
