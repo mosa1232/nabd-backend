@@ -2339,8 +2339,9 @@
       .map(r => ({value: r.id, label: `${r.name} (${r._ctx})`}));
   }
 
-  async function promptAddUser(presetRole){
+  async function promptAddUser(presetRole, skipSearch){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
+    if (!skipSearch && (presetRole === 'professor' || presetRole === 'representative')) return openFindAccount(presetRole);
     let subjects = [];
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
@@ -2389,6 +2390,70 @@
       });
       loadAccounts();
     });
+  }
+
+  // ---- Add a doctor / representative: search an existing account first ----
+  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل'};
+  let findTimer = null;
+  async function openFindAccount(role){
+    if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) { /* shown empty */ } }
+    document.getElementById('genericModalTitle').textContent = 'إضافة ' + FIND_WORD[role];
+    document.getElementById('genericModalFields').innerHTML = `
+      <div class="item-meta" style="margin-bottom:10px;">ابحث عن حساب موجود (طالب سجّل بالمنصة مثلًا) بالاسم أو البريد أو الهاتف أو اسم المستخدم، واختره ليصير ${FIND_WORD[role]}.</div>
+      <input id="findInput" type="text" autocomplete="off" placeholder="اكتب اسم أو بريد..." oninput="renderFindResults('${role}')"
+        style="width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; margin-bottom:12px;" />
+      <div id="findResults"></div>
+      <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeGenericModal(); promptAddUser('${role}', true)">لا أجده — إنشاء حساب جديد</button>`;
+    genericModalOnSubmit = null; genericModalFieldsSpec = [];
+    document.getElementById('genericModalFooter').style.display = 'none';
+    document.getElementById('genericModalMsg').style.display = 'none';
+    document.getElementById('genericModalOverlay').style.display = 'flex';
+    renderFindResults(role);
+    setTimeout(() => document.getElementById('findInput')?.focus(), 60);
+  }
+  function renderFindResults(role){
+    const box = document.getElementById('findResults'); if (!box) return;
+    const q = (document.getElementById('findInput')?.value || '').trim().toLowerCase();
+    if (!q){ box.innerHTML = '<div class="cell-sub" style="padding:8px 2px;">ابدأ الكتابة لتظهر النتائج</div>'; return; }
+    const list = allAccounts.filter(a => a.role !== role && a.role !== 'owner' && a.role !== 'admin' &&
+      [a.full_name, a.email, a.phone, a.username].some(v => (v || '').toLowerCase().includes(q))).slice(0, 30);
+    box.innerHTML = list.map(a => `
+      <div onclick="pickFoundAccount('${a.id}','${role}')" style="display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:8px; border-radius:14px; border:1px solid var(--glass-border); background:var(--glass-bg-strong); cursor:pointer;">
+        <div class="cell-avatar" style="background:var(--accent);">${esc(initialsOf(a.full_name))}</div>
+        <div style="flex:1; min-width:0;"><div style="font-weight:700;">${esc(a.full_name)}</div><div class="cell-sub mono" dir="ltr" style="text-align:start;">${esc(a.email)}</div></div>
+        ${roleBadge(a.role)}
+      </div>`).join('') || '<div class="empty-row">لا توجد حسابات مطابقة</div>';
+  }
+  async function pickFoundAccount(userId, role){
+    const a = allAccounts.find(x => x.id === userId); if (!a) return;
+    closeGenericModal();
+    const common = `${a.full_name}${a.role !== 'student' ? ' — يتحول من ' + (ROLE_NAME[a.role] || a.role) : ''}`;
+    const save = async (extra, after) => {
+      await apiFetch('/api/admin/users/' + a.id, {method: 'PUT', body: JSON.stringify({email: a.email, full_name: a.full_name, role, ...extra})});
+      if (after) await after();
+      showToast(`صار ${a.full_name} ${FIND_WORD[role]}`);
+      acctTree = null; await loadAccounts();
+      showSection(role === 'professor' ? 'doctors' : 'reps');
+    };
+    if (role === 'professor'){
+      let subjects = []; try { subjects = await subjectOptions(); } catch (e) {}
+      if (!subjects.length){ showToast('أضف مادة في "المناهج" أولاً', 'error'); return; }
+      openGenericModal('تعيين دكتور: ' + common, [
+        {id: 'subjectId', label: 'المادة التي يدرّسها', type: 'select', value: subjects[0].value, options: subjects},
+        {id: 'title', label: 'اللقب العلمي', type: 'text', value: 'أستاذ مساعد'},
+      ], v => save({}, () => apiFetch('/api/admin/professors/' + a.id, {method: 'PUT', body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'})})));
+    } else {
+      let scope = {unis: [], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
+      try { scope = await scopeOptions(); } catch (e) {}
+      openGenericModal('تعيين ممثل: ' + common, [
+        {id: 'uni', label: 'الجامعة / الكلية التي يمثّلها', type: 'select', value: '', options: scope.unis},
+        {id: 'dept', label: 'القسم (اختياري)', type: 'select', value: '', options: scope.depts},
+        {id: 'stage', label: 'المرحلة (اختياري)', type: 'select', value: '', options: scope.stages},
+      ], async v => {
+        if (!v.uni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها'};
+        await save({scope_university_id: v.uni, scope_department_id: v.dept || null, scope_stage_id: v.stage || null});
+      });
+    }
   }
 
   // An account promoted to professor after the fact (or created before the
