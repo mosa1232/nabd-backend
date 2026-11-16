@@ -273,6 +273,26 @@
   .st-row .n{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .st-row .b{flex:2; height:8px; border-radius:99px; background:var(--track); overflow:hidden;} .st-row .b i{display:block; height:100%; background:var(--accent);}
   .st-row .c{width:56px; text-align:end; font-weight:800;}
+  .ops-filters{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+  .ops-filters input, .ops-filters select{padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;}
+  .ops-filters input[type=text], .ops-filters input.q{flex:1; min-width:200px;}
+  .ops-pager{display:flex; gap:10px; justify-content:center; align-items:center; margin-top:14px; font-size:.82rem;}
+  .stu-row{display:grid; grid-template-columns:minmax(180px,2.2fr) minmax(120px,1.4fr) 64px 70px minmax(100px,1fr) minmax(90px,.9fr); gap:10px; align-items:center; padding:11px 12px; border-bottom:1px solid var(--glass-border); cursor:pointer; font-size:.82rem;}
+  .stu-row:hover{background:var(--track);} .stu-head{cursor:default; font-weight:700; color:var(--ink-faint); font-size:.72rem;} .stu-head:hover{background:none;}
+  #sec-students{container-type:inline-size;}
+  @container (max-width:820px){ .stu-row{grid-template-columns:repeat(3,1fr);} .stu-row > span:first-child{grid-column:1 / -1;} .stu-head{display:none;} }
+  .acc-pill{display:inline-block; padding:2px 9px; border-radius:99px; font-weight:800; font-size:.74rem;}
+  .acc-hi{background:rgba(46,182,125,.15); color:#1f9d68;} .acc-mid{background:rgba(232,163,61,.18); color:#b9770e;} .acc-lo{background:rgba(229,72,77,.14); color:var(--danger);}
+  .ban-card{border:1px solid var(--glass-border); border-radius:18px; background:var(--glass-bg-strong); padding:14px 16px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;}
+  .ban-card .body{flex:1; min-width:220px;} .ban-card .acts{display:flex; gap:8px; flex-wrap:wrap;}
+  .ban-quote{margin-top:8px; padding:10px 12px; border-radius:12px; background:var(--track); font-size:.84rem; line-height:1.8;}
+  .media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px;}
+  .media-card{border:1px solid var(--glass-border); border-radius:16px; overflow:hidden; background:var(--glass-bg-strong); display:flex; flex-direction:column;}
+  .media-thumb{height:110px; display:grid; place-items:center; background:var(--track); color:var(--accent); overflow:hidden;} .media-thumb img{width:100%; height:100%; object-fit:cover;} .media-thumb svg{width:30px; height:30px;}
+  .media-info{padding:10px 12px; display:flex; flex-direction:column; gap:4px;} .media-info .n{font-size:.78rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .media-info .m{font-size:.68rem; color:var(--ink-faint);}
+  .media-acts{display:flex; gap:6px; padding:0 10px 10px;} .media-acts button{flex:1; padding:6px 0; font-size:.7rem;}
+  .notif-card{border:1px solid var(--glass-border); border-radius:16px; background:var(--glass-bg-strong); padding:14px 16px; margin-bottom:10px;}
+  .read-bar{height:6px; border-radius:99px; background:var(--track); overflow:hidden; margin-top:8px;} .read-bar i{display:block; height:100%; background:var(--accent);}
   .nav-badge{margin-inline-start:auto; background:var(--danger); color:#fff; font-size:.68rem; font-weight:800; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 6px;}
   .sup-row{display:flex; align-items:center; gap:12px; padding:13px 14px; margin-bottom:8px; border-radius:16px; border:1px solid var(--glass-border); background:var(--glass-bg-strong); cursor:pointer;}
   .sup-row:hover{border-color:var(--accent);}
@@ -570,7 +590,7 @@
           <button class="btn" style="margin-top:8px;" onclick="sendNotificationFromAdmin()">إرسال</button>
         </div>
         <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">آخر الإشعارات المُرسلة</span></div>
+          <div class="dash-card-head"><span class="dash-card-title">الإشعارات المُرسلة</span><span class="cell-sub" id="notifHistCount"></span></div>
           <div id="notifHistoryList"></div>
         </div>
       </section>
@@ -594,14 +614,12 @@
 
       <!-- ===== ADMIN: Students ===== -->
       <section class="dash-section" id="sec-students">
+        <div class="st-kpis" id="stuKpis"></div>
         <div class="dash-card glass" style="margin-bottom:16px;">
-          <div class="dash-card-head"><span class="dash-card-title">الطلاب</span></div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>الطالب</th><th>الجامعة</th><th>المرحلة</th><th>متوسط الأداء</th><th>الحالة</th></tr></thead>
-              <tbody id="studentsBody"></tbody>
-            </table>
-          </div>
+          <div class="dash-card-head"><span class="dash-card-title">سجل الطلاب</span><span class="cell-sub" id="stuCount"></span></div>
+          <div class="ops-filters" id="stuFilters"></div>
+          <div id="stuList"></div>
+          <div class="ops-pager" id="stuPager"></div>
         </div>
         <div class="dash-card glass">
           <div class="dash-card-head"><span class="dash-card-title">أكثر نقاط الضعف شيوعاً</span></div>
@@ -610,66 +628,33 @@
       </section>
 
       <!-- ===== ADMIN: Bans ===== -->
-      <section class="dash-section" id="sec-bans">
-        <div class="dash-card glass">
-          <div class="tabs">
-            <button class="tab-btn active" data-btab="active" onclick="switchBanTab('active')">نشطة</button>
-            <button class="tab-btn" data-btab="appeals" onclick="switchBanTab('appeals')">طلبات إعفاء</button>
-            <button class="tab-btn" data-btab="history" onclick="switchBanTab('history')">السجل</button>
-          </div>
-          <div class="tab-panel active" id="btab-active">
-            <div class="table-wrap">
-              <table class="dash-table">
-                <thead><tr><th>الطالب</th><th>السبب</th><th>التاريخ</th><th></th></tr></thead>
-                <tbody id="bansActiveBody"></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="tab-panel" id="btab-appeals">
-            <div class="table-wrap">
-              <table class="dash-table">
-                <thead><tr><th>الطالب</th><th>سبب الحظر</th><th>نص الطلب</th><th></th></tr></thead>
-                <tbody id="bansAppealsBody"></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="tab-panel" id="btab-history">
-            <div class="table-wrap">
-              <table class="dash-table">
-                <thead><tr><th>الطالب</th><th>السبب</th><th>الحالة</th><th>التاريخ</th></tr></thead>
-                <tbody id="bansHistoryBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
+      <section class="dash-section" id="sec-bans"><div class="st-kpis" id="banKpis"></div><div class="dash-card glass" id="bansBox"></div></section>
 
       <!-- ===== ADMIN: Media ===== -->
       <!-- ===== ADMIN: Clinical pearls ===== -->
 
 
       <section class="dash-section" id="sec-media">
+        <div class="st-kpis" id="mediaKpis"></div>
         <div class="dash-card glass">
           <div class="dash-card-head">
             <span class="dash-card-title">إدارة الملفات</span>
-            <button class="btn" onclick="document.getElementById('mediaFileInput').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>رفع ملف</button>
+            <button class="btn" onclick="document.getElementById('mediaFileInput').click()">+ رفع ملف</button>
             <input type="file" id="mediaFileInput" style="display:none;" onchange="uploadMediaFile(this.files[0])" />
           </div>
           <div id="mediaUploadStatus" style="display:none; padding:0 4px 10px; font-size:.78rem;"></div>
-          <div class="file-grid" id="mediaGrid"></div>
+          <div class="ops-filters" id="mediaFilters"></div>
+          <div class="media-grid" id="mediaGrid"></div>
         </div>
       </section>
 
       <!-- ===== ADMIN: Logs ===== -->
       <section class="dash-section" id="sec-logs">
         <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">سجل النشاطات</span></div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>عنوان IP</th></tr></thead>
-              <tbody id="logsBody"></tbody>
-            </table>
-          </div>
+          <div class="dash-card-head"><span class="dash-card-title">سجل النشاطات</span><span class="cell-sub" id="logsCount"></span></div>
+          <div class="ops-filters" id="logsFilters"></div>
+          <div class="st-wrap"><table class="st-table"><thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>عنوان IP</th></tr></thead><tbody id="logsBody"></tbody></table></div>
+          <div class="ops-pager" id="logsPager"></div>
         </div>
       </section>
 
@@ -2486,18 +2471,37 @@
       await loadNotifHistory();
     } catch (e) { showToast(e.detail || 'تعذّر إرسال الإشعار', 'error'); }
   }
+  let notifHist = [];
   async function loadNotifHistory(){
-    if (!liveMode){ document.getElementById('notifHistoryList').innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الإشعارات المُرسلة</div>'; return; }
-    try {
-      const list = await apiFetch('/api/admin/notifications');
-      document.getElementById('notifHistoryList').innerHTML = list.map(n => `
-        <div class="activity-row">
-          <span class="activity-dot"></span>
-          <span class="activity-text">${esc(n.title)}${n.broadcast ? ` <span class="badge badge-active" style="margin-right:6px;">${esc(n.audience || 'للجميع')}</span>` : ' <span class="badge" style="margin-right:6px;">طالب محدد</span>'}</span>
-          <span class="activity-time">${fmtDate(n.created_at)}</span>
+    const box = document.getElementById('notifHistoryList');
+    if (!liveMode){ box.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الإشعارات المُرسلة</div>'; return; }
+    try { notifHist = await apiFetch('/api/admin/notifications'); }
+    catch (e) { showToast(e.detail || 'تعذّر تحميل الإشعارات', 'error'); return; }
+    document.getElementById('notifHistCount').textContent = `${numAr(notifHist.length)} إشعار`;
+    box.innerHTML = notifHist.map(n => {
+      const pct = n.recipients ? Math.round(100 * n.read_count / n.recipients) : 0;
+      return `<div class="notif-card">
+        <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px;"><div style="font-weight:800;">${esc(n.title)}</div>${n.body ? `<div class="cell-sub" style="margin-top:3px; line-height:1.7;">${esc(n.body)}</div>` : ''}</div>
+          <div style="display:flex; gap:6px;"><button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem;" onclick="notifReuse('${n.id}')">إعادة استخدام</button><button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem; color:var(--danger);" onclick="deleteNotification('${n.id}')">حذف</button></div>
         </div>
-      `).join('') || '<div class="empty-row">لا يوجد إشعارات مُرسلة بعد</div>';
-    } catch (e) { showToast(e.detail || 'تعذّر تحميل الإشعارات', 'error'); }
+        <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:.76rem;">
+          <span class="badge ${n.broadcast ? 'badge-active' : ''}">${esc(n.audience || (n.broadcast ? 'للجميع' : 'طالب محدد'))}</span>
+          <span class="cell-sub">${ago(n.created_at)}</span><span class="cell-sub">وصل لـ ${numAr(n.recipients)} · قرأه ${numAr(n.read_count)} (${pct}%)</span></div>
+        <div class="read-bar"><i style="width:${pct}%"></i></div></div>`;
+    }).join('') || '<div class="empty-row">لا يوجد إشعارات مُرسلة بعد</div>';
+  }
+  function notifReuse(id){
+    const n = notifHist.find(x => x.id === id); if (!n) return;
+    document.getElementById('notifTitle').value = n.title; document.getElementById('notifBody').value = n.body || '';
+    switchNotifTarget('broadcast');
+    document.getElementById('notifTitle').scrollIntoView({behavior: 'smooth', block: 'center'}); document.getElementById('notifTitle').focus();
+    showToast('نُسخ النص — اختر الجمهور وأرسل');
+  }
+  async function deleteNotification(id){
+    if (!await confirmModal('حذف هذا الإشعار؟ سيختفي من عند الطلاب أيضًا.')) return;
+    try { await apiFetch('/api/admin/notifications/' + id, {method: 'DELETE'}); showToast('حُذف الإشعار'); loadNotifHistory(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   function promptBanUser(userId){
@@ -2683,17 +2687,18 @@
   }
 
   // ---- Add a doctor / representative: search an existing account first ----
-  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
+  const FIND_TITLE = {ban: 'حظر طالب'};
+  const FIND_WORD = {ban: 'محظور', professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
   let findTimer = null;
   async function openFindAccount(role){
     if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) { /* shown empty */ } }
-    document.getElementById('genericModalTitle').textContent = 'إضافة ' + FIND_WORD[role];
+    document.getElementById('genericModalTitle').textContent = FIND_TITLE[role] || ('إضافة ' + FIND_WORD[role]);
     document.getElementById('genericModalFields').innerHTML = `
-      <div class="item-meta" style="margin-bottom:10px;">ابحث عن حساب موجود (طالب سجّل بالمنصة مثلًا) بالاسم أو البريد أو الهاتف أو اسم المستخدم، واختره ليصير ${FIND_WORD[role]}.</div>
+      <div class="item-meta" style="margin-bottom:10px;">${role === 'ban' ? 'ابحث عن الطالب بالاسم أو البريد أو الهاتف، واختره لتحدد سبب الحظر.' : `ابحث عن حساب موجود (طالب سجّل بالمنصة مثلًا) بالاسم أو البريد أو الهاتف أو اسم المستخدم، واختره ليصير ${FIND_WORD[role]}.`}</div>
       <input id="findInput" type="text" autocomplete="off" placeholder="اكتب اسم أو بريد..." oninput="renderFindResults('${role}')"
         style="width:100%; padding:12px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; margin-bottom:12px;" />
       <div id="findResults"></div>
-      <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeGenericModal(); promptAddUser('${role}', true)">لا أجده — إنشاء حساب جديد</button>`;
+      ${role === 'ban' ? '' : `<button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:14px;" onclick="closeGenericModal(); promptAddUser('${role}', true)">لا أجده — إنشاء حساب جديد</button>`}`;
     genericModalOnSubmit = null; genericModalFieldsSpec = [];
     document.getElementById('genericModalFooter').style.display = 'none';
     document.getElementById('genericModalMsg').style.display = 'none';
@@ -2706,7 +2711,7 @@
     const q = (document.getElementById('findInput')?.value || '').trim().toLowerCase();
     if (!q){ box.innerHTML = '<div class="cell-sub" style="padding:8px 2px;">ابدأ الكتابة لتظهر النتائج</div>'; return; }
     const staff = ['admin', 'supervisor', 'store_manager'].includes(role);
-    const list = allAccounts.filter(a => a.role !== role && a.role !== 'owner' && (staff || a.role !== 'admin') &&
+    const list = allAccounts.filter(a => (role === 'ban' ? (a.role === 'student' && !a.is_banned) : (a.role !== role && a.role !== 'owner' && (staff || a.role !== 'admin'))) &&
       [a.full_name, a.email, a.phone, a.username].some(v => (v || '').toLowerCase().includes(q))).slice(0, 30);
     box.innerHTML = list.map(a => `
       <div onclick="pickFoundAccount('${a.id}','${role}')" style="display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:8px; border-radius:14px; border:1px solid var(--glass-border); background:var(--glass-bg-strong); cursor:pointer;">
@@ -2718,6 +2723,14 @@
   async function pickFoundAccount(userId, role){
     const a = allAccounts.find(x => x.id === userId); if (!a) return;
     closeGenericModal();
+    if (role === 'ban'){
+      openGenericModal('حظر ' + a.full_name, [{id: 'reason', label: 'سبب الحظر', type: 'text', placeholder: 'مثال: مشاركة الحساب'}], async v => {
+        if (!v.reason.trim()) throw {detail: 'سبب الحظر مطلوب'};
+        await apiFetch('/api/admin/users/' + a.id + '/ban?' + new URLSearchParams({reason: v.reason.trim()}), {method: 'POST'});
+        showToast('تم حظر ' + a.full_name); await loadAccounts(); loadBans();
+      });
+      return;
+    }
     const common = `${a.full_name}${a.role !== 'student' ? ' — يتحول من ' + (ROLE_NAME[a.role] || a.role) : ''}`;
     const save = async (extra, after) => {
       await apiFetch('/api/admin/users/' + a.id, {method: 'PUT', body: JSON.stringify({email: a.email, full_name: a.full_name, role, ...extra})});
@@ -3463,76 +3476,101 @@
     catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
-  async function loadStudents(){
-    let students = [
-      {id:1, name:'زهراء علي', university:'جامعة بغداد', stage:'المرحلة الثانية', avg_score:78, is_banned:true},
-      {id:2, name:'حسين كاظم', university:'جامعة بغداد', stage:'المرحلة الثانية', avg_score:54, is_banned:false},
-      {id:3, name:'مريم صالح', university:'جامعة بغداد', stage:'المرحلة الثانية', avg_score:82, is_banned:false},
-    ];
-    students = await liveOrDemo('/api/admin/students', students);
-    document.getElementById('studentsBody').innerHTML = students.map(s => `
-      <tr>
-        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent-2)">${initialsOf(s.name)}</div><div class="cell-name">${esc(s.name)}</div></div></td>
-        <td>${esc(s.university)}</td>
-        <td>${esc(s.stage)}</td>
-        <td>${s.avg_score != null ? `<span class="badge ${s.avg_score>=60?'badge-active':'badge-idle'}">${s.avg_score}%</span>` : '—'}</td>
-        <td>${s.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</td>
-      </tr>
-    `).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد طلاب</td></tr>`;
+  // ---------- shared small helpers ----------
+  function ago(iso){
+    if (!iso) return '<span class="cell-sub">لم يظهر</span>';
+    const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z'), m = Math.max(0, Math.round((Date.now() - d) / 60000));
+    if (m < 1) return 'الآن';
+    if (m < 60) return `قبل ${m} د`;
+    if (m < 1440) return `قبل ${Math.round(m / 60)} س`;
+    if (m < 43200) return `قبل ${Math.round(m / 1440)} يوم`;
+    return `<bdi dir="ltr">${d.toLocaleDateString('en-GB')}</bdi>`;
+  }
+  const accPill = v => v == null ? '<span class="cell-sub">—</span>' : `<span class="acc-pill ${v >= 70 ? 'acc-hi' : v >= 50 ? 'acc-mid' : 'acc-lo'}">${v}%</span>`;
+  const sel = (id, opts, val, on) => `<select id="${id}" onchange="${on}">${opts.map(([v, l]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const kpiRow = items => items.map(([l, v, sub]) => `<div class="st-kpi"><div class="l">${l}</div><div class="v mono">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`).join('');
+  let opsTree = null;
+  async function opsCatalog(){ if (!opsTree){ try { opsTree = nestCatalog(await apiFetch('/api/admin/catalog')); } catch (e) { opsTree = []; } } return opsTree; }
 
-    let weak = [['الجهاز العصبي المركزي',72],['فسلجة الكلى',61],['الأنسجة الضامة',54],['استقلاب الكربوهيدرات',47],['تشريح الحوض',39]];
-    if (liveMode){
-      try {
-        const real = await apiFetch('/api/admin/weak-topics');
-        if (real.length) weak = real.map(w => [w.topic, w.weakness_pct]);
-      } catch (e) {}
-    }
-    document.getElementById('weaknessBars').innerHTML = weak.map(([label,pct]) => `
-      <div class="weak-row"><span class="weak-label">${label}</span><div class="weak-track"><div class="weak-fill" style="width:${pct}%"></div></div><span class="weak-pct">${pct}%</span></div>
-    `).join('');
+  // ---------- Students register ----------
+  const stu = {q: '', uni: '', stage: '', status: 'all', sort: 'joined', page: 1};
+  async function loadStudents(){
+    if (!liveMode){ document.getElementById('stuList').innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الطلاب</div>'; return; }
+    const tree = await opsCatalog();
+    const unis = tree.flatMap(sx => sx.universities.map(u => [u.id, `${u.name} — ${sx.name}`]));
+    const stages = (tree.flatMap(sx => sx.universities).find(u => u.id === stu.uni)?.stages || []).map(x => [x.id, `${x.deptName ? x.deptName + ' — ' : ''}${x.name}`]);
+    document.getElementById('stuFilters').innerHTML =
+      `<input type="text" class="q" id="stuQ" placeholder="ابحث بالاسم أو البريد أو الهاتف أو اسم المستخدم..." value="${esc(stu.q)}" oninput="clearTimeout(window.__stuT); window.__stuT=setTimeout(()=>{stu.q=this.value; stu.page=1; loadStudentList();}, 350)" />` +
+      sel('stuUni', [['', 'كل الجامعات'], ...unis], stu.uni, "stu.uni=this.value; stu.stage=''; stu.page=1; loadStudents()") +
+      sel('stuStage', [['', 'كل المراحل'], ...stages], stu.stage, "stu.stage=this.value; stu.page=1; loadStudentList()") +
+      sel('stuStatus', [['all', 'كل الحالات'], ['active', 'نشط هذا الأسبوع'], ['inactive', 'خامل (30 يوم+)'], ['verified', 'موثّق'], ['unverified', 'غير موثّق'], ['incomplete', 'بياناته غير مكتملة'], ['banned', 'محظور']], stu.status, "stu.status=this.value; stu.page=1; loadStudentList()") +
+      sel('stuSort', [['joined', 'الأحدث تسجيلًا'], ['seen', 'آخر ظهور'], ['answers', 'الأكثر إجابات'], ['accuracy', 'الأعلى دقة'], ['name', 'الاسم']], stu.sort, "stu.sort=this.value; stu.page=1; loadStudentList()");
+    loadStudentList();
+    loadWeakness();
+  }
+  async function loadStudentList(){
+    const list = document.getElementById('stuList');
+    list.innerHTML = '<div class="empty-row">جارٍ التحميل…</div>';
+    const qs = new URLSearchParams({q: stu.q, university_id: stu.uni, stage_id: stu.stage, status: stu.status, sort: stu.sort, page: stu.page});
+    try {
+      const d = await apiFetch('/api/admin/students/list?' + qs);
+      const sm = d.summary;
+      document.getElementById('stuKpis').innerHTML = kpiRow([['إجمالي الطلاب', numAr(sm.total)], ['نشطون هذا الأسبوع', numAr(sm.active_week), pc(Math.round(100 * sm.active_week / Math.max(1, sm.total))) + ' من الكل'], ['موثّقون', numAr(sm.verified), pc(Math.round(100 * sm.verified / Math.max(1, sm.total)))], ['بياناتهم غير مكتملة', numAr(sm.incomplete)], ['محظورون', numAr(sm.banned)]]);
+      document.getElementById('stuCount').textContent = `${numAr(d.total)} نتيجة`;
+      list.innerHTML = `<div class="stu-row stu-head"><span>الطالب</span><span>الجامعة · المرحلة</span><span>الإجابات</span><span>الدقة</span><span>آخر ظهور</span><span>الحالة</span></div>` +
+        (d.items.map(x => `<div class="stu-row" onclick="openStudentAccount('${x.id}')">
+          <span style="display:flex; gap:10px; align-items:center; min-width:0;"><span class="cell-avatar" style="background:var(--accent-2); flex:none;">${initialsOf(x.name)}</span><span style="min-width:0;"><b style="display:block;">${esc(x.name)}</b><span class="cell-sub" dir="ltr" style="display:block; text-align:start; overflow:hidden; text-overflow:ellipsis;">${esc(x.email)}</span></span></span>
+          <span>${esc(x.university || '—')}<span class="cell-sub" style="display:block;">${x.graduate ? 'متخرج' : esc(x.stage || '—')}</span></span>
+          <span class="mono">${numAr(x.answers)}</span><span>${accPill(x.accuracy)}</span><span class="cell-sub">${ago(x.last_seen)}</span>
+          <span>${x.banned ? '<span class="badge badge-disabled">محظور</span>' : ''}${x.verified ? ' <span class="badge badge-active">موثّق</span>' : ''}${!x.banned && !x.verified ? '<span class="cell-sub">—</span>' : ''}</span>
+        </div>`).join('') || '<div class="empty-row">لا يوجد طلاب بهذه المواصفات</div>');
+      document.getElementById('stuPager').innerHTML = d.pages > 1
+        ? `<button class="btn btn-ghost" ${d.page <= 1 ? 'disabled' : ''} onclick="stu.page--; loadStudentList()">→ السابق</button><span>صفحة ${d.page} من ${d.pages}</span><button class="btn btn-ghost" ${d.page >= d.pages ? 'disabled' : ''} onclick="stu.page++; loadStudentList()">التالي ←</button>` : '';
+    } catch (e) { list.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر التحميل')}</div>`; }
+  }
+  async function openStudentAccount(id){
+    if (!can('users.manage')){ showToast('فتح صفحة الحساب يحتاج صلاحية إدارة الحسابات'); return; }
+    if (!allAccounts.length || !allAccounts.some(a => a.id === id)){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
+    showAccountDetails(id);
+  }
+  async function loadWeakness(){
+    let weak = [];
+    try { weak = (await apiFetch('/api/admin/weak-topics')).map(w => [w.topic, w.weakness_pct]); } catch (e) {}
+    document.getElementById('weaknessBars').innerHTML = weak.map(([label, pct]) => `
+      <div class="weak-row"><span class="weak-label">${esc(label)}</span><div class="weak-track"><div class="weak-fill" style="width:${pct}%"></div></div><span class="weak-pct">${pct}%</span></div>`).join('') || '<div class="empty-row">لا توجد بيانات كافية بعد</div>';
   }
 
   let allBans = [];
+  let banTab = 'active', banQ = '';
   async function loadBans(){
-    let bans = [{id:'1', user_id:'demo', user_name:'زهراء علي', reason:'مشاركة الحساب مع طالب آخر', status:'active', appeal_message:null, created_at: new Date()}];
-    bans = await liveOrDemo('/api/admin/bans', bans);
-    allBans = bans;
+    if (!liveMode){ document.getElementById('bansBox').innerHTML = '<div class="empty-row">سجّل دخول حقيقي</div>'; return; }
+    try { allBans = await apiFetch('/api/admin/bans'); } catch (e) { allBans = []; }
     renderBanTabs();
   }
   function renderBanTabs(){
-    const active = allBans.filter(b => b.status === 'active');
-    const appeals = allBans.filter(b => b.status === 'appealed');
-    const history = allBans.filter(b => b.status === 'lifted');
-
-    document.getElementById('bansActiveBody').innerHTML = active.map(b => `
-      <tr>
-        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
-        <td><span class="badge badge-disabled">${esc(b.reason)}</span></td>
-        <td>${fmtDate(b.created_at)}</td>
-        <td><button class="btn btn-ghost" style="padding:6px 14px; font-size:.72rem;" onclick="liftBan('${esc(b.user_id)}')">رفع الحظر</button></td>
-      </tr>
-    `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد حالات حظر نشطة</td></tr>`;
-
-    document.getElementById('bansAppealsBody').innerHTML = appeals.map(b => `
-      <tr>
-        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
-        <td><span class="badge badge-disabled">${esc(b.reason)}</span></td>
-        <td style="max-width:220px;">"${esc(b.appeal_message || '')}"</td>
-        <td><div style="display:flex; gap:6px;">
-          <button class="btn" style="padding:6px 12px; font-size:.72rem;" onclick="resolveAppeal('${b.id}', true)">قبول</button>
-          <button class="btn btn-ghost" style="padding:6px 12px; font-size:.72rem;" onclick="resolveAppeal('${b.id}', false)">رفض</button>
-        </div></td>
-      </tr>
-    `).join('') || `<tr><td colspan="4" class="empty-row">لا توجد طلبات إعفاء حالياً</td></tr>`;
-
-    document.getElementById('bansHistoryBody').innerHTML = history.map(b => `
-      <tr>
-        <td><div class="cell-name">${esc(b.user_name || '—')}</div></td>
-        <td>${esc(b.reason)}</td>
-        <td><span class="badge badge-active">مرفوع</span></td>
-        <td>${fmtDate(b.created_at)}</td>
-      </tr>
-    `).join('') || `<tr><td colspan="4" class="empty-row">لا يوجد سجل بعد</td></tr>`;
+    const active = allBans.filter(b => b.status === 'active'), appeals = allBans.filter(b => b.status === 'appealed'), lifted = allBans.filter(b => b.status === 'lifted');
+    const repeat = new Set(allBans.filter(b => b.times_banned >= 2).map(b => b.user_id)).size;
+    document.getElementById('banKpis').innerHTML = kpiRow([['حظر نشط', numAr(active.length)], ['طلبات إعفاء تنتظرك', numAr(appeals.length), appeals.length ? 'تحتاج قرارًا' : ''], ['حظر مرفوع', numAr(lifted.length)], ['تكرر حظرهم', numAr(repeat), 'أكثر من مرة']]);
+    const tabs = [['active', 'نشطة', active.length], ['appeals', 'طلبات إعفاء', appeals.length], ['history', 'السجل', lifted.length]];
+    const q = banQ.trim().toLowerCase();
+    const list = (banTab === 'active' ? active : banTab === 'appeals' ? appeals : lifted).filter(b => !q || [b.user_name, b.user_email, b.reason].some(v => (v || '').toLowerCase().includes(q)));
+    const card = b => `<div class="ban-card">
+      <div class="cell-avatar" style="background:var(--danger);">${initialsOf(b.user_name)}</div>
+      <div class="body"><div style="font-weight:800;">${esc(b.user_name)} ${b.times_banned >= 2 ? `<span class="badge badge-disabled">حُظر ${b.times_banned} مرات</span>` : ''}</div>
+        <div class="cell-sub" dir="ltr" style="text-align:start;">${esc(b.user_email || '')}</div>
+        <div style="margin-top:6px;"><span class="badge badge-disabled">${esc(b.reason)}</span> <span class="cell-sub">${ago(b.created_at)}</span></div>
+        ${b.appeal_message ? `<div class="ban-quote"><b>طلب الإعفاء:</b> ${esc(b.appeal_message)}${b.appealed_at ? `<div class="cell-sub" style="margin-top:4px;">${ago(b.appealed_at)}</div>` : ''}</div>` : ''}</div>
+      <div class="acts">
+        ${banTab === 'appeals' ? `<button class="btn" onclick="resolveAppeal('${b.id}', true)">قبول ورفع الحظر</button><button class="btn btn-ghost" onclick="resolveAppeal('${b.id}', false)">رفض</button>` : ''}
+        ${banTab === 'active' ? `<button class="btn btn-ghost" onclick="liftBan('${b.user_id}')">رفع الحظر</button>` : ''}
+        ${banTab === 'history' ? '<span class="badge badge-active">مرفوع</span>' : ''}
+        ${can('users.manage') ? `<button class="btn btn-ghost" onclick="openStudentAccount('${b.user_id}')">الحساب</button>` : ''}
+      </div></div>`;
+    document.getElementById('bansBox').innerHTML = `
+      <div class="dash-card-head"><span class="dash-card-title">الحظر والطعون</span><button class="btn" onclick="openFindAccount('ban')">+ حظر طالب</button></div>
+      <div class="ops-filters">${tabs.map(([k, l, n]) => `<button class="cat-tab ${k === banTab ? 'on' : ''}" onclick="banTab='${k}'; renderBanTabs()">${l} <b>${n}</b></button>`).join('')}
+        <input type="text" class="q" placeholder="ابحث بالاسم أو البريد أو السبب..." value="${esc(banQ)}" oninput="banQ=this.value; clearTimeout(window.__banT); window.__banT=setTimeout(()=>{renderBanTabs(); const i=document.querySelector('#bansBox .q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);}, 250)" /></div>
+      ${list.map(card).join('') || `<div class="empty-row">${banTab === 'active' ? 'لا توجد حالات حظر نشطة' : banTab === 'appeals' ? 'لا توجد طلبات إعفاء حالياً' : 'لا يوجد سجل بعد'}</div>`}`;
   }
   async function liftBan(userId){
     if (!liveMode) return;
@@ -3546,24 +3584,40 @@
       loadBans();
     } catch (e) { showToast(e.detail || 'تعذّر تنفيذ الإجراء', 'error'); }
   }
-  function switchBanTab(tab){
-    document.querySelectorAll('#sec-bans .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.btab === tab));
-    ['active','appeals','history'].forEach(t => document.getElementById('btab-'+t).classList.toggle('active', t === tab));
-  }
+  function switchBanTab(tab){ banTab = tab; renderBanTabs(); }
 
+  let mediaType = 'all', mediaQ = '', mediaFiles = [];
+  const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+  const mediaKind = f => { const t = (f.content_type || '').toLowerCase(), n = (f.filename || '').toLowerCase();
+    return t.startsWith('image') || /\.(png|jpe?g|gif|webp)$/.test(n) ? 'image' : t.includes('pdf') || n.endsWith('.pdf') ? 'pdf' : t.startsWith('video') || /\.(mp4|webm|mov|m4v)$/.test(n) ? 'video' : 'other'; };
   async function loadMedia(){
-    let files = [
-      {filename:'anatomy-slide-01.jpg', content_type:'image/jpeg', size_bytes:482000},
-      {filename:'booklet-week1.pdf', content_type:'application/pdf', size_bytes:1240000},
-    ];
-    files = await liveOrDemo('/api/admin/media', files);
-    document.getElementById('mediaGrid').innerHTML = files.map(f => `
-      <div class="file-card glass">
-        <div class="file-thumb">${(f.content_type||'').includes('pdf') ? ICONS.pdf : ICONS.media}</div>
-        <div class="file-name">${esc(f.filename)}</div>
-        <div class="file-meta">${((f.size_bytes||0)/1024).toFixed(0)} KB</div>
-      </div>
-    `).join('') || `<div class="empty-row">لا توجد ملفات</div>`;
+    if (!liveMode){ document.getElementById('mediaGrid').innerHTML = '<div class="empty-row">سجّل دخول حقيقي</div>'; return; }
+    try { mediaFiles = await apiFetch('/api/admin/media'); } catch (e) { mediaFiles = []; }
+    renderMedia();
+  }
+  function renderMedia(){
+    const by = k => mediaFiles.filter(f => mediaKind(f) === k).length;
+    document.getElementById('mediaKpis').innerHTML = kpiRow([['الملفات', numAr(mediaFiles.length)], ['الحجم الكلي', fmtSize(mediaFiles.reduce((a, f) => a + (f.size_bytes || 0), 0))], ['صور', numAr(by('image'))], ['PDF', numAr(by('pdf'))], ['فيديو', numAr(by('video'))]]);
+    const types = [['all', 'الكل'], ['image', 'صور'], ['pdf', 'PDF'], ['video', 'فيديو'], ['other', 'أخرى']];
+    document.getElementById('mediaFilters').innerHTML = types.map(([k, l]) => `<button class="cat-tab ${k === mediaType ? 'on' : ''}" onclick="mediaType='${k}'; renderMedia()">${l}</button>`).join('') +
+      `<input type="text" class="q" id="mediaQ" placeholder="ابحث باسم الملف..." value="${esc(mediaQ)}" oninput="mediaQ=this.value; renderMediaGrid()" />`;
+    renderMediaGrid();
+  }
+  function renderMediaGrid(){
+    const q = mediaQ.trim().toLowerCase();
+    const list = mediaFiles.filter(f => (mediaType === 'all' || mediaKind(f) === mediaType) && (!q || (f.filename || '').toLowerCase().includes(q)));
+    document.getElementById('mediaGrid').innerHTML = list.map(f => {
+      const k = mediaKind(f), url = API_BASE_URL + f.url;
+      return `<div class="media-card"><div class="media-thumb">${k === 'image' ? `<img loading="lazy" src="${esc(url)}" alt="" />` : (k === 'pdf' ? ICONS.pdf : ICONS.media)}</div>
+        <div class="media-info"><div class="n" title="${esc(f.filename)}">${esc(f.filename)}</div><div class="m">${fmtSize(f.size_bytes || 0)} · ${ago(f.created_at)}</div></div>
+        <div class="media-acts"><button class="btn btn-ghost" onclick="copyText('${esc(url)}', this)">نسخ الرابط</button><button class="btn btn-ghost" onclick="window.open('${esc(url)}', '_blank')">فتح</button><button class="btn btn-ghost" style="color:var(--danger);" onclick="deleteMedia('${f.id}')">حذف</button></div></div>`;
+    }).join('') || '<div class="empty-row">لا توجد ملفات</div>';
+  }
+  async function deleteMedia(id){
+    const f = mediaFiles.find(x => x.id === id);
+    if (!await confirmModal(`حذف الملف «${f ? f.filename : ''}» نهائيًا؟ أي مكان يستعمله سيفقده.`)) return;
+    try { await apiFetch('/api/admin/media/' + id, {method: 'DELETE'}); showToast('حُذف الملف'); loadMedia(); }
+    catch (e) { showToast(e.detail || 'تعذّر الحذف', 'error'); }
   }
 
   async function uploadMediaFile(file){
@@ -3670,18 +3724,27 @@
     }
   }
 
-  async function loadLogs(){
-    let logs = [];
-    logs = await liveOrDemo('/api/admin/logs?limit=30', logs);
-    if (!logs.length){
-      logs = [
-        {action:'تسجيل دخول', user_id:'—', ip_address:'37.236.14.2', created_at: new Date()},
-        {action:'تعديل سؤال', user_id:'—', ip_address:'37.236.88.5', created_at: new Date(Date.now()-3600e3)},
-      ];
-    }
-    document.getElementById('logsBody').innerHTML = logs.map(l => `
-      <tr><td class="mono">${fmtDate(l.created_at)}</td><td>${esc(l.user_id || '—')}</td><td>${esc(l.action)}</td><td class="mono">${esc(l.ip_address || '—')}</td></tr>
-    `).join('');
+  const logs = {q: '', days: 7, offset: 0, rows: [], total: 0};
+  async function loadLogs(reset = true){
+    if (!liveMode){ document.getElementById('logsBody').innerHTML = '<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي</td></tr>'; return; }
+    if (reset){ logs.offset = 0; logs.rows = []; }
+    document.getElementById('logsFilters').innerHTML = `<input type="text" class="q" placeholder="ابحث بالإجراء أو المستخدم أو IP..." value="${esc(logs.q)}" oninput="clearTimeout(window.__logT); window.__logT=setTimeout(()=>{logs.q=this.value; loadLogs();}, 350)" />` +
+      sel('logDays', [[1, 'آخر 24 ساعة'], [7, 'آخر 7 أيام'], [30, 'آخر 30 يوم'], [0, 'كل السجل']], logs.days, "logs.days=parseInt(this.value,10); loadLogs()") +
+      `<button class="btn btn-ghost" onclick="exportLogsCsv()">تصدير CSV</button>`;
+    try {
+      const d = await apiFetch(`/api/admin/logs/search?q=${encodeURIComponent(logs.q)}&days=${logs.days}&offset=${logs.offset}&limit=50`);
+      logs.rows = logs.rows.concat(d.items); logs.total = d.total; logs.offset = logs.rows.length;
+    } catch (e) { showToast(e.detail || 'تعذّر تحميل السجل', 'error'); }
+    document.getElementById('logsCount').textContent = `${numAr(logs.total)} إجراء`;
+    document.getElementById('logsBody').innerHTML = logs.rows.map(l => `<tr>
+      <td class="cell-sub">${fmtDT(l.at)}</td>
+      <td>${l.user ? `<span style="font-weight:700;">${esc(l.user)}</span> ${l.role ? roleBadge(l.role) : ''}<div class="cell-sub" dir="ltr" style="text-align:start;">${esc(l.email || '')}</div>` : '<span class="cell-sub">—</span>'}</td>
+      <td>${esc(l.action)}</td><td class="mono" dir="ltr" style="text-align:start;">${esc(l.ip || '—')}</td></tr>`).join('') || '<tr><td colspan="4" class="empty-row">لا توجد إجراءات</td></tr>';
+    document.getElementById('logsPager').innerHTML = logs.rows.length < logs.total ? `<button class="btn btn-ghost" onclick="loadLogs(false)">عرض المزيد (${numAr(logs.total - logs.rows.length)} متبقي)</button>` : '';
+  }
+  function exportLogsCsv(){
+    const csv = '\ufeff' + ['الوقت,المستخدم,البريد,الإجراء,IP'].concat(logs.rows.map(l => [l.at, l.user || '', l.email || '', l.action, l.ip || ''].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','))).join('\n');
+    downloadBlob(new Blob([csv], {type: 'text/csv;charset=utf-8'}), 'activity-log.csv');
   }
 
   // ===== PROFESSOR sections =====

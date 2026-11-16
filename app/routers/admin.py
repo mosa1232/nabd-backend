@@ -755,11 +755,14 @@ def list_logs(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db
 @router.get("/bans")
 def list_bans(db: Session = Depends(get_db)):
     bans = db.query(models.BanRecord).order_by(models.BanRecord.created_at.desc()).all()
+    times = dict(db.query(models.BanRecord.user_id, func.count(models.BanRecord.id)).group_by(models.BanRecord.user_id).all())
     out = []
     for b in bans:
         user = db.get(models.User, b.user_id)
         out.append({
             "id": b.id, "user_id": b.user_id, "user_name": user.full_name if user else "—",
+            "user_email": user.email if user else "", "user_role": user.role.value if user else "",
+            "currently_banned": bool(user.is_banned) if user else False, "times_banned": times.get(b.user_id, 1),
             "reason": b.reason, "status": b.status, "created_at": b.created_at,
             "appeal_message": b.appeal_message, "appealed_at": b.appealed_at,
         })
@@ -1554,6 +1557,20 @@ def list_media(db: Session = Depends(get_db)):
     ]
 
 
+@router.delete("/media/{media_id}")
+def delete_media(media_id: str, db: Session = Depends(get_db)):
+    m = db.get(models.MediaFile, media_id)
+    if not m:
+        raise HTTPException(404, "الملف غير موجود")
+    try:
+        delete_stored_upload(m.url)
+    except Exception:
+        pass
+    db.delete(m)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/media")
 def register_media(filename: str, url: str, content_type: str = "", size_bytes: int = 0,
                     db: Session = Depends(get_db)):
@@ -1756,15 +1773,30 @@ def update_order_status(order_id: str, status: str, db: Session = Depends(get_db
 # ===================================================== ADMIN: notifications
 @router.get("/notifications")
 def list_notifications_admin(db: Session = Depends(get_db)):
-    notifs = db.query(models.Notification).order_by(models.Notification.created_at.desc()).limit(50).all()
+    notifs = db.query(models.Notification).filter(models.Notification.created_by.isnot(None), models.Notification.title != "ردّ جديد من المساعدة").order_by(models.Notification.created_at.desc()).limit(100).all()
+    reads = dict(db.query(models.NotificationRead.notification_id, func.count(models.NotificationRead.id)).group_by(models.NotificationRead.notification_id).all())
     return [
         {
             "id": n.id, "title": n.title, "body": n.body, "created_at": n.created_at,
             "user_id": n.user_id, "broadcast": n.user_id is None,
             "audience": _audience_label(db, n),
+            "recipients": 1 if n.user_id else _audience_count(db, n.target_section_id, n.target_university_id, n.target_stage_id),
+            "read_count": reads.get(n.id, 0),
+            "content_type": n.content_type,
         }
         for n in notifs
     ]
+
+
+@router.delete("/notifications/{notification_id}")
+def delete_notification(notification_id: str, db: Session = Depends(get_db)):
+    n = db.get(models.Notification, notification_id)
+    if not n:
+        raise HTTPException(404, "الإشعار غير موجود")
+    db.query(models.NotificationRead).filter(models.NotificationRead.notification_id == n.id).delete()
+    db.delete(n)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/notifications")
