@@ -2334,7 +2334,7 @@
       <button class="btn btn-ghost" onclick="catalogInlineAdd('${parentType}','${parentId}')">أضف</button>
     </div>`;
 
-﻿  // ---- profile-style navigation: university cards -> department cards -> stages
+  // ---- profile-style navigation: university cards -> department cards -> stages
   const catNav = {sec: null, uni: null, dept: null};
   const STAGE_PRESETS = ['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة', 'المرحلة الرابعة', 'المرحلة الخامسة', 'المرحلة السادسة'];
   const catGo = (k, id) => {
@@ -2344,7 +2344,7 @@
     else if (k === 'up') { if (id === 'sec') catNav.uni = catNav.dept = null; else if (id === 'uni') catNav.dept = null; }
     renderCatalogTree();
   };
-﻿  const kebab = (type, id, withCopy) => `<button class="cat-kebab" title="خيارات" onclick="event.stopPropagation(); catMenu(event,'${type}','${id}',${withCopy})">⋯</button>`;
+  const kebab = (type, id, withCopy) => `<button class="cat-kebab" title="خيارات" onclick="event.stopPropagation(); catMenu(event,'${type}','${id}',${withCopy})">⋯</button>`;
   function catMenu(ev, type, id, withCopy){
     document.getElementById('catMenu')?.remove();
     const m = document.createElement('div'); m.id = 'catMenu';
@@ -4028,94 +4028,184 @@
 
   // ===== ADMIN: full account details =====
   const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
-﻿  // ===== ADMIN: full-page account =====
-  let acctPageId = null, acctTree = null;
+  // ===== ADMIN: full-page account (view + edit in place) =====
+  let acctPageId = null, acctTree = null, acctEdit = false, acctOv = null, acctOpts = null;
   async function showAccountDetails(id){
     const a = allAccounts.find(x => x.id === id);
     if (!a) return;
-    acctPageId = id;
+    acctPageId = id; acctEdit = false; acctOv = null; acctOpts = null;
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     document.getElementById('sec-account').classList.add('active');
     document.getElementById('dashTitle').textContent = 'الحسابات';
     window.scrollTo(0, 0);
-    if (a.role === 'student' && liveMode && !acctTree){
-      try { acctTree = nestCatalog(await apiFetch('/api/admin/catalog')); } catch (e) { acctTree = []; }
-    }
     renderAccountPage();
+    if (!liveMode) return;
+    try {
+      if (!acctTree) acctTree = nestCatalog(await apiFetch('/api/admin/catalog'));
+      acctOv = await apiFetch('/api/admin/users/' + id + '/overview');
+    } catch (e) { /* page still shows the account row */ }
+    if (acctPageId === id) renderAccountPage();
   }
-  function closeAccountPage(){ acctPageId = null; showSection('accounts'); }
+  function closeAccountPage(){ acctPageId = null; acctEdit = false; showSection('accounts'); }
+
+  async function startAccountEdit(){
+    const a = allAccounts.find(x => x.id === acctPageId); if (!a) return;
+    try {
+      acctOpts = {
+        professors: a.role === 'assistant' || true ? await professorOptions().catch(() => []) : [],
+        scope: await scopeOptions().catch(() => ({unis: [], stages: [], depts: []})),
+      };
+    } catch (e) { acctOpts = {professors: [], scope: {unis: [], stages: [], depts: []}}; }
+    acctEdit = true; renderAccountPage();
+  }
+  function cancelAccountEdit(){ acctEdit = false; renderAccountPage(); }
 
   function renderAccountPage(){
     const a = allAccounts.find(x => x.id === acctPageId);
     if (!a) return;
+    const ov = acctOv, ed = acctEdit;
     const fmt = iso => iso ? new Date(iso).toLocaleString('ar-IQ') : '—';
-    const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:.86rem;"><span style="width:130px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
+    const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:.86rem; align-items:center;"><span style="width:130px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
     const card = (title, inner) => `<div class="dash-card glass" style="margin-bottom:14px;"><div class="dash-card-head"><span class="dash-card-title">${title}</span></div>${inner}</div>`;
-    const field = 'width:100%; padding:11px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.88rem;';
-    const parent = a.parent_user_id ? accountName(a.parent_user_id) : '';
+    const field = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.86rem;';
+    const inp = (id, val, type = 'text', ph = '') => `<input id="${id}" type="${type}" value="${esc(val || '')}" placeholder="${ph}" style="${field}" />`;
+    const sel = (id, opts, val) => `<select id="${id}" style="${field}">${opts.map(o => `<option value="${o.value}" ${String(o.value) === String(val || '') ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
     const btn = (label, fn, style = '') => `<button class="btn btn-ghost" style="padding:9px 16px; font-size:.8rem; ${style}" onclick="${fn}">${label}</button>`;
+    const parent = a.parent_user_id ? accountName(a.parent_user_id) : '';
+    const nm = id => esc(acctName(id) || '—');
+    const isStaff = ['supervisor', 'store_manager'].includes(a.role);
 
-    const info = card('المعلومات',
-      row('البريد الإلكتروني', esc(a.email), true) +
-      row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
-      (parent ? row('يعمل مع الدكتور', esc(parent)) : '') +
-      (a.role === 'reseller' ? row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) : '') +
-      (a.role === 'representative' ? row('يمثّل', esc(catalogNameById[a.scope_university_id] || '—')) + row('القسم', esc(a.scope_department_id ? (catalogNameById[a.scope_department_id] || '—') : 'كل الأقسام')) + row('المرحلة', esc(a.scope_stage_id ? (catalogNameById[a.scope_stage_id] || '—') : 'كل المراحل')) : '') +
-      (a.role === 'student' ? row('التوثيق', a.verified_at ? ('موثّق باسم «' + esc(a.verified_name || '') + '» — ' + fmt(a.verified_at)) : 'غير موثّق') : '') +
-      ((a.extra_permissions || []).length ? row('صلاحيات إضافية', a.extra_permissions.map(p => esc(PERM_LABELS[p] || p)).join('، ')) : '') +
-      row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
-      row('تاريخ الانضمام', fmt(a.created_at)) + row('آخر دخول', fmt(a.last_login)));
+    // ---- identity & contact
+    const identity = card('البيانات الشخصية', ed
+      ? row('الاسم الكامل', inp('efName', a.full_name)) + row('البريد الإلكتروني', inp('efEmail', a.email, 'text')) +
+        row('رقم الهاتف', inp('efPhone', a.phone, 'tel', '07xxxxxxxxx')) +
+        row('الدور', sel('efRole', (roleOptionsForMe().some(o => o.value === a.role) ? roleOptionsForMe() : ROLE_OPTIONS), a.role)) +
+        row('كلمة مرور جديدة', inp('efPass', '', 'password', 'اتركه فارغًا للإبقاء على الحالية'))
+      : row('الاسم الكامل', esc(a.full_name)) + row('البريد الإلكتروني', esc(a.email), true) + row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
+        row('الدور', esc(ROLE_NAME[a.role] || a.role)) +
+        (ov && ov.caption ? row('النبذة', esc(ov.caption)) : ''));
 
-    const study = a.role === 'student' ? card('الدراسة (كلية · جامعة · قسم · مرحلة)', `
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:14px;">
+    // ---- study (students)
+    const field4 = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px;">
         <label style="font-size:.78rem; font-weight:700;">الكلية<select id="apSec" style="${field}" onchange="apFill('sec')"></select></label>
         <label style="font-size:.78rem; font-weight:700;">الجامعة<select id="apUni" style="${field}" onchange="apFill('uni')"></select></label>
         <label style="font-size:.78rem; font-weight:700;">القسم<select id="apDept" style="${field}" onchange="apFill('dept')"></select></label>
         <label style="font-size:.78rem; font-weight:700;">المرحلة<select id="apStage" style="${field}"></select></label>
-      </div>
-      ${a.is_graduate ? '<div class="cell-sub" style="margin-bottom:10px;">الطالب مسجّل كمتخرج.</div>' : ''}
-      <button class="btn" onclick="saveAccountPlacement()">حفظ التغيير</button>`) : '';
+      </div>`;
+    const study = a.role === 'student' ? card('الدراسة', ed ? field4 :
+      row('الكلية', nm(a.section_id)) + row('الجامعة', nm(a.university_id)) +
+      row('القسم', esc(deptOfStage(a.university_id, a.stage_id) || '—')) +
+      row('المرحلة', esc(a.is_graduate ? 'متخرج' : (acctName(a.stage_id) || '—')))) : '';
 
-    const pw = card('كلمة المرور', `
-      <div class="cell-sub" style="margin-bottom:10px;">${a.has_password ? 'كلمات المرور تُحفظ مشفّرة، فلا يمكن لأي أحد (ولا حتى المشرف) قراءة الحالية. لكن تقدر تحدد له كلمة جديدة تشوفها أنت وتعطيها له.' : 'الحساب يدخل عبر Google فقط — تقدر تحدد له كلمة مرور أيضًا.'}</div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input id="apPw" type="text" dir="ltr" autocomplete="off" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" style="${field} flex:1; min-width:220px; font-family:monospace;" />
-        ${btn('توليد', 'apGenPw()')}
-        <button class="btn" onclick="saveAccountPassword()">حفظ</button>
-      </div>
-      <div id="apPwDone" style="display:none; margin-top:12px; padding:12px; border-radius:12px; background:var(--track);"></div>`);
+    // ---- role specific
+    let role = '';
+    if (a.role === 'assistant') role = card('العمل', ed ? row('يعمل مع الدكتور', sel('efParent', [{value: '', label: '—'}].concat((acctOpts.professors || []).filter(o => o.value)), a.parent_user_id)) : row('يعمل مع الدكتور', esc(parent || '—')));
+    if (a.role === 'reseller') role = card('المندوب', ed ? row('حصة الأكواد', inp('efQuota', a.code_quota == null ? '' : a.code_quota, 'number', 'فارغ = بلا حد')) : row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota));
+    if (a.role === 'representative') role = card('نطاق الممثل', ed
+      ? row('الجامعة / الكلية', sel('efScopeUni', acctOpts.scope.unis, a.scope_university_id)) + row('القسم', sel('efScopeDept', acctOpts.scope.depts, a.scope_department_id)) + row('المرحلة', sel('efScopeStage', acctOpts.scope.stages, a.scope_stage_id))
+      : row('يمثّل', nm(a.scope_university_id)) + row('القسم', a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام') + row('المرحلة', a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'));
+    if (isStaff) role = card('الصلاحيات الإضافية', ed
+      ? `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px;">${STAFF_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.84rem;"><input type="checkbox" class="efPerm" value="${o.value}" ${(a.extra_permissions || []).includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join('')}</div>`
+      : ((a.extra_permissions || []).length ? a.extra_permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join(' ') : '<span class="cell-sub">لا توجد</span>'));
+    if (ov && ov.teaches && ov.teaches.length && !ed) role += card('المواد التي يدرّسها', ov.teaches.map(t => `<span class="cat-chip">${esc(t.subject)}</span>`).join(' '));
 
-    const actions = card('إجراءات',
-      `<div style="display:flex; gap:8px; flex-wrap:wrap;">` +
-      btn('تعديل البيانات', `promptEditUser('${a.id}')`) +
-      (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`)
-        : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
-      (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '') +
-      `</div>`);
+    // ---- account & security
+    const security = card('الحساب والأمان',
+      row('كلمة المرور', a.has_password ? 'معيّنة' + (a.password_changed_at ? ' — آخر تغيير ' + fmt(a.password_changed_at) : '') : 'غير معيّنة (يدخل عبر Google)') +
+      (ov ? row('ربط Google', ov.has_google ? 'مربوط' : 'غير مربوط') : '') +
+      row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
+      row('الحالة', a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>') +
+      (a.role === 'student' ? row('التوثيق', a.verified_at ? ('موثّق باسم «' + esc(a.verified_name || '') + '» — ' + fmt(a.verified_at)) : 'غير موثّق') : '') +
+      row('تاريخ الانضمام', fmt(a.created_at)) + row('آخر دخول', fmt(a.last_login)) +
+      (ov ? row('اللغة / المظهر', esc((ov.language || '—') + ' / ' + (ov.theme || '—'))) : ''));
+
+    // ---- activity
+    let activity = '';
+    if (ov){
+      const stats = a.role === 'student' ? row('الأسئلة المجابة', `${ov.answered}${ov.accuracy != null ? ' — دقة ' + ov.accuracy + '%' : ''}`) +
+        row('الامتحانات المنجزة', `${ov.exams_done}${ov.exam_pct != null ? ' — معدل ' + ov.exam_pct + '%' : ''}`) : '';
+      const subs = ov.subscriptions.length ? ov.subscriptions.map(s => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(s.subject)}</span><span class="activity-time">${s.expires_at ? 'حتى ' + fmtDate(s.expires_at) : 'بلا انتهاء'}</span></div>`).join('') : '<div class="cell-sub">لا توجد اشتراكات مفعّلة</div>';
+      const dev = ov.devices.map(d => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(d.label)}${d.active ? ' <span class="badge badge-active">نشط</span>' : ''}</span><span class="activity-time">${fmt(d.at)}</span></div>`).join('') || '<div class="cell-sub">لا يوجد</div>';
+      const bans = ov.bans.map(b => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(b.reason)} <span class="cell-sub">(${esc(b.status)})</span></span><span class="activity-time">${fmtDate(b.at)}</span></div>`).join('');
+      const logs = ov.activity.map(l => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(l.action)}</span><span class="activity-time">${fmtDate(l.at)}</span></div>`).join('');
+      activity = card('النشاط', stats + row('الطلبات', `${ov.orders.count} طلب — ${fmtIQD(ov.orders.total)}`) +
+        `<div style="margin-top:10px; font-weight:700; font-size:.82rem;">الاشتراكات</div>${subs}<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الأجهزة</div>${dev}` +
+        (bans ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">سجل الحظر</div>${bans}` : '') +
+        (logs ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الإجراءات</div>${logs}` : ''));
+    }
+
+    const actions = ed ? '' : card('إجراءات', `<div style="display:flex; gap:8px; flex-wrap:wrap;">` +
+      (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`) : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
+      (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '') + `</div>`);
 
     document.getElementById('accountPage').innerHTML = `
-      <button class="btn btn-ghost" style="margin-bottom:14px;" onclick="closeAccountPage()">→ الحسابات</button>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="closeAccountPage()">→ الحسابات</button>
+        <span style="margin-inline-start:auto; display:flex; gap:8px;">${ed
+          ? `<button class="btn btn-ghost" onclick="cancelAccountEdit()">إلغاء</button><button class="btn" onclick="saveAccountEdit()">حفظ التغييرات</button>`
+          : `<button class="btn" onclick="startAccountEdit()">تعديل</button>`}</span>
+      </div>
       <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
         <div class="cell-avatar" style="background:var(--accent); width:60px; height:60px; font-size:1.3rem;">${initialsOf(a.full_name)}</div>
         <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>
           <div style="margin-top:4px;">${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
       </div>
-      <div style="max-width:760px;">${study}${pw}${info}${actions}</div>`;
-    if (a.role === 'student') apInit(a);
+      <div style="max-width:780px;">${identity}${study}${role}${security}${activity}${actions}</div>`;
+    if (a.role === 'student' && ed) apInit(a);
+  }
+  function acctName(id){
+    if (!id) return '';
+    if (catalogNameById[id]) return catalogNameById[id];
+    for (const s of acctTree || []){ if (s.id === id) return s.name; for (const u of s.universities){ if (u.id === id) return u.name; for (const d of u.departments){ if (d.id === id) return d.name; for (const g of d.stages) if (g.id === id) return g.name; } } }
+    return '';
+  }
+  function deptOfStage(uniId, stageId){
+    if (!stageId || !acctTree) return '';
+    for (const s of acctTree) for (const u of s.universities) for (const d of u.departments) if (d.stages.some(x => x.id === stageId)) return d.name;
+    return '';
   }
 
   async function unbanAndRefresh(id){ await unbanUserAccount(id); renderAccountPage(); }
 
+  async function saveAccountEdit(){
+    const a = allAccounts.find(x => x.id === acctPageId); if (!a) return;
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const v = id => (document.getElementById(id) || {}).value;
+    const role = v('efRole') || a.role;
+    const name = (v('efName') || '').trim(), email = (v('efEmail') || '').trim();
+    if (!name || !email){ showToast('الاسم والبريد الإلكتروني مطلوبان', 'error'); return; }
+    const body = {full_name: name, email, role, phone: (v('efPhone') || '').trim(), password: v('efPass') || null};
+    if (role === 'assistant') body.parent_user_id = v('efParent') || null;
+    if (role === 'reseller') { const q = v('efQuota'); body.code_quota = q === '' || q == null ? null : Number(q); }
+    if (role === 'representative'){
+      if (!v('efScopeUni')){ showToast('اختر الجامعة/الكلية التي يمثّلها', 'error'); return; }
+      body.scope_university_id = v('efScopeUni'); body.scope_department_id = v('efScopeDept') || null; body.scope_stage_id = v('efScopeStage') || null;
+    }
+    if (['supervisor', 'store_manager'].includes(role)) body.permissions = [...document.querySelectorAll('.efPerm:checked')].map(x => x.value);
+    try {
+      await apiFetch('/api/admin/users/' + a.id, {method: 'PUT', body: JSON.stringify(body)});
+      if (a.role === 'student' && role === 'student' && document.getElementById('apUni')){
+        await apiFetch('/api/admin/users/' + a.id + '/placement', {method: 'PUT', body: JSON.stringify({university_id: v('apUni') || null, stage_id: v('apStage') || null})});
+      }
+      showToast('تم حفظ التغييرات');
+      acctEdit = false;
+      await loadAccounts();
+      try { acctOv = await apiFetch('/api/admin/users/' + a.id + '/overview'); } catch (e) {}
+      renderAccountPage();
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
+  }
+
   // placement pickers: college -> university -> department -> stage
   function apInit(a){
     const tree = acctTree || [];
-    let secId = a.section_id, uniId = a.university_id;
-    const uniRow = tree.flatMap(s => s.universities.map(u => ({s, u}))).find(x => x.u.id === uniId);
+    let secId = a.section_id;
+    const uniRow = tree.flatMap(s => s.universities.map(u => ({s, u}))).find(x => x.u.id === a.university_id);
     if (uniRow) secId = uniRow.s.id;
     const secEl = document.getElementById('apSec');
     secEl.innerHTML = '<option value="">—</option>' + tree.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     secEl.value = secId || '';
-    apFill('sec', uniId, a.stage_id);
+    apFill('sec', a.university_id, a.stage_id);
   }
   function apFill(level, uniId, stageId){
     const tree = acctTree || [];
@@ -4137,38 +4227,6 @@
     stEl.innerHTML = opts(dept ? dept.stages : [], '—');
     if (stageId) stEl.value = stageId;
   }
-  async function saveAccountPlacement(){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
-    const uni = document.getElementById('apUni').value, st = document.getElementById('apStage').value;
-    if (uni && !st && !(await confirmModal('لم تختر مرحلة — سيُحفظ الطالب بدون مرحلة. متابعة؟'))) return;
-    try {
-      await apiFetch('/api/admin/users/' + acctPageId + '/placement', {method: 'PUT', body: JSON.stringify({university_id: uni || null, stage_id: st || null})});
-      showToast('تم نقل الطالب');
-      await loadAccounts();
-      renderAccountPage();
-    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
-  }
-  function apGenPw(){
-    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const arr = new Uint32Array(10); crypto.getRandomValues(arr);
-    document.getElementById('apPw').value = [...arr].map(n => chars[n % chars.length]).join('');
-  }
-  async function saveAccountPassword(){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
-    const pw = document.getElementById('apPw').value;
-    if (pw.length < 8){ showToast('كلمة المرور 8 أحرف على الأقل', 'error'); return; }
-    try {
-      await apiFetch('/api/admin/users/' + acctPageId + '/set-password', {method: 'POST', body: JSON.stringify({password: pw})});
-      const box = document.getElementById('apPwDone');
-      box.style.display = 'block';
-      box.innerHTML = `<div class="item-meta" style="margin-bottom:6px;">تم الحفظ — كلمة المرور الجديدة (تظهر هنا فقط الآن، وسُجّل خروج الحساب من أجهزته):</div>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"><span class="mono" id="apPwShown" style="font-size:1.15rem; font-weight:800; direction:ltr; user-select:all;">${esc(pw)}</span>
-        <button class="btn btn-ghost" style="padding:6px 12px; font-size:.74rem;" onclick="copyText(document.getElementById('apPwShown').textContent, this)">نسخ</button></div>`;
-      document.getElementById('apPw').value = '';
-      showToast('تم تغيير كلمة المرور');
-    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
-  }
-
   function closeAccountDetails(){ document.getElementById('acctOverlay').style.display = 'none'; }
 
   async function resetAccountPassword(id){

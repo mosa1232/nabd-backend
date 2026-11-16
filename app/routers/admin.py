@@ -519,6 +519,38 @@ def reset_user_password(user_id: str, db: Session = Depends(get_db), actor: mode
     return {"temporary_password": temp, "email": user.email}
 
 
+@router.get("/users/{user_id}/overview")
+def user_overview(user_id: str, db: Session = Depends(get_db)):
+    """Everything the account page shows beyond the account row itself:
+    study activity, subscriptions, orders, devices, bans and recent actions."""
+    u = db.get(models.User, user_id)
+    if not u:
+        raise HTTPException(404, "المستخدم غير موجود")
+    answers = db.query(func.count(models.StudentAnswer.id), func.sum(models.StudentAnswer.is_correct)).filter(
+        models.StudentAnswer.user_id == u.id).one()
+    answered, correct = int(answers[0] or 0), int(answers[1] or 0)
+    attempts = db.query(models.ExamAttempt).filter(models.ExamAttempt.user_id == u.id, models.ExamAttempt.finished_at.isnot(None)).all()
+    exam_pct = round(100 * sum(a.score for a in attempts) / max(1, sum(a.total for a in attempts))) if attempts else None
+    codes = db.query(models.ActivationCode).filter(models.ActivationCode.activated_by_user_id == u.id).all()
+    orders = db.query(models.Order).filter(models.Order.user_id == u.id).all()
+    sessions = db.query(models.UserSession).filter(models.UserSession.user_id == u.id).order_by(models.UserSession.created_at.desc()).limit(5).all()
+    bans = db.query(models.BanRecord).filter(models.BanRecord.user_id == u.id).order_by(models.BanRecord.created_at.desc()).limit(5).all()
+    logs = db.query(models.ActivityLog).filter(models.ActivityLog.user_id == u.id).order_by(models.ActivityLog.created_at.desc()).limit(8).all()
+    profs = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == u.id).all()
+    return {
+        "has_google": bool(u.google_sub),
+        "caption": u.caption, "language": u.language, "theme": u.theme,
+        "answered": answered, "accuracy": round(100 * correct / answered) if answered else None,
+        "exams_done": len(attempts), "exam_pct": exam_pct,
+        "subscriptions": [{"subject": c.subject.name if c.subject_id else "VIP — جميع المواد", "activated_at": c.activated_at, "expires_at": c.expires_at} for c in codes],
+        "orders": {"count": len(orders), "total": sum(o.total or 0 for o in orders)},
+        "devices": [{"label": s.device_label, "active": bool(s.is_active), "at": s.created_at} for s in sessions],
+        "bans": [{"reason": b.reason, "status": b.status.value if hasattr(b.status, "value") else str(b.status), "at": b.created_at} for b in bans],
+        "activity": [{"action": l.action, "at": l.created_at} for l in logs],
+        "teaches": [{"subject": p.subject.name if p.subject else "—", "title": p.title} for p in profs],
+    }
+
+
 class _PlacementIn(schemas.BaseModel):
     university_id: str | None = None
     stage_id: str | None = None
