@@ -1527,6 +1527,40 @@
     .lp-feature{padding-bottom:16px;}
     .lp-steps{gap:10px;}
   }
+
+  /* ---- landing: professional / calm ---- */
+  .lp{--lp-soft:var(--ink-soft);}
+  .lp-hero{min-height:0 !important; background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, var(--page-bg)) 0%, var(--page-bg) 100%) !important;}
+  .lp-hero::after, .lp-pulse, .lp-guides, .lp-ghost, .lp-card, .lp-band, .lp-scroll{display:none !important;}
+  .lp-cards{display:block !important; min-height:0 !important; position:static !important;}
+  .lp-stage{display:flex !important; flex-direction:column; align-items:center; text-align:center; max-width:880px !important; padding:clamp(110px,16vh,160px) 22px clamp(48px,8vh,84px) !important; min-height:0 !important;}
+  .lp-headline{font-weight:800 !important; font-size:clamp(2.2rem,5.4vw,3.8rem) !important; line-height:1.25 !important; letter-spacing:0 !important;}
+  .lp-headline span:last-child i{color:var(--accent);}
+  .lp-lede{max-width:46ch !important; margin:20px auto 0 !important; font-size:clamp(1rem,1.5vw,1.15rem) !important;}
+  .lp-cta-row{justify-content:center; margin-top:30px !important;}
+  .lp-liquid, .lp-orb{background:var(--accent) !important; box-shadow:none !important; outline:0 !important; filter:none !important; animation:none !important;}
+  .lp-liquid::before, .lp-orb::before, .lp-liquid::after, .lp-orb::after{display:none !important;}
+  .lp-liquid{height:54px !important; border-radius:14px !important; padding-inline:22px 26px !important; font-weight:700 !important; font-size:1rem !important;}
+  .lp-orb{width:54px !important; height:54px !important; border-radius:14px !important; background:var(--surface) !important; color:var(--accent) !important; border:1px solid var(--line) !important;}
+  .lp-liquid:hover{background:color-mix(in srgb, var(--accent) 88%, #000) !important; transform:none !important;}
+  .lp-orb:hover{background:var(--track) !important; transform:none !important;}
+  .lp-stats{position:static !important; flex-direction:row !important; justify-content:center; flex-wrap:wrap; gap:14px 44px !important; margin:40px 0 0 !important; padding:18px 30px; background:var(--surface); border:1px solid var(--line); border-radius:18px;}
+  .lp-stats *{text-align:center;}
+  .lp-dock{background:var(--surface) !important; border:1px solid var(--line) !important; box-shadow:0 4px 16px -10px rgba(22,33,58,.25) !important;}
+  .lp-dock::after{display:none !important;}
+  .lp-dock-item{transform:none !important; font-weight:600;}
+  .lp-dock-mark, .lp-dock-item.is-active{background:var(--accent) !important; box-shadow:none !important;}
+  .lp-h{font-weight:800 !important; max-width:none !important; font-size:clamp(1.6rem,3vw,2.4rem) !important;}
+  .lp-eyebrow{font-weight:700;}
+  .lp-feature{background:var(--surface) !important; border:1px solid var(--line) !important; box-shadow:none !important; border-radius:18px !important; overflow:hidden;}
+  button.lp-feature:hover{transform:none !important; border-color:var(--accent) !important; box-shadow:none !important;}
+  .lp-feature .lp-plate{height:76px !important; background:var(--track) !important; color:var(--accent) !important;}
+  .lp-feature .lp-plate::before, .lp-feature .lp-plate::after{display:none !important;}
+  .lp-feature .lp-plate-icon{width:38px; height:38px;}
+  .lp-feature .lp-knob{background:var(--track) !important; color:var(--accent) !important; box-shadow:none !important;}
+  .lp-step, .lp-faq details{background:var(--surface); border:1px solid var(--line); box-shadow:none !important;}
+  .lp-final{background:var(--accent) !important;}
+  @media (max-width:640px){ .lp-stage{padding-top:100px !important;} .lp-stats{gap:12px 26px !important; padding:14px 20px;} .lp-feature .lp-plate{height:64px !important;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
