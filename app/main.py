@@ -94,6 +94,14 @@ app.include_router(ai_router.router)
 app.include_router(representative.router)
 app.include_router(verification.router)
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    path = FRONTEND_DIR / "static" / "brand" / "kiur-48.png"
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/media-files/{name}")
 def serve_media(name: str):
     """Serves an uploaded file, whichever backend it lives on.
