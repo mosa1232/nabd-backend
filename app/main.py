@@ -12,7 +12,7 @@ from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
 from .database import Base, engine
 from .routers import (
-    activation, admin, admin_ops, admin_stats, support, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
+    activation, admin, admin_ops, admin_stats, student_progress, support, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
     notifications, professors, public, questions, reseller, store, students, summer,
 )
 from .storage import name_from_url, storage
@@ -81,6 +81,7 @@ app.include_router(store.router)
 app.include_router(admin.router)
 app.include_router(admin_stats.router)
 app.include_router(admin_ops.router)
+app.include_router(student_progress.router)
 app.include_router(support.student_router)
 app.include_router(support.admin_router)
 app.include_router(reseller.router)

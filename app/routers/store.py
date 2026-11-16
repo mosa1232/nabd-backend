@@ -27,6 +27,28 @@ def list_products(category_id: str | None = None, db: Session = Depends(get_db))
     return q.all()
 
 
+@router.get("/orders")
+def my_orders(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The signed-in student's own orders, newest first, with the activation
+    codes a paid order produced (so they can copy a code without asking anyone)."""
+    orders = db.query(models.Order).filter(models.Order.user_id == user.id).order_by(models.Order.created_at.desc()).limit(100).all()
+    ids = [o.id for o in orders]
+    codes = {}
+    if ids:
+        for c in db.query(models.ActivationCode).filter(models.ActivationCode.order_id.in_(ids)).all():
+            codes.setdefault(c.order_id, []).append({
+                "code": c.code, "status": c.status.value if hasattr(c.status, "value") else str(c.status),
+                "subject": c.subject.name if c.subject_id and c.subject else None,
+            })
+    return [{
+        "id": o.id, "total": o.total, "status": o.status.value if hasattr(o.status, "value") else str(o.status),
+        "payment_method": o.payment_method, "created_at": o.created_at,
+        "delivery": {"name": o.delivery_name, "phone": o.delivery_phone, "address": o.delivery_address} if o.delivery_address else None,
+        "items": [{"name": i.product.name if i.product else "منتج محذوف", "qty": i.qty, "price": i.price} for i in o.items],
+        "codes": codes.get(o.id, []),
+    } for o in orders]
+
+
 @router.post("/orders", response_model=schemas.OrderOut)
 def create_order(
     body: schemas.OrderIn,

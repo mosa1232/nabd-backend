@@ -957,7 +957,7 @@
   .lp-eyebrow{margin:0 0 12px; font-size:.86rem; font-weight:600; color:var(--accent);}
   .lp-h{margin:0; font-weight:300; font-size:clamp(1.8rem, 3.2vw, 3rem); line-height:1.25; color:var(--ink); max-width:20ch;}
   .lp-sub{margin:14px 0 0; max-width:52ch; color:var(--lp-soft); font-size:.95rem; line-height:1.85;}
-  .lp-grid{display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:clamp(14px, 1.6vw, 24px); margin-top:clamp(28px, 4vw, 48px);}
+  .lp-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:clamp(14px, 1.6vw, 24px); margin-top:clamp(28px, 4vw, 48px);}
   .lp-feature{
     position:relative; display:flex; flex-direction:column; width:100%; text-align:start; border:0;
     background:var(--lp-card); color:var(--lp-card-ink); border-radius:clamp(28px, 2.6vw, 40px);
@@ -1395,6 +1395,43 @@
     .player-card{max-width:900px; margin-inline:auto;}
   }
 
+  /* ---- quiz summary + bank progress ---- */
+  .sum-card{display:flex; align-items:center; gap:22px; margin:0 16px; padding:20px; border-radius:22px; flex-wrap:wrap; justify-content:center;}
+  .sum-ring{width:120px; height:120px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--accent) calc(var(--p,0) * 1%), var(--track, rgba(0,0,0,.08)) 0); position:relative; flex:none;}
+  .sum-ring::before{content:''; position:absolute; inset:10px; border-radius:50%; background:var(--glass-bg-strong, #fff);}
+  .sum-ring span{position:relative; font-weight:800; font-size:1.6rem;}
+  .sum-stats{display:grid; grid-template-columns:repeat(2,minmax(110px,1fr)); gap:10px; flex:1; min-width:220px;}
+  .sum-stat{padding:10px 12px; border-radius:14px; background:var(--track, rgba(0,0,0,.05)); text-align:center;} .sum-stat b{display:block; font-size:1.25rem;} .sum-stat small{font-size:.72rem; opacity:.7;}
+  .sum-actions{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:6px 16px 100px;}
+  .sum-miss{padding:10px 0; border-bottom:1px solid var(--glass-border, rgba(0,0,0,.1)); font-size:.88rem; line-height:1.8;}
+  .bs-card{display:block; width:100%; text-align:start; padding:14px 16px; border-radius:16px; border:1.5px solid var(--glass-border, rgba(0,0,0,.12)); background:var(--glass-bg-strong, transparent); color:inherit; font:inherit; cursor:pointer;}
+  .bs-card:hover{border-color:var(--accent);}
+  .bs-top{display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:800;}
+  .bs-bar{height:7px; border-radius:99px; background:var(--track, rgba(0,0,0,.08)); overflow:hidden; margin:10px 0 8px;} .bs-bar i{display:block; height:100%; background:var(--accent); border-radius:inherit;}
+  .bs-meta{display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:.76rem; opacity:.85;}
+  .bs-pill{padding:2px 9px; border-radius:99px; font-weight:800; font-size:.72rem; background:var(--track, rgba(0,0,0,.08));}
+  .bs-pill.hi{background:rgba(46,182,125,.18); color:#1f9d68;} .bs-pill.mid{background:rgba(232,163,61,.2); color:#b9770e;} .bs-pill.lo{background:rgba(229,72,77,.16); color:var(--danger);}
+  /* ---- landing: how it works / faq / final call ---- */
+  .lp-steps{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:clamp(14px,1.6vw,24px); margin-top:clamp(28px,4vw,48px);}
+  .lp-step{padding:26px 24px; border-radius:clamp(24px,2.2vw,34px); background:var(--lp-card, rgba(255,255,255,.6)); color:var(--lp-card-ink, inherit);}
+  .lp-step b{display:grid; place-items:center; width:38px; height:38px; border-radius:50%; background:var(--accent); color:#fff; font-size:1rem; margin-bottom:14px;}
+  .lp-step h3{margin:0 0 8px; font-size:1.05rem; font-weight:700;} .lp-step p{margin:0; font-size:.88rem; line-height:1.85; opacity:.8;}
+  .lp-faq{margin-top:clamp(24px,3.4vw,40px); max-width:820px; display:grid; gap:10px;}
+  .lp-faq details{border-radius:20px; background:var(--lp-card, rgba(255,255,255,.6)); color:var(--lp-card-ink, inherit); padding:0 20px;}
+  .lp-faq summary{cursor:pointer; list-style:none; padding:18px 0; font-weight:700; font-size:.98rem; display:flex; justify-content:space-between; gap:12px; align-items:center;}
+  .lp-faq summary::-webkit-details-marker{display:none;} .lp-faq summary::after{content:'+'; font-size:1.3rem; line-height:1; opacity:.6; transition:transform .2s;} .lp-faq details[open] summary::after{transform:rotate(45deg);}
+  .lp-faq details p{margin:0; padding:0 0 18px; font-size:.9rem; line-height:1.9; opacity:.82;}
+  .lp-final{margin-top:clamp(56px,8vw,100px); text-align:center; padding:clamp(34px,5vw,60px) 20px; border-radius:clamp(28px,3vw,44px); background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;}
+  .lp-final h2{margin:0 0 10px; font-weight:600; font-size:clamp(1.5rem,3vw,2.3rem);} .lp-final p{margin:0 0 22px; opacity:.9;}
+  .lp-final .btn{background:#fff; color:var(--accent); font-weight:800; padding:13px 28px;}
+  .lp-foot .lp-contact{opacity:.8; font-size:.82rem;} .lp-foot .lp-contact a{color:inherit; font-weight:700;}
+  /* ---- my orders ---- */
+  .ord-card{border:1px solid var(--glass-border, rgba(0,0,0,.12)); border-radius:18px; background:var(--glass-bg-strong, transparent); padding:14px 16px; margin-bottom:12px;}
+  .ord-top{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;}
+  .ord-steps{display:flex; gap:6px; align-items:center; margin:12px 0 4px; font-size:.7rem;}
+  .ord-step{flex:1; text-align:center;} .ord-step i{display:block; height:5px; border-radius:99px; background:var(--track, rgba(0,0,0,.1)); margin-bottom:5px;} .ord-step.on i{background:var(--accent);} .ord-step.bad i{background:var(--danger);}
+  .ord-code{display:flex; align-items:center; gap:10px; padding:9px 12px; margin-top:6px; border-radius:12px; background:var(--track, rgba(0,0,0,.06));}
+  .ord-code b{font-family:monospace; letter-spacing:.05em; direction:ltr;}
   /* ---- support chat ---- */
   .sp-badge{position:absolute; top:2px; inset-inline-start:2px; background:var(--danger); color:#fff; font-size:.6rem; font-weight:700; min-width:15px; height:15px; border-radius:8px; align-items:center; justify-content:center; padding:0 3px; display:flex;}
   .sb-item .sp-badge{position:static; margin-inline-start:auto;}
@@ -1755,10 +1792,29 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         <span data-i18n="prev">السابق</span>
       </button>
+      <button class="btn btn-ghost" id="endBtn" onclick="showQuizSummary()" data-i18n="sumEnd">إنهاء</button>
       <button class="btn" id="nextBtn" onclick="changeQuestion(1)">
         <span data-i18n="next">التالي</span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)"/></svg>
       </button>
+    </div>
+  </div>
+
+  <!-- ============ QUIZ SESSION SUMMARY ============ -->
+  <div class="view" id="view-quiz-summary">
+    <div class="page-head"><div class="page-head-main"><div><div class="page-title" data-i18n="sumTitle">ملخص الجلسة</div><div class="page-sub" id="sumSub"></div></div></div></div>
+    <div class="glass sum-card">
+      <div class="sum-ring" id="sumRing"><span id="sumPct">0%</span></div>
+      <div class="sum-stats" id="sumStats"></div>
+    </div>
+    <div class="glass" style="margin:12px 16px; padding:16px 18px; display:none;" id="sumMistakesBox">
+      <div style="font-weight:800; margin-bottom:8px;" data-i18n="sumMistakes">الأسئلة التي أخطأت بها</div>
+      <div id="sumMistakes"></div>
+    </div>
+    <div class="sum-actions">
+      <button class="btn" onclick="startNewQuizSession()" data-i18n="sumAgain">جلسة جديدة</button>
+      <button class="btn btn-ghost" onclick="goToReview()" data-i18n="sumReview">راجع أخطائي</button>
+      <button class="btn btn-ghost" onclick="goToBankSelect()" data-i18n="sumSubjects">المواد</button>
     </div>
   </div>
 
@@ -2024,6 +2080,7 @@
           <div class="page-sub" data-i18n="storeSub">المنتجات المتاحة للطلب.</div>
         </div>
       </div>
+      <button class="btn btn-ghost" style="padding:8px 14px; font-size:.8rem;" onclick="goToMyOrders()" data-i18n="ordersTitle">طلباتي</button>
       <button class="icon-btn" style="position:relative" onclick="goToCart()" aria-label="السلة">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
         <span class="cart-badge" id="cartBadge" style="display:none">0</span>
@@ -2032,6 +2089,22 @@
 
     <div class="filter-chips" id="storeFilters"></div>
     <div class="product-grid" id="productGrid"></div>
+  </div>
+
+  <!-- ============ MY ORDERS VIEW ============ -->
+  <div class="view" id="view-my-orders">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goToStore()" aria-label="رجوع" data-i18n-aria="back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div>
+          <div class="page-title" data-i18n="ordersTitle">طلباتي</div>
+          <div class="page-sub" data-i18n="ordersSub">تابع حالة طلباتك وأكواد التفعيل.</div>
+        </div>
+      </div>
+    </div>
+    <div id="myOrdersList" style="padding:0 16px 100px;"></div>
   </div>
 
   <!-- ============ CART VIEW ============ -->
@@ -2326,6 +2399,15 @@
             <p data-i18n="landingProfDesc">صفحة لكل دكتور فيها ملازمه وامتحاناته — تعرف بالضبط مين يدرّسك شنو.</p>
             <span class="lp-knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></span>
           </button>
+          <button class="lp-feature" data-go="login">
+            <figure class="lp-plate">
+              <span class="lp-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span data-i18n="locked">مقفول</span></span>
+              <span class="lp-plate-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg></span>
+            </figure>
+            <h3 data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</h3>
+            <p data-i18n="lpAnatomyDesc">جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.</p>
+            <span class="lp-knob" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m11 6-6 6 6 6"/></svg></span>
+          </button>
           </div>
         </section>
 
@@ -2353,9 +2435,37 @@
           </div>
         </section>
 
+        <section class="lp-section" id="lpHow">
+          <p class="lp-eyebrow" data-i18n="lpHowEyebrow">البداية</p>
+          <h2 class="lp-h" data-i18n="lpHowTitle">ثلاث خطوات وتبدأ</h2>
+          <p class="lp-sub" data-i18n="lpHowSub">من التسجيل إلى أول سؤال بدقائق.</p>
+          <div class="lp-steps">
+            <div class="lp-step"><b>1</b><h3 data-i18n="lpStep1T">أنشئ حسابك</h3><p data-i18n="lpStep1B">بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.</p></div>
+            <div class="lp-step"><b>2</b><h3 data-i18n="lpStep2T">اختر جامعتك ومرحلتك</h3><p data-i18n="lpStep2B">تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.</p></div>
+            <div class="lp-step"><b>3</b><h3 data-i18n="lpStep3T">ابدأ الدراسة</h3><p data-i18n="lpStep3B">أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.</p></div>
+          </div>
+        </section>
+
+        <section class="lp-section" id="lpFaq">
+          <p class="lp-eyebrow" data-i18n="lpFaqEyebrow">أسئلة شائعة</p>
+          <h2 class="lp-h" data-i18n="lpFaqTitle">قبل ما تبدأ</h2>
+          <div class="lp-faq">
+            <details><summary><span data-i18n="lpFaq1Q">هل التسجيل مجاني؟</span></summary><p data-i18n="lpFaq1A">إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.</p></details>
+            <details><summary><span data-i18n="lpFaq2Q">هل أقدر أستخدم حسابي على أكثر من جهاز؟</span></summary><p data-i18n="lpFaq2A">الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.</p></details>
+            <details><summary><span data-i18n="lpFaq3Q">كيف أدخل إذا سجّلت بـ Google؟</span></summary><p data-i18n="lpFaq3A">تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.</p></details>
+            <details><summary><span data-i18n="lpFaq4Q">كيف أتواصل مع الدعم؟</span></summary><p data-i18n="lpFaq4A">من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.</p></details>
+          </div>
+          <div class="lp-final">
+            <h2 data-i18n="lpFinalTitle">جاهز تبدأ؟</h2>
+            <p data-i18n="lpFinalSub">سجّل الآن وابدأ بأول جلسة أسئلة.</p>
+            <button class="btn" data-go="register" data-i18n="createAccount">أنشئ حساب</button>
+          </div>
+        </section>
+
         <footer class="lp-foot">
           <span class="lp-foot-mark"><img class="kiur-logo" src="/static/brand/kiur-icon.svg" alt="" width="48" height="48" />Kiur</span>
           <span data-i18n="footerNote">Kiur — منصة تعليمية طبية لطلبة الجامعات العراقية</span>
+          <span class="lp-contact"><span data-i18n="lpSupportLine">للدعم:</span> <a href="mailto:support@kiur.online">support@kiur.online</a></span>
         </footer>
       </div>
     </div>
@@ -2636,6 +2746,19 @@
             <span class="panel-title" data-i18n="security">الأمان</span>
           </div>
           <div class="item-list">
+            <div class="item-card glass">
+              <div class="item-icon exam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></div>
+              <div class="item-body">
+                <div class="item-title" data-i18n="unameTitle">اسم المستخدم</div>
+                <div class="item-meta mono" id="usernameMeta" dir="auto">—</div>
+              </div>
+              <button class="btn btn-ghost item-action" onclick="toggleUsernameForm()" data-i18n="change">تغيير</button>
+            </div>
+            <div class="glass" id="usernameForm" style="display:none; padding:16px 18px;">
+              <div class="form-field" style="margin-bottom:8px;"><input id="usernameInput" type="text" dir="ltr" autocapitalize="none" spellcheck="false" maxlength="30" placeholder="اسم المستخدم (أحرف إنجليزية وأرقام)" data-i18n-placeholder="unamePlaceholder" /></div>
+              <button class="btn" style="width:100%; justify-content:center; padding:11px;" onclick="submitUsername()" data-i18n="unameSave">حفظ اسم المستخدم</button>
+              <div id="usernameMsg" style="font-size:.78rem; margin-top:8px; text-align:center;"></div>
+            </div>
             <div class="item-card glass">
               <div class="item-icon pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
               <div class="item-body">
@@ -3007,6 +3130,10 @@
       totpTitle:'التحقق بخطوتين', totpSub:'أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة',
       credTitle:'أنشئ بيانات دخولك', credSub:'اختر اسم مستخدم وكلمة مرور لتدخل بهما لاحقًا — مرة واحدة فقط ولن نطلبها منك مرة ثانية.', credUsername:'اسم المستخدم (أحرف إنجليزية وأرقام)', credPassword:'كلمة المرور (8 أحرف على الأقل)', credPassword2:'أعد كتابة كلمة المرور', credSave:'حفظ ومتابعة', credMismatch:'كلمتا المرور غير متطابقتين', credFill:'أدخل اسم المستخدم وكلمة المرور',
       supportTitle:'المساعدة', supportSub:'اكتب مشكلتك أو سؤالك، وتردّ عليك الإدارة هنا.', supportPlaceholder:'اكتب رسالتك...', supportSend:'إرسال', supportEmpty:'مرحبًا! اكتب مشكلتك أو سؤالك وسنردّ عليك هنا بأقرب وقت.', supportClosed:'تم إغلاق هذه المحادثة. اكتب رسالة جديدة لتبدأ محادثة جديدة.', supportTeam:'الإدارة',
+      sumTitle:'ملخص الجلسة', sumCorrect:'صحيحة', sumWrong:'خاطئة', sumSkipped:'لم تُجب', sumTime:'الوقت', sumMistakes:'الأسئلة التي أخطأت بها', sumAgain:'جلسة جديدة', sumReview:'راجع أخطائي', sumSubjects:'المواد', sumEnd:'إنهاء', sumNone:'لم تجب على أي سؤال بعد.', sumGreat:'ممتاز! استمر على هذا المستوى 👏', sumGood:'جيد — راجع الأخطاء لتثبيتها.', sumKeep:'لا بأس، المراجعة هي الطريق — ابدأ بأخطائك.', bankProgress:'جاوبت {a} من {b}', bankReview:'للمراجعة', bankAcc:'دقة', bankNoQ:'لا أسئلة بعد',
+      unameTitle:'اسم المستخدم', unameNone:'لم تحدد بعد — تدخل به بدل البريد', unameSave:'حفظ اسم المستخدم', unamePlaceholder:'اسم المستخدم (أحرف إنجليزية وأرقام)', unameSaved:'تم حفظ اسم المستخدم', ipLabel:'العنوان',
+      ordersTitle:'طلباتي', ordersSub:'تابع حالة طلباتك وأكواد التفعيل.', orderPending:'بانتظار تأكيد الدفع', orderPaid:'مدفوع — قيد التجهيز', orderFulfilled:'تم التسليم', orderCancelled:'ملغي', orderNone:'لا توجد طلبات بعد. تصفّح المتجر وأضف ما يناسبك.', orderCodes:'أكواد التفعيل', orderCopy:'نسخ', orderCopied:'تم النسخ ✓', orderWaiting:'ننتظر تأكيد الدفع من الإدارة، وتصلك الأكواد هنا بمجرد التأكيد.', orderDelivery:'التوصيل', orderZain:'زين كاش', orderCod:'عند الاستلام', orderRedeem:'فعّل الكود من «حسابي ← التعلّم».',
+      lpAnatomyDesc:'جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.', lpHowEyebrow:'البداية', lpHowTitle:'ثلاث خطوات وتبدأ', lpHowSub:'من التسجيل إلى أول سؤال بدقائق.', lpStep1T:'أنشئ حسابك', lpStep1B:'بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.', lpStep2T:'اختر جامعتك ومرحلتك', lpStep2B:'تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.', lpStep3T:'ابدأ الدراسة', lpStep3B:'أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.', lpFaqEyebrow:'أسئلة شائعة', lpFaqTitle:'قبل ما تبدأ', lpFaq1Q:'هل التسجيل مجاني؟', lpFaq1A:'إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.', lpFaq2Q:'هل أقدر أستخدم حسابي على أكثر من جهاز؟', lpFaq2A:'الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.', lpFaq3Q:'كيف أدخل إذا سجّلت بـ Google؟', lpFaq3A:'تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.', lpFaq4Q:'كيف أتواصل مع الدعم؟', lpFaq4A:'من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.', lpFinalTitle:'جاهز تبدأ؟', lpFinalSub:'سجّل الآن وابدأ بأول جلسة أسئلة.', lpSupportLine:'للدعم:',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
       studentOrGraduate:'هل أنت طالب أم متخرج؟', stillStudent:'ما زلت طالباً', graduated:'متخرج',
@@ -3140,6 +3267,10 @@
       totpTitle:'Two-factor verification', totpSub:'Enter the 6-digit code from your authenticator app',
       credTitle:'Create your sign-in details', credSub:'Pick a username and a password to sign in with later — one time only, we will not ask again.', credUsername:'Username (English letters and numbers)', credPassword:'Password (at least 8 characters)', credPassword2:'Repeat the password', credSave:'Save and continue', credMismatch:'The passwords do not match', credFill:'Enter a username and a password',
       supportTitle:'Help', supportSub:'Write your problem or question and the team replies here.', supportPlaceholder:'Write your message...', supportSend:'Send', supportEmpty:'Hi! Write your problem or question and we will reply here as soon as we can.', supportClosed:'This conversation was closed. Write a new message to start a new one.', supportTeam:'Support',
+      sumTitle:'Session summary', sumCorrect:'Correct', sumWrong:'Wrong', sumSkipped:'Unanswered', sumTime:'Time', sumMistakes:'Questions you missed', sumAgain:'New session', sumReview:'Review my mistakes', sumSubjects:'Subjects', sumEnd:'Finish', sumNone:'You have not answered any question yet.', sumGreat:'Excellent! Keep this level up 👏', sumGood:'Good — review the mistakes to lock them in.', sumKeep:'No worries — review is the way. Start with your mistakes.', bankProgress:'Answered {a} of {b}', bankReview:'to review', bankAcc:'accuracy', bankNoQ:'No questions yet',
+      unameTitle:'Username', unameNone:'Not set yet — sign in with it instead of your email', unameSave:'Save username', unamePlaceholder:'Username (English letters and numbers)', unameSaved:'Username saved', ipLabel:'Address',
+      ordersTitle:'My orders', ordersSub:'Follow your orders and activation codes.', orderPending:'Awaiting payment confirmation', orderPaid:'Paid — being prepared', orderFulfilled:'Delivered', orderCancelled:'Cancelled', orderNone:'No orders yet. Browse the store and add what you need.', orderCodes:'Activation codes', orderCopy:'Copy', orderCopied:'Copied ✓', orderWaiting:'We are waiting for the team to confirm the payment; your codes will appear here once confirmed.', orderDelivery:'Delivery', orderZain:'ZainCash', orderCod:'Cash on delivery', orderRedeem:'Activate the code from My account → Learning.',
+      lpAnatomyDesc:'The human body in detail: muscles, bones, nerves, vessels and organs — rotate, zoom and tap any part to learn its name.', lpHowEyebrow:'Getting started', lpHowTitle:'Three steps and you are in', lpHowSub:'From sign-up to your first question in minutes.', lpStep1T:'Create your account', lpStep1B:'With email and a password, or with Google in one tap.', lpStep2T:'Pick your university and year', lpStep2B:'Your subjects and doctors appear automatically; change your year any time.', lpStep3T:'Start studying', lpStep3B:'Questions with explanations, clinical pearls and a 3D anatomy atlas.', lpFaqEyebrow:'FAQ', lpFaqTitle:'Before you start', lpFaq1Q:'Is sign-up free?', lpFaq1A:'Creating an account is free. Some content (booklets and courses) is unlocked with a code from the store or your representative.', lpFaq2Q:'Can I use my account on more than one device?', lpFaq2A:'An account works on one device at a time to protect the content. Signing in on a new device signs out the old one.', lpFaq3Q:'How do I sign in if I joined with Google?', lpFaq3A:'You set a username and a password once after the first sign-up, then sign in whichever way you prefer.', lpFaq4Q:'How do I reach support?', lpFaq4A:'From inside the app use the Help button to message the team directly, or write to support@kiur.online.', lpFinalTitle:'Ready to start?', lpFinalSub:'Sign up now and begin your first question session.', lpSupportLine:'Support:',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
       studentOrGraduate:'Are you a student or a graduate?', stillStudent:'Still a student', graduated:'Graduated',
@@ -3271,6 +3402,10 @@
       totpTitle:'پشتڕاستکردنەوەی دوو هەنگاو', totpSub:'ئەو کۆدە ٦ ژمارەیە بنووسە کە لە ئەپی پشتڕاستکردنەوەیە',
       credTitle:'زانیارییەکانی چوونەژوورەوەت دروست بکە', credSub:'ناوی بەکارهێنەر و وشەی نهێنییەک هەڵبژێرە بۆ چوونەژوورەوە دواتر — تەنها جارێک و جارێکی تر داوات لێ ناکرێت.', credUsername:'ناوی بەکارهێنەر (پیتی ئینگلیزی و ژمارە)', credPassword:'وشەی نهێنی (لانیکەم ٨ پیت)', credPassword2:'وشەی نهێنی دووبارە بکەرەوە', credSave:'پاشەکەوت و بەردەوامبوون', credMismatch:'وشە نهێنییەکان یەکناگرنەوە', credFill:'ناوی بەکارهێنەر و وشەی نهێنی بنووسە',
       supportTitle:'یارمەتی', supportSub:'کێشە یان پرسیارەکەت بنووسە و بەڕێوەبەرایەتی لێرە وەڵامت دەداتەوە.', supportPlaceholder:'نامەکەت بنووسە...', supportSend:'ناردن', supportEmpty:'سڵاو! کێشە یان پرسیارەکەت بنووسە و بە زووترین کات وەڵامت دەدەینەوە.', supportClosed:'ئەم گفتوگۆیە داخرا. نامەیەکی نوێ بنووسە بۆ دەستپێکردنی گفتوگۆیەکی نوێ.', supportTeam:'پشتگیری',
+      sumTitle:'پوختەی دانیشتن', sumCorrect:'دروست', sumWrong:'هەڵە', sumSkipped:'وەڵام نەدراوە', sumTime:'کات', sumMistakes:'ئەو پرسیارانەی هەڵەت تێدا کرد', sumAgain:'دانیشتنی نوێ', sumReview:'هەڵەکانم ببینەوە', sumSubjects:'بابەتەکان', sumEnd:'کۆتایی', sumNone:'هێشتا وەڵامی هیچ پرسیارێکت نەداوەتەوە.', sumGreat:'نایاب! بەم ئاستە بەردەوام بە 👏', sumGood:'باشە — هەڵەکان پێداچوونەوەیان بۆ بکە.', sumKeep:'کێشە نییە — پێداچوونەوە ڕێگایە. لە هەڵەکانتەوە دەست پێ بکە.', bankProgress:'{a} لە {b} وەڵامدراوەتەوە', bankReview:'بۆ پێداچوونەوە', bankAcc:'وردی', bankNoQ:'هێشتا پرسیار نییە',
+      unameTitle:'ناوی بەکارهێنەر', unameNone:'هێشتا دیاری نەکراوە — پێی بچۆ ژوورەوە لەبری ئیمەیڵ', unameSave:'پاشەکەوتکردنی ناوی بەکارهێنەر', unamePlaceholder:'ناوی بەکارهێنەر (پیتی ئینگلیزی و ژمارە)', unameSaved:'ناوی بەکارهێنەر پاشەکەوت کرا', ipLabel:'ناونیشان',
+      ordersTitle:'داواکارییەکانم', ordersSub:'دۆخی داواکارییەکان و کۆدەکانی چالاککردن بەدواداچوون بکە.', orderPending:'چاوەڕێی پشتڕاستکردنەوەی پارەدان', orderPaid:'پارەدراوە — ئامادە دەکرێت', orderFulfilled:'گەیەنرا', orderCancelled:'هەڵوەشێنرایەوە', orderNone:'هێشتا داواکاری نییە. بچۆ فرۆشگا.', orderCodes:'کۆدەکانی چالاککردن', orderCopy:'کۆپی', orderCopied:'کۆپی کرا ✓', orderWaiting:'چاوەڕێی پشتڕاستکردنەوەی بەڕێوەبەرایەتین؛ کۆدەکانت لێرە دەردەکەون.', orderDelivery:'گەیاندن', orderZain:'زەین کاش', orderCod:'پارەدان لە کاتی وەرگرتن', orderRedeem:'کۆدەکە لە «هەژمارەکەم ← فێربوون» چالاک بکە.',
+      lpAnatomyDesc:'جەستەی مرۆڤ بە وردی: ماسولکە و ئێسک و دەمار و خوێنبەر و ئەندامەکان — بیسوڕێنە و نزیک بکەرەوە و دەست بخەرە سەر هەر بەشێک بۆ ناسینی ناوەکەی.', lpHowEyebrow:'دەستپێکردن', lpHowTitle:'سێ هەنگاو و دەست پێدەکەیت', lpHowSub:'لە تۆمارکردنەوە بۆ یەکەم پرسیار بە چەند خولەکێک.', lpStep1T:'هەژمارەکەت دروست بکە', lpStep1B:'بە ئیمەیڵ و وشەی نهێنی، یان بە Google بە یەک کلیک.', lpStep2T:'زانکۆ و قۆناغەکەت هەڵبژێرە', lpStep2B:'بابەت و مامۆستاکانت خۆکارانە دەردەکەون.', lpStep3T:'دەست بکە بە خوێندن', lpStep3B:'پرسیار لەگەڵ ڕوونکردنەوە و تێبینی کلینیکی و ئەناتۆمی سێ ڕەهەند.', lpFaqEyebrow:'پرسیاری باو', lpFaqTitle:'پێش دەستپێکردن', lpFaq1Q:'ئایا تۆمارکردن بێبەرامبەرە؟', lpFaq1A:'دروستکردنی هەژمار بێبەرامبەرە. هەندێک ناوەڕۆک بە کۆد چالاک دەکرێت کە لە فرۆشگا یان نوێنەرەکەتەوە وەریدەگریت.', lpFaq2Q:'دەتوانم هەژمارەکەم لەسەر چەند ئامێرێک بەکاربهێنم؟', lpFaq2A:'هەژمارەکە لە یەک کاتدا لەسەر یەک ئامێر کار دەکات بۆ پاراستنی ناوەڕۆک.', lpFaq3Q:'ئەگەر بە Google تۆمار بووم چۆن دەچمە ژوورەوە؟', lpFaq3A:'جارێک ناوی بەکارهێنەر و وشەی نهێنی دیاری دەکەیت و دواتر بە هەر ڕێگایەک دەچیتە ژوورەوە.', lpFaq4Q:'چۆن پەیوەندی بە پشتگیرییەوە بکەم؟', lpFaq4A:'لە ناو ئەپەکەوە دوگمەی «یارمەتی»، یان بنووسە بۆ support@kiur.online.', lpFinalTitle:'ئامادەیت دەست پێ بکەیت؟', lpFinalSub:'ئێستا تۆمار بکە و یەکەم دانیشتنی پرسیار دەست پێ بکە.', lpSupportLine:'پشتگیری:',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
       studentOrGraduate:'تۆ قوتابیت یان دەرچووی؟', stillStudent:'هێشتا قوتابیم', graduated:'دەرچووم',
@@ -3425,7 +3560,7 @@
   const navGroupOf = {
     'view-course': 'view-academy', 'view-professor': 'view-professors',
     'view-cart': 'view-store', 'view-checkout': 'view-store',
-    'view-student-profile': 'view-leaderboard', 'view-account-edit': 'view-account',
+    'view-student-profile': 'view-leaderboard', 'view-account-edit': 'view-account', 'view-my-orders': 'view-store', 'view-quiz-summary': 'view-bank-select',
   };
   function updateNavActiveState(id){
     const navId = navGroupOf[id] || id;
@@ -3454,8 +3589,10 @@
     if (!authToken || !contentId) return;
     apiFetch('/auth/me/recent-view', {method: 'POST', body: JSON.stringify({content_type: contentType, content_id: contentId})}).catch(() => {});
   }
+  let quizSubject = null, quizLog = [], quizStart = 0;
   async function goToQuiz(subjectId, subjectLabel){
     stopPlayerVideo();
+    quizSubject = {id: subjectId, name: subjectLabel}; quizLog = []; quizStart = Date.now();
     showView('view-quiz');
     document.getElementById('qText').textContent = 'جارٍ التحميل...';
     document.getElementById('qOptions').innerHTML = '';
@@ -3853,9 +3990,18 @@
     sel.innerHTML = mine.stages.map(st =>
       `<option value="${st.id}" ${st.id === mine.stage?.id ? 'selected' : ''}>${esc(st.name)}</option>`).join('');
     stageField.style.display = mine.stages.length > 1 ? 'block' : 'none';
-    list.innerHTML = mine.subjects.map(s =>
-      `<button class="btn btn-ghost" style="justify-content:space-between; width:100%; padding:14px 16px;" onclick="goToQuiz('${s.id}', ${esc(JSON.stringify(s.name))})"><span>${esc(s.name)}</span>${chevronIcon}</button>`
-    ).join('');
+    let prog = {};
+    try { (await apiFetch('/api/me/progress')).forEach(x => { prog[x.subject_id] = x; }); } catch (e) { /* cards still work without numbers */ }
+    list.innerHTML = mine.subjects.map(s => {
+      const g = prog[s.id] || {total: 0, answered: 0, to_review: 0, accuracy: null};
+      const pct = g.total ? Math.round(100 * g.answered / g.total) : 0;
+      const acc = g.accuracy == null ? '' : `<span class="bs-pill ${g.accuracy >= 70 ? 'hi' : g.accuracy >= 50 ? 'mid' : 'lo'}">${esc(t('bankAcc'))} ${g.accuracy}%</span>`;
+      return `<button class="bs-card" onclick="goToQuiz('${s.id}', ${esc(JSON.stringify(s.name))})">
+        <div class="bs-top"><span>${esc(s.name)}</span>${chevronIcon}</div>
+        ${g.total ? `<div class="bs-bar"><i style="width:${pct}%"></i></div>
+          <div class="bs-meta"><span>${esc(t('bankProgress').replace('{a}', g.answered).replace('{b}', g.total))}</span>${acc}${g.to_review ? `<span class="bs-pill lo">${g.to_review} ${esc(t('bankReview'))}</span>` : ''}</div>`
+          : `<div class="bs-meta" style="margin-top:8px;">${esc(t('bankNoQ'))}</div>`}</button>`;
+    }).join('');
     if (!mine.subjects.length){
       empty.textContent = t('noSubjectsForStage');
       empty.style.display = 'block';
@@ -3932,6 +4078,8 @@
       });
       document.getElementById('rationaleText').innerHTML = result.rationale || '';
       document.getElementById('rationale').classList.add('show');
+      const qq = apiQuestions[qi % apiQuestions.length];
+      if (!quizLog.some(x => x.id === questionId)) quizLog.push({id: questionId, text: qq.text, correct: choiceId === result.correct_choice_id, picked: (qq.choices.find(c => c.id === choiceId) || {}).text, right: (qq.choices.find(c => c.id === result.correct_choice_id) || {}).text});
     } catch (e) {
       opts[idx].classList.add('wrong');
     }
@@ -3955,9 +4103,29 @@
   function changeQuestion(dir){
     const len = apiQuestions.length;
     if (!len) return;
+    if (dir > 0 && qi === len - 1){ showQuizSummary(); return; }      // end of the set: show how it went
     qi = (qi + dir + len) % len;
     renderQuestion();
   }
+  function showQuizSummary(){
+    stopTimer();
+    const total = apiQuestions.length, ok = quizLog.filter(x => x.correct).length, bad = quizLog.length - ok;
+    const secs = Math.max(1, Math.round((Date.now() - quizStart) / 1000)), pct = quizLog.length ? Math.round(100 * ok / quizLog.length) : 0;
+    showView('view-quiz-summary');
+    document.getElementById('sumSub').textContent = quizSubject ? quizSubject.name : '';
+    document.getElementById('sumRing').style.setProperty('--p', pct);
+    document.getElementById('sumPct').textContent = pct + '%';
+    const stat = (n, l) => `<div class="sum-stat"><b>${n}</b><small>${esc(l)}</small></div>`;
+    document.getElementById('sumStats').innerHTML = quizLog.length
+      ? stat(ok, t('sumCorrect')) + stat(bad, t('sumWrong')) + stat(Math.max(0, total - quizLog.length), t('sumSkipped')) + stat(Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'), t('sumTime'))
+      : `<div class="sp-empty" style="grid-column:1/-1;">${esc(t('sumNone'))}</div>`;
+    const wrong = quizLog.filter(x => !x.correct);
+    const box = document.getElementById('sumMistakesBox');
+    box.style.display = wrong.length ? 'block' : 'none';
+    document.getElementById('sumMistakes').innerHTML = wrong.map(x => `<div class="sum-miss">${esc(x.text)}<div class="cell-sub" style="font-size:.76rem; opacity:.75;">✗ ${esc(x.picked || '')} &nbsp; ✓ ${esc(x.right || '')}</div></div>`).join('');
+    if (quizLog.length) showToast(pct >= 80 ? t('sumGreat') : pct >= 55 ? t('sumGood') : t('sumKeep'));
+  }
+  function startNewQuizSession(){ if (quizSubject) goToQuiz(quizSubject.id, quizSubject.name); else goToBankSelect(); }
 
   // ---------- Lightbox ----------
   function openZoom(){ document.getElementById('lightbox').classList.add('show'); }
@@ -4298,6 +4466,31 @@
     renderStoreFilters(storeFilter);
     renderProducts(storeFilter);
     updateCartBadge();
+  }
+
+  // ---------- My orders ----------
+  async function goToMyOrders(){
+    showView('view-my-orders');
+    const box = document.getElementById('myOrdersList');
+    box.innerHTML = '<div class="empty-row">' + esc(t('loading')) + '</div>';
+    try {
+      const orders = await apiFetch('/api/store/orders');
+      const label = {pending: t('orderPending'), paid: t('orderPaid'), fulfilled: t('orderFulfilled'), cancelled: t('orderCancelled')};
+      const lvl = {pending: 0, paid: 1, fulfilled: 2, cancelled: -1};
+      const when = iso => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleDateString(dateLocale(), {day: 'numeric', month: 'short', year: 'numeric'});
+      box.innerHTML = orders.map(o => {
+        const L = lvl[o.status];
+        const steps = ['pending', 'paid', 'fulfilled'].map((k, i) => `<div class="ord-step ${L === -1 ? 'bad' : (i <= L ? 'on' : '')}"><i></i>${esc(({pending: t('orderPending'), paid: t('orderPaid'), fulfilled: t('orderFulfilled')})[k].split(' — ')[0])}</div>`).join('');
+        return `<div class="ord-card">
+          <div class="ord-top"><div><b>${esc(label[o.status] || o.status)}</b><div class="cell-sub" style="font-size:.76rem; opacity:.7;">${when(o.created_at)} · ${esc(o.payment_method === 'cod' ? t('orderCod') : t('orderZain'))}</div></div><b>${fmtPrice(o.total)}</b></div>
+          <div style="margin-top:10px; font-size:.86rem; line-height:1.9;">${o.items.map(i => `${esc(i.name)} <span style="opacity:.65;">×${i.qty}</span>`).join(' · ')}</div>
+          <div class="ord-steps">${steps}</div>
+          ${o.status === 'pending' ? `<div class="item-meta" style="margin-top:6px;">${esc(t('orderWaiting'))}</div>` : ''}
+          ${o.delivery ? `<div class="item-meta" style="margin-top:8px;"><b>${esc(t('orderDelivery'))}:</b> ${esc(o.delivery.name || '')} · <span dir="ltr">${esc(o.delivery.phone || '')}</span><br>${esc(o.delivery.address || '')}</div>` : ''}
+          ${o.codes.length ? `<div style="margin-top:10px; font-weight:800; font-size:.84rem;">${esc(t('orderCodes'))}</div>${o.codes.map(c => `<div class="ord-code"><b>${esc(c.code)}</b><span style="flex:1; font-size:.76rem; opacity:.75;">${esc(c.subject || 'VIP')}</span><button class="btn btn-ghost" style="padding:4px 12px; font-size:.72rem;" onclick="navigator.clipboard && navigator.clipboard.writeText('${esc(c.code)}'); this.textContent = t('orderCopied')">${esc(t('orderCopy'))}</button></div>`).join('')}<div class="item-meta" style="margin-top:6px;">${esc(t('orderRedeem'))}</div>` : ''}
+        </div>`;
+      }).join('') || `<div class="empty-row">${esc(t('orderNone'))}</div>`;
+    } catch (e) { box.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الطلبات')}</div>`; }
   }
 
   // ---------- Checkout ----------
@@ -5106,8 +5299,29 @@
       const mins = Math.max(0, Math.round((Date.now() - new Date(s.created_at + 'Z')) / 60000));
       const since = mins < 60 ? `منذ ${mins} دقيقة` : mins < 1440 ? `منذ ${Math.round(mins/60)} ساعة` : `منذ ${Math.round(mins/1440)} يوم`;
       document.getElementById('activeSessionMeta').textContent =
-        `${esc(s.device_label)} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
+        `${esc(s.device_label)}${s.ip_address ? ' · ' + esc(s.ip_address) : ''} — دخول ${since} · هذا الجهاز فقط مسموح له بالدخول حالياً`;
     } catch (e) { document.getElementById('activeSessionMeta').textContent = '—'; }
+  }
+
+  function renderUsernameMeta(){
+    const el = document.getElementById('usernameMeta'); if (!el) return;
+    el.textContent = currentUser?.username ? currentUser.username : t('unameNone');
+    const inp = document.getElementById('usernameInput'); if (inp && currentUser?.username) inp.value = currentUser.username;
+  }
+  function toggleUsernameForm(){
+    const f = document.getElementById('usernameForm');
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    renderUsernameMeta();
+  }
+  async function submitUsername(){
+    const msg = document.getElementById('usernameMsg'), v = document.getElementById('usernameInput').value.trim();
+    msg.style.color = 'var(--danger)';
+    if (!v){ msg.textContent = t('credFill'); return; }
+    try {
+      currentUser = await apiFetch('/auth/me/credentials', {method: 'POST', body: JSON.stringify({username: v})});
+      msg.style.color = 'var(--success, #1f9d68)'; msg.textContent = t('unameSaved');
+      renderUsernameMeta();
+    } catch (e) { msg.textContent = e.detail || 'تعذّر الحفظ'; }
   }
 
   function togglePasswordChangeForm(){
@@ -5218,6 +5432,7 @@
   // claim "آخر تغيير قبل 3 أشهر" for everyone, including people who had never
   // set a password at all.
   function renderPasswordMeta(){
+    renderUsernameMeta();
     const el = document.getElementById('passwordMeta');
     if (!currentUser?.has_password){ el.textContent = t('noPasswordGoogleOnly'); return; }
     const changed = currentUser.password_changed_at;
