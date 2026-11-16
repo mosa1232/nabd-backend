@@ -96,7 +96,7 @@ _ADMIN_RULES: list[tuple[re.Pattern, str]] = [(re.compile(p), perm) for p, perm 
     # the admin API only keeps list + delete on them for moderation.
     (r"^/api/admin/(questions|pearls|summer-trainings|notifications|media|import)(/|$)", "content.manage"),
     (r"^/api/admin/store(/|$)", "store.manage"),
-    (r"^/api/admin/(overview|students|weak-topics|logs|export)(/|$)", "dashboard.analytics"),
+    (r"^/api/admin/(overview|stats|students|weak-topics|logs|export)(/|$)", "dashboard.analytics"),
 ]]
 
 

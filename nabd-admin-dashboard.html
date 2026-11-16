@@ -241,7 +241,19 @@
   .ai-panel .ai-msgs, .ai-panel .ai-input, .ai-panel .ai-sugg{width:100%; max-width:860px; margin-inline:auto;}
   @media (max-width:960px){ .page-layer, .ai-panel{inset-inline-start:0 !important;} }
   body.acct-full .page-layer{inset-inline-start:0 !important;}
-  .st-period{display:flex; gap:8px; margin-bottom:16px;}
+  .st-head{display:flex; gap:12px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:16px;}
+  .st-tabs{display:flex; gap:6px; flex-wrap:wrap;}
+  .st-tabs button{padding:8px 16px; border-radius:12px; border:1.5px solid var(--glass-border); background:var(--glass-bg); font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; color:var(--ink);}
+  .st-tabs button.on{background:var(--ink); color:var(--bg-1); border-color:var(--ink);}
+  .st-stack{display:flex; height:14px; border-radius:99px; overflow:hidden; background:var(--track); margin:10px 0 8px;}
+  .st-stack i{display:block; height:100%;}
+  .st-legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:.78rem;} .st-legend b{margin-inline-start:4px;}
+  .st-legend span::before{content:''; display:inline-block; width:9px; height:9px; border-radius:50%; margin-inline-end:6px; background:var(--c);}
+  .st-table{width:100%; border-collapse:collapse; font-size:.8rem;} .st-table th{color:var(--ink-faint); font-weight:700; text-align:start; padding:8px 6px; border-bottom:1px solid var(--glass-border);}
+  .st-table td{padding:8px 6px; border-bottom:1px solid var(--glass-border);} .st-table td.n{text-align:end; font-variant-numeric:tabular-nums; font-weight:700;}
+  .st-wrap{overflow-x:auto;}
+  .st-note{font-size:.74rem; color:var(--ink-faint); margin-top:8px; line-height:1.7;}
+  .st-period{display:flex; gap:8px; margin-bottom:0;}
   .st-period button{padding:7px 16px; border-radius:999px; border:1.5px solid var(--glass-border); background:var(--glass-bg); font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; color:var(--ink);}
   .st-period button.on{background:var(--accent); color:#fff; border-color:var(--accent);}
   .st-kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:16px;}
@@ -453,16 +465,8 @@
 
       <!-- ===== ADMIN: Overview ===== -->
       <section class="dash-section" id="sec-overview">
-        <div class="st-period" id="stPeriod"></div>
-        <div class="st-kpis" id="stKpis"></div>
-        <div class="st-two">
-          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">الأسئلة المجابة يوميًا</span></div><div id="stAnswers"></div></div>
-          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">طلاب جدد يوميًا</span></div><div id="stSignups"></div></div>
-        </div>
-        <div class="st-two">
-          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">أكثر المواد نشاطًا</span></div><div id="stSubjects"></div></div>
-          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">الطلاب حسب الجامعة</span></div><div id="stUnis"></div></div>
-        </div>
+        <div class="st-head"><div class="st-tabs" id="stTabs"></div><div class="st-period" id="stPeriod"></div></div>
+        <div id="stBody"></div>
       </section>
 
       <!-- ===== ADMIN: Roles / Admins ===== -->
@@ -1952,42 +1956,115 @@
   }
 
   // ===== ADMIN sections =====
-  let statsDays = 30;
-  const numAr = n => (n || 0).toLocaleString('en-US');
-  function statBars(id, series){
-    const el = document.getElementById(id);
-    if (!series || !series.length){ el.innerHTML = '<div class="empty-row">لا توجد بيانات</div>'; return; }
+  let statsDays = 30, statsTab = 'overview';
+  const numAr = n => (n == null ? 0 : n).toLocaleString('en-US');
+  const pc = v => v == null ? '—' : v + '%';
+  const STAT_TABS = [['overview', 'نظرة عامة'], ['students', 'الطلاب'], ['learning', 'التعلّم'], ['doctors', 'الدكاترة'], ['store', 'المتجر والأكواد'], ['security', 'الأمان والأجهزة']];
+  const STAT_COLORS = ['#4c5fe0', '#2eb67d', '#e8a33d', '#e5484d', '#8e6bf0', '#3aa6c9', '#94a3b8'];
+  const STATUS_AR = {pending: 'قيد الدفع', paid: 'مدفوع', fulfilled: 'مُسلَّم', cancelled: 'ملغي', idle: 'غير مستعمل', active: 'مفعّل', expired: 'منتهي', appealed: 'طعن مقدَّم', lifted: 'مرفوع', mcq: 'عادي', practical: 'عملي', mixed: 'مختلط', true_false: 'صح/خطأ', essay: 'مقالي'};
+
+  function barsHtml(series, axis){
+    if (!series || !series.length || series.every(d => !d.count)) return '<div class="empty-row">لا توجد بيانات بهذه الفترة</div>';
     const max = Math.max(1, ...series.map(d => d.count));
-    const d0 = series[0].date.slice(5).replace('-', '/'), d1 = series[series.length - 1].date.slice(5).replace('-', '/');
-    el.innerHTML = `<div class="st-bars">${series.map(d => `<i title="${d.date} — ${d.count}" style="height:${Math.max(2, Math.round(100 * d.count / max))}%"></i>`).join('')}</div>
-      <div class="st-axis"><span dir="ltr">${d0}</span><span>الأعلى ${numAr(max)}</span><span dir="ltr">${d1}</span></div>`;
+    const a0 = axis ? axis[0] : series[0].date.slice(5).replace('-', '/'), a1 = axis ? axis[1] : series[series.length - 1].date.slice(5).replace('-', '/');
+    return `<div class="st-bars">${series.map(d => `<i title="${d.label || d.date} — ${numAr(d.count)}" style="height:${Math.max(2, Math.round(100 * d.count / max))}%"></i>`).join('')}</div>
+      <div class="st-axis"><span dir="ltr">${a0}</span><span>الأعلى ${numAr(max)}</span><span dir="ltr">${a1}</span></div>`;
   }
-  function statList(id, rows, unit){
-    const el = document.getElementById(id);
-    if (!rows || !rows.length){ el.innerHTML = '<div class="empty-row">لا توجد بيانات</div>'; return; }
+  function listHtml(rows, unit){
+    if (!rows || !rows.length) return '<div class="empty-row">لا توجد بيانات</div>';
     const max = Math.max(1, ...rows.map(r => r.count));
-    el.innerHTML = rows.map(r => `<div class="st-row"><span class="n">${esc(r.name)}</span><span class="b"><i style="width:${Math.round(100 * r.count / max)}%"></i></span><span class="c">${numAr(r.count)}</span></div>`).join('');
+    return rows.map(r => `<div class="st-row"><span class="n" title="${esc(r.name)}">${esc(r.name)}</span><span class="b"><i style="width:${Math.round(100 * r.count / max)}%"></i></span><span class="c">${numAr(r.count)}${unit || ''}</span></div>`).join('');
   }
+  function stackHtml(parts){
+    const list = parts.filter(p => p.count > 0), tot = list.reduce((a, p) => a + p.count, 0);
+    if (!tot) return '<div class="empty-row">لا توجد بيانات</div>';
+    return `<div class="st-stack">${list.map((p, i) => `<i title="${esc(p.label)}: ${numAr(p.count)}" style="width:${100 * p.count / tot}%; background:${STAT_COLORS[i % STAT_COLORS.length]}"></i>`).join('')}</div>
+      <div class="st-legend">${list.map((p, i) => `<span style="--c:${STAT_COLORS[i % STAT_COLORS.length]}">${esc(p.label)}<b>${numAr(p.count)}</b> <span style="display:inline; color:var(--ink-faint)">(${Math.round(100 * p.count / tot)}%)</span></span>`).join('')}</div>`;
+  }
+  function tableHtml(heads, rows){
+    if (!rows.length) return '<div class="empty-row">لا توجد بيانات</div>';
+    return `<div class="st-wrap"><table class="st-table"><thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'n' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  const stK = (l, v, sub) => `<div class="st-kpi"><div class="l">${l}</div><div class="v mono">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  const stC = (title, inner, note) => `<div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">${title}</span></div>${inner}${note ? `<div class="st-note">${note}</div>` : ''}</div>`;
+  const stGrid = html => `<div class="st-two">${html}</div>`;
+  const stKpis = html => `<div class="st-kpis">${html}</div>`;
+  const lblStatus = o => Object.entries(o || {}).map(([k, v]) => ({label: STATUS_AR[k] || k, count: v}));
+
+  const STAT_RENDER = {
+    overview: st => stKpis(
+        stK('إجمالي الطلاب', numAr(st.students), `+${numAr(st.new_students)} جديد في الفترة`) +
+        stK('طلاب نشطون', numAr(st.active_students), 'أجابوا على سؤال واحد على الأقل') +
+        stK('أسئلة مجابة', numAr(st.answers), st.accuracy == null ? '' : `نسبة الصحيح ${st.accuracy}%`) +
+        stK('الإيرادات', fmtIQD(st.revenue), `${numAr(st.orders)} طلب مدفوع`) +
+        stK('أكواد فُعّلت', numAr(st.activations), '') + stK('حظر معلّق', numAr(st.pending_bans), '')) +
+      stGrid(stC('الأسئلة المجابة يوميًا', barsHtml(st.daily_answers)) + stC('طلاب جدد يوميًا', barsHtml(st.daily_signups))) +
+      stGrid(stC('أكثر المواد نشاطًا', listHtml(st.top_subjects)) + stC('الطلاب حسب الجامعة', listHtml(st.students_by_university))),
+
+    students: d => stKpis(
+        stK('إجمالي الطلاب', numAr(d.total), `+${numAr(d.new)} جديد`) + stK('نشطون', numAr(d.active), pc(Math.round(100 * d.active / Math.max(1, d.total))) + ' من الكل') +
+        stK('موثّقون', numAr(d.verified), pc(Math.round(100 * d.verified / Math.max(1, d.total)))) + stK('متخرجون', numAr(d.graduates), '') +
+        stK('بياناتهم غير مكتملة', numAr(d.profile_incomplete), 'بدون جامعة') + stK('محظورون', numAr(d.banned), '') + stK('تحقق بخطوتين', numAr(d.with_2fa), '')) +
+      stGrid(stC('تسجيلات جديدة يوميًا', barsHtml(d.daily_signups)) +
+             stC('طريقة التسجيل', stackHtml([{label: 'Google فقط', count: d.signup_method.google - d.signup_method.both}, {label: 'كلمة مرور فقط', count: d.signup_method.password - d.signup_method.both}, {label: 'الاثنان', count: d.signup_method.both}]))) +
+      stGrid(stC('آخر ظهور للطلاب', stackHtml([{label: 'اليوم', count: d.last_seen.today}, {label: 'آخر 7 أيام', count: d.last_seen.week}, {label: 'آخر 30 يوم', count: d.last_seen.month}, {label: 'أقدم', count: d.last_seen.older}, {label: 'لم يدخل بعد التحديث', count: d.last_seen.never}]),
+                 'من يظهر «لم يدخل» سُجّل قبل تتبع الأجهزة أو لم يفتح التطبيق.') +
+             stC('الطلاب حسب الكلية', listHtml(d.by_section))) +
+      stGrid(stC('الطلاب حسب الجامعة', listHtml(d.by_university)) + stC('الطلاب حسب المرحلة', listHtml(d.by_stage))) +
+      stC('أنشط الطلاب بالفترة', tableHtml(['الطالب', 'الأسئلة', 'الدقة'], d.top_students.map(t => [esc(t.name), numAr(t.answers), pc(t.accuracy)]))),
+
+    learning: d => stKpis(
+        stK('أسئلة مجابة', numAr(d.answers), `نسبة الصحيح ${pc(d.accuracy)}`) + stK('محاولات الامتحانات', numAr(d.exams.attempts), `أُنهي ${numAr(d.exams.finished)} · معدل ${pc(d.exams.avg_score)}`) +
+        stK('بنك الأسئلة', numAr(d.bank.total), `${numAr(d.bank.with_image)} بصور`) + stK('الامتحانات', numAr(d.exams.total), '') +
+        stK('الكورسات والمحاضرات', `${numAr(d.courses.courses)} / ${numAr(d.courses.lectures)}`, `${numAr(d.courses.completions)} إنهاء محاضرة`) + stK('الملازم', numAr(d.courses.booklets), '')) +
+      stGrid(stC('الأسئلة المجابة يوميًا', barsHtml(d.daily_answers)) + stC('الإجابات الصحيحة يوميًا', barsHtml(d.daily_correct))) +
+      stC('أوقات الدراسة (ساعات اليوم بتوقيت UTC)', barsHtml(d.by_hour.map(h => ({date: h.hour, label: String(h.hour).padStart(2, '0') + ':00', count: h.count})), ['00:00', '23:00']),
+          'العراق = UTC+3، أي أضف ثلاث ساعات للقراءة بتوقيتك.') +
+      stGrid(stC('أكثر المواد إجابةً', tableHtml(['المادة', 'الإجابات', 'الدقة', 'طلاب'], d.top_subjects.map(x => [esc(x.name), numAr(x.answers), pc(x.accuracy), numAr(x.students)]))) +
+             stC('أصعب المواد (الأقل دقة)', tableHtml(['المادة', 'الإجابات', 'الدقة'], d.hardest_subjects.map(x => [esc(x.name), numAr(x.answers), pc(x.accuracy)])), 'تظهر المواد التي لها 20 إجابة فأكثر.')) +
+      stC('أصعب الأسئلة', tableHtml(['السؤال', 'المادة', 'المحاولات', 'الدقة'], d.hardest_questions.map(x => [esc(x.text), esc(x.subject), numAr(x.attempts), pc(x.accuracy)])), 'أسئلة جرّبها 5 طلاب فأكثر، والأقل دقة أولًا — مرشحة للمراجعة.') +
+      stGrid(stC('بنك الأسئلة', stackHtml([{label: 'اختيارات', count: d.bank.by_type.mcq}, {label: 'صح/خطأ', count: d.bank.by_type.true_false}, {label: 'مقالي', count: d.bank.by_type.essay}]) + '<div style="margin-top:14px;">' + listHtml(d.bank.by_subject) + '</div>', `محفوظة عند الطلاب: ${numAr(d.bank.saved_by_students)}`) +
+             stC('الامتحانات', stackHtml(Object.entries(d.exams.by_type).map(([k, v]) => ({label: STATUS_AR[k] || k, count: v}))) + '<div style="margin-top:12px;">' + tableHtml(['الامتحان', 'المحاولات', 'المعدل'], d.exams.top.map(x => [esc(x.title), numAr(x.attempts), pc(x.avg)])) + '</div>')) +
+      stC('أكثر المحاضرات إكمالًا', listHtml(d.courses.top_lectures)),
+
+    doctors: d => stKpis(
+        stK('الدكاترة', numAr(d.doctors), '') + stK('المساعدون', numAr(d.assistants), '') + stK('ملفات تدريس', numAr(d.profiles), 'دكتور × مادة') +
+        stK('بدون مادة', numAr(d.doctors_without_subject), d.doctors_without_subject ? 'لا يفتحون لوحتهم' : '') + stK('لمحات سريرية', numAr(d.pearls), '')) +
+      stC('نشاط كل دكتور', tableHtml(['الدكتور', 'المادة', 'الأسئلة', 'الامتحانات', 'الملازم', 'الكورسات', 'المحاضرات', 'إجابات الطلاب', 'الدقة', 'طلاب', 'محاولات امتحان'],
+          d.rows.map(r => [esc(r.name), esc(r.subject), numAr(r.questions), numAr(r.exams), numAr(r.booklets), numAr(r.courses), numAr(r.lectures), numAr(r.answers), pc(r.accuracy), numAr(r.students), numAr(r.exam_attempts)])),
+          'الإجابات والدقة والطلاب تخص الفترة المختارة، والباقي المجموع الكلي.'),
+
+    store: d => stKpis(
+        stK('إيرادات الفترة', fmtIQD(d.revenue), `${numAr(d.orders)} طلب مدفوع`) + stK('إجمالي الإيرادات', fmtIQD(d.total_revenue), 'منذ البداية') + stK('متوسط الطلب', fmtIQD(d.avg_order), '') +
+        stK('أكواد فُعّلت', numAr(d.codes.activated), `من ${numAr(d.codes.total)} كود`) + stK('أكواد VIP', numAr(d.codes.vip), 'كل المواد') +
+        stK('أكواد التوثيق المستعملة', pc(d.verification.used_rate), `${numAr(d.verification.used)} من ${numAr(d.verification.codes)}`)) +
+      stGrid(stC('الإيرادات يوميًا (د.ع)', barsHtml(d.daily_revenue)) + stC('تفعيل الأكواد يوميًا', barsHtml(d.daily_activations))) +
+      stGrid(stC('حالة الطلبات', stackHtml(lblStatus(d.orders_by_status))) + stC('حالة أكواد التفعيل', stackHtml(lblStatus(d.codes.by_status)))) +
+      stC('أكثر المنتجات مبيعًا', tableHtml(['المنتج', 'الكمية', 'الإيراد'], d.top_products.map(x => [esc(x.name), numAr(x.qty), fmtIQD(x.revenue)]))) +
+      stC('المندوبون', tableHtml(['المندوب', 'بحوزته', 'باع (الكل)', 'باع بالفترة', 'الحصة'], d.resellers.map(r => [esc(r.name), numAr(r.held), numAr(r.sold), numAr(r.sold_period), r.quota == null ? 'بلا حد' : numAr(r.quota)])))
+      + stC('التوثيق عبر الممثلين', stK('دفعات مرفوعة', numAr(d.verification.batches), '') .replace('st-kpi', 'st-kpi" style="margin-bottom:10px;') + `<div class="cell-sub">استُعمل ${numAr(d.verification.used_period)} كود توثيق خلال الفترة.</div>`),
+
+    security: d => stKpis(
+        stK('تسجيلات الدخول', numAr(d.sessions), `${numAr(d.users)} مستخدم`) + stK('عناوين IP مختلفة', numAr(d.ips), '') + stK('حسابات مقفولة الآن', numAr(d.locked_now), 'محاولات خاطئة') +
+        stK('إدارة بلا تحقق بخطوتين', `${numAr(d.staff_without_2fa)} / ${numAr(d.staff_total)}`, 'مالك وأدمن وسوبر فايزر ومدراء') + stK('حظر بالفترة', numAr(d.bans.in_period), `طعون معلّقة ${numAr(d.bans.appeals)}`)) +
+      stGrid(stC('تسجيلات الدخول يوميًا', barsHtml(d.daily_sessions)) + stC('الأجهزة والمتصفحات', listHtml(d.devices))) +
+      stGrid(stC('عناوين IP مشتركة بين 3 حسابات فأكثر', listHtml(d.shared_ips, ' حساب'), 'قد تكون شبكة جامعة أو سكن، وقد تكون مشاركة حساب — راجعها بعين الاعتبار.') +
+             stC('حسابات دخلت من 3 عناوين IP أو أكثر', tableHtml(['الحساب', 'عناوين IP', 'مرات الدخول'], d.many_ips.map(x => [esc(x.name), numAr(x.ips), numAr(x.logins)])), 'مؤشر محتمل لمشاركة الحساب (قاعدة الجلسة الواحدة تمنع الاستعمال المتزامن).')) +
+      stGrid(stC('حالة الحظر', stackHtml(lblStatus(d.bans.by_status))) + stC('أسباب الحظر', listHtml(d.bans.reasons))),
+  };
+
   async function loadOverview(){
-    document.getElementById('stPeriod').innerHTML = [7, 30, 90].map(d => `<button class="${d === statsDays ? 'on' : ''}" onclick="statsDays=${d}; loadOverview()">آخر ${d} يوم</button>`).join('');
-    let st = null;
-    if (liveMode){
-      try { st = await apiFetch('/api/admin/stats?days=' + statsDays); }
-      catch (e){ showToast(e.detail || 'تعذّر تحميل الإحصائيات', 'error'); }
-    }
-    if (!st) st = {students: 0, new_students: 0, active_students: 0, answers: 0, accuracy: null, revenue: 0, orders: 0, activations: 0, pending_bans: 0, daily_answers: [], daily_signups: [], top_subjects: [], students_by_university: []};
-    const k = (l, v, sub) => `<div class="st-kpi"><div class="l">${l}</div><div class="v mono">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
-    document.getElementById('stKpis').innerHTML =
-      k('إجمالي الطلاب', numAr(st.students), `+${numAr(st.new_students)} جديد في الفترة`) +
-      k('طلاب نشطون', numAr(st.active_students), 'أجابوا على سؤال واحد على الأقل') +
-      k('أسئلة مجابة', numAr(st.answers), st.accuracy == null ? '' : `نسبة الصحيح ${st.accuracy}%`) +
-      k('الإيرادات', fmtIQD(st.revenue), `${numAr(st.orders)} طلب مدفوع`) +
-      k('أكواد فُعّلت', numAr(st.activations), '') +
-      k('حظر معلّق', numAr(st.pending_bans), '');
-    statBars('stAnswers', st.daily_answers);
-    statBars('stSignups', st.daily_signups);
-    statList('stSubjects', st.top_subjects);
-    statList('stUnis', st.students_by_university);
+    document.getElementById('stTabs').innerHTML = STAT_TABS.map(([k, l]) => `<button class="${k === statsTab ? 'on' : ''}" onclick="statsTab='${k}'; loadOverview()">${l}</button>`).join('');
+    document.getElementById('stPeriod').innerHTML = [7, 30, 90, 365].map(d => `<button class="${d === statsDays ? 'on' : ''}" onclick="statsDays=${d}; loadOverview()">${d === 365 ? 'سنة' : 'آخر ' + d + ' يوم'}</button>`).join('');
+    const body = document.getElementById('stBody');
+    if (!liveMode){ body.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لعرض الإحصائيات</div>'; return; }
+    body.innerHTML = '<div class="empty-row">جارٍ التحميل…</div>';
+    const tab = statsTab;
+    try {
+      const url = tab === 'overview' ? '/api/admin/stats?days=' + statsDays : `/api/admin/stats/${tab}?days=${statsDays}`;
+      const d = await apiFetch(url);
+      if (tab === statsTab) body.innerHTML = STAT_RENDER[tab](d);
+    } catch (e) { body.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الإحصائيات')}</div>`; }
   }
 
   // ===== Roles page =====
