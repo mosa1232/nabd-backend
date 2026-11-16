@@ -1501,6 +1501,32 @@
   #homePathCard[style*="display: block"], #homePathCard[style*="display:block"]{display:flex !important;}
   .stat-chip b{white-space:nowrap;}
   .page-head{margin-bottom:14px;}
+
+  /* ---- landing: calmer, less crowded ---- */
+  .lp-lock{display:none !important;}
+  .lp-feature{border-radius:22px;}
+  .lp-feature .lp-plate{height:clamp(96px,9vw,130px);}
+  .lp-feature h3{font-size:1.15rem; font-weight:700;}
+  .lp-section{padding-block:clamp(34px,5vw,64px) !important;}
+  .lp-summer{padding:14px 18px !important; gap:12px !important; border-radius:18px !important; align-items:center;}
+  .lp-summer h3{font-size:1rem !important; margin:0 !important;} .lp-summer p{display:none;}
+  #lpSummer .lp-eyebrow{display:none;}
+  @media (max-width:1000px){
+    .lp-cards, .lp-guides, .lp-ghost, .lp-scroll{display:none !important;}
+    .lp-hero{min-height:0 !important; padding-block:96px 36px !important;}
+    .lp-stage{display:block !important;}
+    .lp-headline{font-size:clamp(2.1rem,9vw,3rem) !important; line-height:1.2;}
+    .lp-lede{font-size:1rem; max-width:34ch;}
+  }
+  @media (max-width:640px){
+    .lp-grid{grid-template-columns:1fr 1fr !important; gap:12px !important;}
+    .lp-feature .lp-plate{height:84px;}
+    .lp-feature h3{font-size:1rem; margin-top:12px; padding-inline:12px;}
+    .lp-feature p{padding-inline:12px 12px; font-size:.78rem; line-height:1.7; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+    .lp-feature .lp-knob{display:none;}
+    .lp-feature{padding-bottom:16px;}
+    .lp-steps{gap:10px;}
+  }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
