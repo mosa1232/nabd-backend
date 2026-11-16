@@ -441,6 +441,18 @@
         </div>
       </section>
 
+      <!-- ===== ADMIN: Doctors / Representatives (profile cards) ===== -->
+      <section class="dash-section" id="sec-doctors"><div class="dash-card glass">
+        <div class="dash-card-head"><span class="dash-card-title">الدكاترة</span>
+          <button class="btn" onclick="promptAddUser('professor')">+ إضافة دكتور</button></div>
+        <input class="search-input" id="peopleSearch-professor" placeholder="ابحث بالاسم أو البريد..." oninput="renderPeople('professor')" style="margin-bottom:14px;" />
+        <div id="people-professor"></div></div></section>
+      <section class="dash-section" id="sec-reps"><div class="dash-card glass">
+        <div class="dash-card-head"><span class="dash-card-title">الممثلون</span>
+          <button class="btn" onclick="promptAddUser('representative')">+ إضافة ممثل</button></div>
+        <input class="search-input" id="peopleSearch-representative" placeholder="ابحث بالاسم أو البريد..." oninput="renderPeople('representative')" style="margin-bottom:14px;" />
+        <div id="people-representative"></div></div></section>
+
       <!-- ===== ADMIN: Accounts ===== -->
       <section class="dash-section" id="sec-accounts">
         <div class="dash-card glass">
@@ -1650,6 +1662,8 @@
   const STAFF_NAV = [
     {id:'overview', label:'نظرة عامة', icon:'grid', perm:'dashboard.analytics'},
     {id:'accounts', label:'الحسابات والأدوار', icon:'users', perm:'users.manage'},
+    {id:'doctors', label:'الدكاترة', icon:'student', perm:'users.manage'},
+    {id:'reps', label:'الممثلون', icon:'users', perm:'users.manage'},
     {id:'resellers', label:'المندوبون', icon:'key', perm:'resellers.manage'},
     {id:'notifications', label:'الإشعارات', icon:'bell', perm:'content.manage'},
     {id:'catalog', label:'المناهج', icon:'book', perm:'catalog.manage'},
@@ -1739,6 +1753,7 @@
 
   function showSection(id){
     document.body.classList.remove('acct-full');
+    lastSectionId = id;
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('sec-' + id);
     if (target) target.classList.add('active');
@@ -1791,7 +1806,7 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, notifications: loadNotifHistory, catalog: loadCatalog,
+    overview: loadOverview, accounts: loadAccounts, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
     students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
@@ -1829,6 +1844,35 @@
     document.getElementById('overviewActivity').innerHTML = activity.map(a => `
       <div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(a.action)}</span><span class="activity-time">${fmtDate(a.created_at)}</span></div>
     `).join('') || '<div class="empty-row">لا يوجد نشاط بعد</div>';
+  }
+
+  async function loadPeople(role){
+    document.getElementById('people-' + role).innerHTML = '<div class="empty-row">جارٍ التحميل…</div>';
+    await loadAccounts();
+    renderPeople(role);
+  }
+  function renderPeople(role){
+    const box = document.getElementById('people-' + role);
+    if (!box) return;
+    const q = (document.getElementById('peopleSearch-' + role)?.value || '').trim().toLowerCase();
+    const list = allAccounts.filter(a => a.role === role && (!q || a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)));
+    const sub = a => {
+      if (role === 'professor'){
+        const p = profSubjectByUser[a.id];
+        const subs = p && p.subjects && p.subjects.length ? p.subjects.map(x => x.subject_name).join('، ') : (p && p.subject_name) || '';
+        return subs ? esc(subs) : '<span style="color:var(--danger);">بدون مادة</span>';
+      }
+      const bits = [a.scope_university_id && (catalogNameById[a.scope_university_id] || ''), a.scope_department_id && catalogNameById[a.scope_department_id], a.scope_stage_id && catalogNameById[a.scope_stage_id]].filter(Boolean);
+      return bits.length ? esc(bits.join(' · ')) : 'بدون نطاق';
+    };
+    box.innerHTML = `<div class="cat-grid">${list.map(a => `
+      <div class="cat-card" onclick="showAccountDetails('${a.id}')">
+        <div class="cat-avatar">${esc(initialsOf(a.full_name).charAt(0) || '?')}</div>
+        <div class="cat-card-name">${esc(a.full_name)}</div>
+        <div class="cat-card-sub">${sub(a)}</div>
+        <div>${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div>
+      </div>`).join('')}
+      <div class="cat-card addnew" onclick="promptAddUser('${role}')">+ ${role === 'professor' ? 'دكتور' : 'ممثل'}</div></div>`;
   }
 
   let allAccounts = [];
@@ -2162,7 +2206,7 @@
       .map(r => ({value: r.id, label: `${r.name} (${r._ctx})`}));
   }
 
-  async function promptAddUser(){
+  async function promptAddUser(presetRole){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
     let subjects = [];
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
@@ -2175,7 +2219,7 @@
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
       {id: 'phone', label: 'رقم الهاتف (اختياري)', type: 'tel', placeholder: '07xxxxxxxxx'},
       {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
-      {id: 'role', label: 'الدور', type: 'select', value: 'student', options: roleOptionsForMe()},
+      {id: 'role', label: 'الدور', type: 'select', value: presetRole || 'student', options: roleOptionsForMe()},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: '', options: professors},
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
       {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: '', options: scope.depts},
@@ -4035,10 +4079,12 @@
   // ===== ADMIN: full account details =====
   const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
   // ===== ADMIN: full-page account (view + edit in place) =====
+  let acctFrom = 'accounts', lastSectionId = 'accounts';
   let acctPageId = null, acctTree = null, acctEdit = false, acctOv = null, acctOpts = null;
   async function showAccountDetails(id){
     const a = allAccounts.find(x => x.id === id);
     if (!a) return;
+    acctFrom = lastSectionId || 'accounts';
     acctPageId = id; acctEdit = false; acctOv = null; acctOpts = null;
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     document.getElementById('sec-account').classList.add('active');
@@ -4053,7 +4099,7 @@
     } catch (e) { /* page still shows the account row */ }
     if (acctPageId === id) renderAccountPage();
   }
-  function closeAccountPage(){ acctPageId = null; acctEdit = false; document.body.classList.remove('acct-full'); showSection('accounts'); }
+  function closeAccountPage(){ acctPageId = null; acctEdit = false; document.body.classList.remove('acct-full'); showSection(acctFrom || 'accounts'); }
 
   async function startAccountEdit(){
     const a = allAccounts.find(x => x.id === acctPageId); if (!a) return;
