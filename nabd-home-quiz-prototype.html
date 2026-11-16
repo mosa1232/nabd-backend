@@ -2327,7 +2327,7 @@
         <label class="signin-label" for="authEmail" data-i18n="email">البريد الإلكتروني</label>
         <div class="signin-field">
           <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="m30.853 13.87a15 15 0 0 0 -29.729 4.082 15.1 15.1 0 0 0 12.876 12.918 15.6 15.6 0 0 0 2.016.13 14.85 14.85 0 0 0 7.715-2.145 1 1 0 1 0 -1.031-1.711 13.007 13.007 0 1 1 5.458-6.529 2.149 2.149 0 0 1 -4.158-.759v-10.856a1 1 0 0 0 -2 0v1.726a8 8 0 1 0 .2 10.325 4.135 4.135 0 0 0 7.83.274 15.2 15.2 0 0 0 .823-7.455zm-14.853 8.13a6 6 0 1 1 6-6 6.006 6.006 0 0 1 -6 6z"/></svg>
-          <input id="authEmail" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="أدخل بريدك الإلكتروني" data-i18n-placeholder="enterEmail" />
+          <input id="authEmail" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني أو اسم المستخدم" data-i18n-placeholder="enterEmail" />
         </div>
 
         <label class="signin-label" for="authPassword" data-i18n="password">كلمة المرور</label>
@@ -2447,9 +2447,9 @@
     <div class="auth-view">
       <form class="auth-card glass" onsubmit="event.preventDefault(); submitCredentials()" autocomplete="off">
         <div class="auth-title" data-i18n="credTitle">أنشئ بيانات دخولك</div>
-        <div class="auth-sub" data-i18n="credSub">اختر اسم مستخدم وكلمة مرور.</div>
-        <div class="form-field"><input id="crUsername" type="text" dir="ltr" autocapitalize="none" spellcheck="false" autocomplete="username" maxlength="30" placeholder="اسم المستخدم" data-i18n-placeholder="credUsername" /></div>
-        <div class="form-field"><input id="crPassword" type="password" autocomplete="new-password" placeholder="كلمة المرور" data-i18n-placeholder="credPassword" /></div>
+        <div class="auth-sub" data-i18n="credSub">اختر اسم مستخدم وكلمة مرور لتدخل بهما لاحقًا — مرة واحدة فقط ولن نطلبها منك مرة ثانية.</div>
+        <div class="form-field"><input id="crUsername" type="text" dir="ltr" autocapitalize="none" spellcheck="false" autocomplete="username" maxlength="30" placeholder="اسم المستخدم (أحرف إنجليزية وأرقام)" data-i18n-placeholder="credUsername" /></div>
+        <div class="form-field"><input id="crPassword" type="password" autocomplete="new-password" placeholder="كلمة المرور (8 أحرف على الأقل)" data-i18n-placeholder="credPassword" /></div>
         <div class="form-field"><input id="crPassword2" type="password" autocomplete="new-password" placeholder="أعد كتابة كلمة المرور" data-i18n-placeholder="credPassword2" /></div>
         <div id="crMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
         <button class="btn" type="submit" style="width:100%; justify-content:center; padding:12px;" data-i18n="credSave">حفظ ومتابعة</button>
