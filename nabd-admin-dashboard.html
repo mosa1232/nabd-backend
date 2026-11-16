@@ -227,6 +227,12 @@
   .ai-draft input[type=checkbox]{width:18px; height:18px; margin-top:3px; flex:none; padding:0;}
   /* curriculum page */
   .cat-search{width:100%; max-width:340px;}
+  .cat-top{margin-bottom:6px;} .cat-back{background:none; font:inherit; font-size:.82rem; font-weight:700; color:var(--accent); cursor:pointer; padding:4px 0;}
+  .cat-title2{display:flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:800; margin:4px 0 16px;}
+  .cat-kebab{width:28px; height:28px; border-radius:50%; background:transparent; font-size:1.1rem; line-height:1; color:var(--ink-faint); cursor:pointer;}
+  .cat-kebab:hover{background:var(--track); color:var(--ink);}
+  .cat-card .cat-kebab{position:absolute; top:6px; inset-inline-start:6px;}
+  .cat-tab.plus{border-style:dashed; color:var(--accent);}
   .cat-crumbs{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px; font-size:.82rem; font-weight:700;}
   .cat-crumbs button{color:var(--accent); background:none; font:inherit; cursor:pointer; padding:2px 4px;}
   .cat-crumbs .sep{color:var(--ink-faint);}
@@ -490,17 +496,9 @@
           <div class="dash-card-head">
             <span class="dash-card-title">المناهج</span>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn" onclick="promptQuickCatalog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>إعداد سريع</button>
+              <button class="btn btn-ghost" onclick="promptQuickCatalog()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>إعداد سريع</button>
               <button class="btn btn-ghost" onclick="openCatalogImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>استيراد من ملف</button>
             </div>
-          </div>
-          <div class="item-meta" style="margin-bottom:12px;">الترتيب: <b>القسم</b> ← <b>الجامعة</b> ← <b>المرحلة</b> ← <b>المادة</b>. اكتب الاسم في الخانة واضغط Enter — ويمكنك كتابة عدة أسماء مفصولة بفاصلة.</div>
-          <div class="cat-add-root">
-            <div class="cat-add" style="flex:1; min-width:220px;">
-              <input id="add-root-" onpaste="catalogPaste(event)" placeholder="+ قسم جديد (مثال: طب بشري، صيدلة)" onkeydown="if(event.key==='Enter'){catalogInlineAdd('root','')}" />
-              <button class="btn" onclick="catalogInlineAdd('root','')">أضف</button>
-            </div>
-            <input class="search-input cat-search" id="catalogSearch" placeholder="بحث في المناهج..." oninput="renderCatalogTree()" />
           </div>
           <div id="catalogTree"></div>
         </div>
@@ -2344,9 +2342,20 @@
     else if (k === 'up') { if (id === 'sec') catNav.uni = catNav.dept = null; else if (id === 'uni') catNav.dept = null; }
     renderCatalogTree();
   };
+﻿  const kebab = (type, id, withCopy) => `<button class="cat-kebab" title="خيارات" onclick="event.stopPropagation(); catMenu(event,'${type}','${id}',${withCopy})">⋯</button>`;
+  function catMenu(ev, type, id, withCopy){
+    document.getElementById('catMenu')?.remove();
+    const m = document.createElement('div'); m.id = 'catMenu';
+    const r = ev.currentTarget.getBoundingClientRect();
+    m.style.cssText = `position:fixed;z-index:9998;top:${Math.min(r.bottom + 4, innerHeight - 130)}px;left:${Math.max(8, Math.min(r.left, innerWidth - 170))}px;background:var(--glass-bg-strong,#fff);border:1px solid var(--glass-border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;min-width:150px;`;
+    const item = (label, fn, danger) => `<button style="display:block;width:100%;text-align:start;padding:9px 12px;border-radius:8px;font:inherit;font-size:.82rem;font-weight:600;background:none;cursor:pointer;color:${danger ? 'var(--danger)' : 'var(--ink)'};" onmouseover="this.style.background='var(--track)'" onmouseout="this.style.background='none'" onclick="document.getElementById('catMenu').remove(); ${fn}">${label}</button>`;
+    m.innerHTML = item('تعديل الاسم', `promptRenameCatalog('${type}','${id}')`) + (withCopy ? item('نسخ', `promptDuplicateCatalog('${type}','${id}')`) : '') + item('حذف', `deleteCatalogNode('${type}','${id}')`, true);
+    document.body.appendChild(m);
+    setTimeout(() => document.addEventListener('click', () => m.remove(), {once: true}), 0);
+  }
   const catCard = (type, row, sub, onclick) => `
     <div class="cat-card" onclick="${onclick}">
-      <div class="cat-card-acts">${actions(type, row.id, true)}</div>
+      ${kebab(type, row.id, true)}
       <div class="cat-avatar">${esc((row.name || '?').replace(/^(جامعة|قسم|كلية)\s+/, '').trim().charAt(0))}</div>
       <div class="cat-card-name">${esc(row.name)}</div>
       <div class="cat-card-sub">${sub}</div>
@@ -2355,60 +2364,60 @@
   function renderCatalogTree(){
     const el = document.getElementById('catalogTree');
     if (!catalogNested.length){
-      el.innerHTML = `<div class="empty-row">لا يوجد منهج بعد — اكتب اسم أول كلية في الخانة بالأعلى، أو استخدم «إعداد سريع»</div>`;
+      el.innerHTML = `<div class="empty-row">لا يوجد منهج بعد<br><button class="btn" style="margin-top:12px;" onclick="promptAddSection()">+ أضف أول كلية</button></div>`;
       return;
     }
-    const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
-    const has = t => t.toLowerCase().includes(q);
-    // keep the position valid after reloads / deletions
     let sec = catalogNested.find(x => x.id === catNav.sec) || catalogNested[0];
     catNav.sec = sec.id;
-    let uni = sec.universities.find(x => x.id === catNav.uni) || null;
+    const uni = sec.universities.find(x => x.id === catNav.uni) || null;
     catNav.uni = uni ? uni.id : null;
-    let dept = uni ? (uni.departments.find(x => x.id === catNav.dept) || null) : null;
+    const dept = uni ? (uni.departments.find(x => x.id === catNav.dept) || null) : null;
     catNav.dept = dept ? dept.id : null;
 
-    const tabs = `<div class="cat-tabs">${catalogNested.map(x => `<button class="cat-tab ${x.id === sec.id ? 'on' : ''}" onclick="catGo('sec','${x.id}')">${esc(x.name)}</button>`).join('')}
-      <span style="margin-inline-start:auto; display:flex; gap:2px;">${actions('section', sec.id, true)}</span></div>`;
-    const crumbs = `<div class="cat-crumbs"><button onclick="catGo('up','sec')">${esc(sec.name)}</button>${
-      uni ? `<span class="sep">›</span><button onclick="catGo('up','uni')">${esc(uni.name)}</button>` : ''}${
-      dept ? `<span class="sep">›</span><span>${esc(dept.name)}</span>` : ''}</div>`;
-    let body = '';
-
+    // ---- top level: colleges as tabs, universities as cards
     if (!uni) {
-      const list = sec.universities.filter(u => !q || has(u.name));
-      body = `<div class="cat-grid">${list.map(u => catCard('university', u, `${u.departments.length} أقسام`, `catGo('uni','${u.id}')`)).join('')}</div>
-        ${list.length ? '' : '<div class="empty-row">لا توجد جامعات</div>'}
-        ${addBox('section', sec.id, '+ جامعة (أو عدة جامعات مفصولة بفاصلة)')}`;
-      el.innerHTML = tabs + body;
+      const tabs = `<div class="cat-tabs">${catalogNested.map(x => `<button class="cat-tab ${x.id === sec.id ? 'on' : ''}" onclick="catGo('sec','${x.id}')">${esc(x.name)}</button>`).join('')}
+        <button class="cat-tab plus" onclick="promptAddSection()">+ كلية</button>
+        <span style="margin-inline-start:auto;">${kebab('section', sec.id, true)}</span></div>`;
+      el.innerHTML = tabs + `<div class="cat-grid">${sec.universities.map(u => catCard('university', u, `${u.departments.length} أقسام`, `catGo('uni','${u.id}')`)).join('')}
+        <div class="cat-card addnew" onclick="catAskAdd('section','${sec.id}','أضف جامعة (أو عدة جامعات، كل واحدة بسطر)')">+ جامعة</div></div>`;
       return;
     }
+    const back = (to, label) => `<div class="cat-top"><button class="cat-back" onclick="catGo('up','${to}')">→ ${esc(label)}</button></div>`;
+    // ---- university: departments as cards
     if (!dept) {
-      const list = uni.departments.filter(d => !q || has(d.name));
-      body = `<div class="cat-grid">${list.map(d => catCard('department', d, `${d.stages.length} مراحل`, `catGo('dept','${d.id}')`)).join('')}
-        <div class="cat-card addnew" onclick="openAddDepartment('${uni.id}')">+ إضافة قسم</div></div>`;
-      el.innerHTML = tabs + crumbs + body;
+      el.innerHTML = back('sec', sec.name) + `<div class="cat-title2">${esc(uni.name)} ${kebab('university', uni.id, true)}</div>
+        <div class="cat-grid">${uni.departments.map(d => catCard('department', d, `${d.stages.length} مراحل`, `catGo('dept','${d.id}')`)).join('')}
+        <div class="cat-card addnew" onclick="openAddDepartment('${uni.id}')">+ قسم</div></div>`;
       return;
     }
-    // department profile: its stages, each with its subjects
+    // ---- department: stages, each with subjects
     const have = new Set(dept.stages.map(s => s.name));
     const missing = STAGE_PRESETS.filter(n => !have.has(n));
-    const stageHtml = dept.stages.filter(st => !q || has(st.name) || st.subjects.some(sb => has(sb.name))).map(st => `
+    const stageHtml = dept.stages.map(st => `
       <div class="cat-stage">
-        <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
+        <div class="cat-stage-name">${esc(st.name)} <span class="cat-count">· ${st.subjects.length} مواد</span> <span style="margin-inline-start:auto;">${kebab('stage', st.id, false)}</span></div>
         <div class="cat-chips">${st.subjects.map(sb => `
           <span class="cat-chip">${esc(sb.name)}
             <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
             <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
-          </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
-        ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
+          </span>`).join('')}</div>
+        ${addBox('stage', st.id, '+ أضف مادة')}
       </div>`).join('');
-    body = `
-      <div style="font-weight:800; margin-bottom:6px;">المراحل ${missing.length ? '<span class="cat-count">· اضغط لإضافة مرحلة</span>' : ''}</div>
-      ${missing.length ? `<div class="cat-presets">${missing.map(n => `<button onclick="catAddStagePreset('${dept.id}','${n}')">+ ${n}</button>`).join('')}</div>` : ''}
-      ${stageHtml || '<div class="empty-row">ما أُضيفت مراحل بعد — اختر من الأزرار أعلاه</div>'}
-      <div style="margin-top:10px;">${addBox('department', dept.id, '+ مرحلة بإسم آخر (أو عدة مراحل مفصولة بفاصلة)')}</div>`;
-    el.innerHTML = tabs + crumbs + body;
+    el.innerHTML = back('uni', uni.name) + `<div class="cat-title2">${esc(dept.name)} ${kebab('department', dept.id, true)}</div>
+      ${stageHtml || '<div class="empty-row">اختر المراحل من الأسفل</div>'}
+      ${missing.length ? `<div class="cat-presets"><span class="cat-count" style="align-self:center;">إضافة مرحلة:</span>${missing.map(n => `<button onclick="catAddStagePreset('${dept.id}','${n}')">+ ${n.replace('المرحلة ', '')}</button>`).join('')}</div>` : ''}`;
+  }
+
+  // one-line prompt for adding names to a parent (used for universities)
+  function catAskAdd(parentType, parentId, title){
+    openGenericModal(title, [{id: 'names', label: '', type: 'textarea', rows: 4, placeholder: 'جامعة بغداد\nجامعة البصرة'}], async v => {
+      const names = v.names.split(/[\n,،]+/).map(x => x.trim()).filter(Boolean);
+      if (!names.length) throw {detail: 'اكتب اسمًا واحدًا على الأقل'};
+      const res = await apiFetch('/api/admin/catalog/bulk', {method: 'POST', body: JSON.stringify({parent_type: parentType, parent_id: parentId, names})});
+      reportBulk(res, ADD_NOUN[parentType]);
+      loadCatalog();
+    });
   }
 
   async function catAddStagePreset(deptId, name){
