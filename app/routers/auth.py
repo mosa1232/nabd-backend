@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -221,7 +222,10 @@ def dev_login(response: Response, email: str, name: str = "طالب تجريبي
 def login(body: schemas.PasswordLoginIn, response: Response, db: Session = Depends(get_db)):
     """Email + password login for the admin/professor/reseller dashboard —
     a real alternative to Google OAuth and the dev-login stand-in."""
-    user = db.query(models.User).filter(models.User.email == body.email.strip()).first()
+    ident = body.email.strip()
+    user = db.query(models.User).filter(models.User.email == ident).first()
+    if not user and "@" not in ident:
+        user = db.query(models.User).filter(models.User.username == ident.lower()).first()
     if user:
         _check_not_locked(user)
     if not user or not verify_password(body.password, user.password_hash):
@@ -748,6 +752,41 @@ def my_history(db: Session = Depends(get_db), user: models.User = Depends(get_cu
 
     events.sort(key=lambda e: e["at"], reverse=True)
     return events[:30]
+
+
+def clean_username(raw: str) -> str:
+    u = (raw or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{2,29}", u):
+        raise HTTPException(400, "اسم المستخدم 3 إلى 30 خانة: أحرف إنجليزية صغيرة وأرقام و . _ - فقط، ويبدأ بحرف أو رقم")
+    return u
+
+
+@router.post("/me/credentials", response_model=schemas.UserOut)
+def set_my_credentials(
+    body: schemas.CredentialsIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """One-time setup after a Google sign-up: a username and a password, so the
+    account can also be signed into without Google. An account that already has
+    a password keeps using /change-password; this can then only add a username."""
+    if body.username:
+        uname = clean_username(body.username)
+        taken = db.query(models.User).filter(models.User.username == uname, models.User.id != user.id).first()
+        if taken:
+            raise HTTPException(400, "اسم المستخدم مستخدم، اختر اسمًا آخر")
+        user.username = uname
+    if body.password:
+        if user.password_hash:
+            raise HTTPException(400, "للحساب كلمة مرور بالفعل — استخدم «تغيير كلمة المرور»")
+        if len(body.password) < 8:
+            raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+        user.password_hash = hash_password(body.password)
+        remember_password(user, body.password)
+        user.password_changed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.post("/change-password")

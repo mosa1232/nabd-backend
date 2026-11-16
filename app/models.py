@@ -55,6 +55,8 @@ class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True, default=gen_id)
     email = Column(String, unique=True, index=True, nullable=False)
+    # Optional sign-in name: used only to log in (alongside the email), never shown to others.
+    username = Column(String, unique=True, index=True, nullable=True)
     full_name = Column(String, nullable=False)
     google_sub = Column(String, unique=True, index=True, nullable=True)
     password_hash = Column(String, nullable=True)  # null for Google-only / dev-login accounts

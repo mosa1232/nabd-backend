@@ -342,6 +342,15 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
     if dup:
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً من حساب آخر")
     user.email = body.email.strip()
+    if body.username is not None:
+        if body.username.strip():
+            from .auth import clean_username
+            uname = clean_username(body.username)
+            if db.query(models.User).filter(models.User.username == uname, models.User.id != user_id).first():
+                raise HTTPException(400, "اسم المستخدم مستخدم من حساب آخر")
+            user.username = uname
+        else:
+            user.username = None
     user.full_name = body.full_name.strip()
     user.role = body.role
     if body.phone is not None:

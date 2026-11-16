@@ -2442,6 +2442,21 @@
     </div>
   </div>
 
+  <!-- ============ SET CREDENTIALS VIEW (Google sign-up, shown once) ============ -->
+  <div class="view" id="view-set-credentials">
+    <div class="auth-view">
+      <form class="auth-card glass" onsubmit="event.preventDefault(); submitCredentials()" autocomplete="off">
+        <div class="auth-title" data-i18n="credTitle">أنشئ بيانات دخولك</div>
+        <div class="auth-sub" data-i18n="credSub">اختر اسم مستخدم وكلمة مرور.</div>
+        <div class="form-field"><input id="crUsername" type="text" dir="ltr" autocapitalize="none" spellcheck="false" autocomplete="username" maxlength="30" placeholder="اسم المستخدم" data-i18n-placeholder="credUsername" /></div>
+        <div class="form-field"><input id="crPassword" type="password" autocomplete="new-password" placeholder="كلمة المرور" data-i18n-placeholder="credPassword" /></div>
+        <div class="form-field"><input id="crPassword2" type="password" autocomplete="new-password" placeholder="أعد كتابة كلمة المرور" data-i18n-placeholder="credPassword2" /></div>
+        <div id="crMsg" style="display:none; font-size:.78rem; margin-bottom:10px; text-align:center;"></div>
+        <button class="btn" type="submit" style="width:100%; justify-content:center; padding:12px;" data-i18n="credSave">حفظ ومتابعة</button>
+      </form>
+    </div>
+  </div>
+
   <!-- ============ ACCOUNT VIEW ============ -->
   <div class="view" id="view-account">
     <div class="page-head">
@@ -2935,6 +2950,7 @@
       verifiedTitle:'تم التحقق من حسابك', verifiedEmail:'بريد موثّق', continueToApp:'متابعة إلى Kiur', useAnotherAccount:'استخدام حساب آخر',
       singleSessionNote:'تسجيل الدخول من هذا الجهاز سيسجّل خروجك تلقائياً من أي جهاز آخر نشط حالياً، حفاظاً على أمان حسابك.',
       totpTitle:'التحقق بخطوتين', totpSub:'أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة',
+      credTitle:'أنشئ بيانات دخولك', credSub:'اختر اسم مستخدم وكلمة مرور لتدخل بهما لاحقًا — مرة واحدة فقط ولن نطلبها منك مرة ثانية.', credUsername:'اسم المستخدم (أحرف إنجليزية وأرقام)', credPassword:'كلمة المرور (8 أحرف على الأقل)', credPassword2:'أعد كتابة كلمة المرور', credSave:'حفظ ومتابعة', credMismatch:'كلمتا المرور غير متطابقتين', credFill:'أدخل اسم المستخدم وكلمة المرور',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
       studentOrGraduate:'هل أنت طالب أم متخرج؟', stillStudent:'ما زلت طالباً', graduated:'متخرج',
@@ -2964,7 +2980,7 @@
       resetFailed:'انتهت صلاحية الرابط أو أنه غير صالح — اطلب رابطاً جديداً',
       lastChanged:'آخر تغيير',
       landingTitle:'استكشف Kiur، منصتك الطبية المتكاملة',
-      signinSub:'سجّل دخولك لتكمل من حيث توقفت', enterEmail:'أدخل بريدك الإلكتروني', enterPassword:'أدخل كلمة المرور', orWith:'أو عبر', close:'إغلاق',
+      signinSub:'سجّل دخولك لتكمل من حيث توقفت', enterEmail:'البريد الإلكتروني أو اسم المستخدم', enterPassword:'أدخل كلمة المرور', orWith:'أو عبر', close:'إغلاق',
       totpNoCodeHint:'الرمز يتجدّد كل 30 ثانية داخل تطبيق المصادقة',
       invoiceItems:'المنتجات', invoiceShipping:'التوصيل', invoiceNoShipping:'لا يحتاج توصيل — كل منتجات السلة رقمية.', invoicePaymentMethod:'طريقة الدفع',
       invoicePayment:'الحساب', invoiceItemCount:'عدد القطع', invoiceSubtotal:'المجموع', confirmOrder:'تأكيد الطلب',
@@ -3066,6 +3082,7 @@
       verifiedTitle:'Your account is verified', verifiedEmail:'Verified email', continueToApp:'Continue to Kiur', useAnotherAccount:'Use another account',
       singleSessionNote:'Signing in on this device will automatically sign you out of any other active device, to keep your account secure.',
       totpTitle:'Two-factor verification', totpSub:'Enter the 6-digit code from your authenticator app',
+      credTitle:'Create your sign-in details', credSub:'Pick a username and a password to sign in with later — one time only, we will not ask again.', credUsername:'Username (English letters and numbers)', credPassword:'Password (at least 8 characters)', credPassword2:'Repeat the password', credSave:'Save and continue', credMismatch:'The passwords do not match', credFill:'Enter a username and a password',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
       studentOrGraduate:'Are you a student or a graduate?', stillStudent:'Still a student', graduated:'Graduated',
@@ -3093,7 +3110,7 @@
       resetFailed:'That link has expired or is invalid — request a new one',
       lastChanged:'last changed',
       landingTitle:'Explore Kiur, your complete medical platform',
-      signinSub:'Sign in to pick up where you left off', enterEmail:'Enter your email', enterPassword:'Enter your password', orWith:'Or with', close:'Close',
+      signinSub:'Sign in to pick up where you left off', enterEmail:'Email or username', enterPassword:'Enter your password', orWith:'Or with', close:'Close',
       totpNoCodeHint:'The code refreshes every 30 seconds in your authenticator app',
       invoiceItems:'Items', invoiceShipping:'Delivery', invoiceNoShipping:'No delivery needed — everything in the cart is digital.', invoicePaymentMethod:'Payment method',
       invoicePayment:'Payment', invoiceItemCount:'Items', invoiceSubtotal:'Total', confirmOrder:'Place order',
@@ -3195,6 +3212,7 @@
       verifiedTitle:'هەژمارەکەت پشتڕاست کرایەوە', verifiedEmail:'ئیمەیلی پشتڕاستکراو', continueToApp:'بەردەوامبوون بۆ Kiur', useAnotherAccount:'هەژمارێکی تر بەکاربێنە',
       singleSessionNote:'چوونەژوورەوە لەم ئامێرە بە شێوەیەکی خۆکار لە هەر ئامێرێکی تری چالاک دەرت دەکات، بۆ پاراستنی ئاسایشی هەژمارەکەت.',
       totpTitle:'پشتڕاستکردنەوەی دوو هەنگاو', totpSub:'ئەو کۆدە ٦ ژمارەیە بنووسە کە لە ئەپی پشتڕاستکردنەوەیە',
+      credTitle:'زانیارییەکانی چوونەژوورەوەت دروست بکە', credSub:'ناوی بەکارهێنەر و وشەی نهێنییەک هەڵبژێرە بۆ چوونەژوورەوە دواتر — تەنها جارێک و جارێکی تر داوات لێ ناکرێت.', credUsername:'ناوی بەکارهێنەر (پیتی ئینگلیزی و ژمارە)', credPassword:'وشەی نهێنی (لانیکەم ٨ پیت)', credPassword2:'وشەی نهێنی دووبارە بکەرەوە', credSave:'پاشەکەوت و بەردەوامبوون', credMismatch:'وشە نهێنییەکان یەکناگرنەوە', credFill:'ناوی بەکارهێنەر و وشەی نهێنی بنووسە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
       studentOrGraduate:'تۆ قوتابیت یان دەرچووی؟', stillStudent:'هێشتا قوتابیم', graduated:'دەرچووم',
@@ -3222,7 +3240,7 @@
       resetFailed:'ئەم بەستەرە بەسەرچووە یان نادروستە — داوای یەکێکی نوێ بکە',
       lastChanged:'دوا گۆڕان',
       landingTitle:'Kiur بدۆزەرەوە، پلاتفۆرمی پزیشکی تەواوت',
-      signinSub:'بچۆ ژوورەوە بۆ بەردەوامبوون لەو شوێنەی وەستایت', enterEmail:'ئیمەیڵەکەت بنووسە', enterPassword:'وشەی نهێنی بنووسە', orWith:'یان لە ڕێگەی', close:'داخستن',
+      signinSub:'بچۆ ژوورەوە بۆ بەردەوامبوون لەو شوێنەی وەستایت', enterEmail:'ئیمەیڵ یان ناوی بەکارهێنەر', enterPassword:'وشەی نهێنی بنووسە', orWith:'یان لە ڕێگەی', close:'داخستن',
       totpNoCodeHint:'کۆدەکە هەر 30 چرکە جارێک لە ئەپی ڕەسەنایەتی نوێ دەبێتەوە',
       invoiceItems:'بەرهەمەکان', invoiceShipping:'گەیاندن', invoiceNoShipping:'پێویستی بە گەیاندن نییە — هەموو بەرهەمەکان دیجیتاڵن.', invoicePaymentMethod:'شێوازی پارەدان',
       invoicePayment:'حیساب', invoiceItemCount:'ژمارەی پارچە', invoiceSubtotal:'کۆی گشتی', confirmOrder:'دڵنیاکردنەوەی داواکاری',
@@ -5755,8 +5773,30 @@
   function proceedAfterAuth(){
     if (currentUser && currentUser.profile_complete === false){
       showCompleteProfileView();
+    } else if (currentUser && currentUser.needs_credentials){
+      // Joined with Google: pick a username + password once, then never again.
+      showView('view-set-credentials');
+      document.body.classList.add('auth-mode');
+      setTimeout(() => document.getElementById('crUsername')?.focus(), 80);
     } else {
       goHome();
+    }
+  }
+
+  async function submitCredentials(){
+    const msg = document.getElementById('crMsg');
+    msg.style.display = 'block'; msg.style.color = 'var(--danger)';
+    const username = document.getElementById('crUsername').value.trim();
+    const pw = document.getElementById('crPassword').value, pw2 = document.getElementById('crPassword2').value;
+    if (!username || !pw){ msg.textContent = t('credFill'); return; }
+    if (pw !== pw2){ msg.textContent = t('credMismatch'); return; }
+    msg.style.color = 'var(--ink-faint)'; msg.textContent = '…';
+    try {
+      currentUser = await apiFetch('/auth/me/credentials', {method: 'POST', body: JSON.stringify({username, password: pw})});
+      document.getElementById('crPassword').value = ''; document.getElementById('crPassword2').value = '';
+      proceedAfterAuth();
+    } catch (e) {
+      msg.style.color = 'var(--danger)'; msg.textContent = e.detail || 'تعذّر الحفظ';
     }
   }
 
@@ -5843,7 +5883,7 @@
         }),
       });
       currentUser = updated;
-      goHome();
+      proceedAfterAuth();
     } catch (e) {
       msg.style.color = 'var(--danger)';
       msg.textContent = e.detail || 'تعذّر حفظ البيانات';

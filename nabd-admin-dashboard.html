@@ -354,7 +354,7 @@
       <div class="login-divider">أو بالبريد وكلمة المرور</div>
 
       <form onsubmit="event.preventDefault(); submitPasswordLogin();">
-        <div class="form-field"><input id="loginEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني" autocomplete="username" /></div>
+        <div class="form-field"><input id="loginEmail" type="text" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="البريد الإلكتروني أو اسم المستخدم" autocomplete="username" /></div>
         <div class="form-field" style="margin-bottom:8px;"><input id="loginPassword" type="password" placeholder="كلمة المرور" autocomplete="current-password" /></div>
         <div id="loginError" style="font-size:.78rem; color:var(--danger); margin-bottom:10px; display:none;"></div>
         <button type="submit" class="btn" style="width:100%; justify-content:center; padding:12px;">تسجيل الدخول</button>
@@ -4093,10 +4093,11 @@
     // ---- identity & contact
     const identity = card('البيانات الشخصية', ed
       ? row('الاسم الكامل', inp('efName', a.full_name)) + row('البريد الإلكتروني', inp('efEmail', a.email, 'text')) +
+        row('اسم المستخدم (للدخول)', inp('efUsername', a.username, 'text', 'اختياري — أحرف إنجليزية وأرقام')) +
         row('رقم الهاتف', inp('efPhone', a.phone, 'tel', '07xxxxxxxxx')) +
         row('الدور', sel('efRole', (roleOptionsForMe().some(o => o.value === a.role) ? roleOptionsForMe() : ROLE_OPTIONS), a.role)) +
         row('كلمة مرور جديدة', inp('efPass', '', 'text', 'اتركه فارغًا للإبقاء على الحالية'))
-      : row('الاسم الكامل', esc(a.full_name)) + row('البريد الإلكتروني', esc(a.email), true) + row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
+      : row('الاسم الكامل', esc(a.full_name)) + row('البريد الإلكتروني', esc(a.email), true) + row('اسم المستخدم (للدخول)', a.username ? esc(a.username) : '<span class="cell-sub">غير محدد</span>', !!a.username) + row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
         row('الدور', esc(ROLE_NAME[a.role] || a.role)) +
         (ov && ov.caption ? row('النبذة', esc(ov.caption)) : ''));
 
@@ -4209,7 +4210,7 @@
     const role = v('efRole') || a.role;
     const name = (v('efName') || '').trim(), email = (v('efEmail') || '').trim();
     if (!name || !email){ showToast('الاسم والبريد الإلكتروني مطلوبان', 'error'); return; }
-    const body = {full_name: name, email, role, phone: (v('efPhone') || '').trim(), password: v('efPass') || null};
+    const body = {full_name: name, email, username: (v('efUsername') || '').trim(), role, phone: (v('efPhone') || '').trim(), password: v('efPass') || null};
     if (role === 'assistant') body.parent_user_id = v('efParent') || null;
     if (role === 'reseller') { const q = v('efQuota'); body.code_quota = q === '' || q == null ? null : Number(q); }
     if (role === 'representative'){

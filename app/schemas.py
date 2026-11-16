@@ -10,6 +10,7 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     email: str
+    username: Optional[str] = None
     full_name: str
     role: str
     is_banned: bool = False
@@ -61,6 +62,13 @@ class UserOut(BaseModel):
 
     @computed_field
     @property
+    def needs_credentials(self) -> bool:
+        """A student who joined with Google has no password yet: the app asks for
+        a username and password once, and never again after they are set."""
+        return self.role == "student" and not self.password_hash
+
+    @computed_field
+    @property
     def profile_complete(self) -> bool:
         """Drives the student app's "complete your profile" gate. Professors/
         admins/resellers are created directly by an admin and never need it."""
@@ -74,6 +82,11 @@ class UserOut(BaseModel):
         if self.is_graduate is False and not self.stage_id:
             return False
         return True
+
+
+class CredentialsIn(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 
 class ProfileUpdateIn(BaseModel):
@@ -216,6 +229,7 @@ class ProfessorAssignIn(BaseModel):
 
 class UserUpdateIn(BaseModel):
     email: str
+    username: Optional[str] = None  # None = leave unchanged, "" = remove
     full_name: str
     role: str
     password: Optional[str] = None  # leave empty to keep the current password unchanged
