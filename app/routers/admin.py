@@ -85,6 +85,22 @@ def overview(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/roles")
+def roles_overview(db: Session = Depends(get_db)):
+    """One row per role: how many accounts hold it and what it can do by default
+    (extra per-account grants are on top of this)."""
+    from ..permissions import ROLE_DEFAULTS
+    counts = dict(db.query(models.User.role, func.count(models.User.id)).group_by(models.User.role).all())
+    out = []
+    for r in models.Role:
+        out.append({
+            "role": r.value,
+            "count": int(counts.get(r, 0)),
+            "permissions": sorted(ROLE_DEFAULTS.get(r.value, set())),
+        })
+    return out
+
+
 @router.get("/stats")
 def stats(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
     """The statistics page: a few real numbers for the chosen period, two daily

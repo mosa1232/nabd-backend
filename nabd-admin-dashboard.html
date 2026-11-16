@@ -465,6 +465,17 @@
         </div>
       </section>
 
+      <!-- ===== ADMIN: Roles / Admins ===== -->
+      <section class="dash-section" id="sec-roles"><div class="dash-card glass" id="rolesBody"></div></section>
+      <section class="dash-section" id="sec-admins"><div class="dash-card glass">
+        <div class="dash-card-head"><span class="dash-card-title">الأدمنية</span>
+          <span style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="promptAddUser('admin')">+ أدمن</button>
+            <button class="btn btn-ghost" onclick="promptAddUser('supervisor')">+ سوبر فايزر</button>
+            <button class="btn btn-ghost" onclick="promptAddUser('store_manager')">+ مدير متجر</button></span></div>
+        <input class="search-input" id="adminsSearch" placeholder="ابحث بالاسم أو البريد..." oninput="renderAdmins()" style="margin-bottom:14px;" />
+        <div id="adminsBody"></div></div></section>
+
       <!-- ===== ADMIN: Doctors / Representatives (profile cards) ===== -->
       <section class="dash-section" id="sec-doctors"><div class="dash-card glass">
         <div class="dash-card-head"><span class="dash-card-title">الدكاترة</span>
@@ -1742,7 +1753,9 @@
 
   const STAFF_NAV = [
     {id:'overview', label:'نظرة عامة', icon:'grid', perm:'dashboard.analytics'},
-    {id:'accounts', label:'الحسابات والأدوار', icon:'users', perm:'users.manage'},
+    {id:'accounts', label:'الحسابات', icon:'users', perm:'users.manage'},
+    {id:'roles', label:'الأدوار', icon:'key', perm:'users.manage'},
+    {id:'admins', label:'الأدمنية', icon:'users', perm:'users.manage'},
     {id:'doctors', label:'الدكاترة', icon:'student', perm:'users.manage'},
     {id:'reps', label:'الممثلون', icon:'users', perm:'users.manage'},
     {id:'resellers', label:'المندوبون', icon:'key', perm:'resellers.manage'},
@@ -1924,7 +1937,7 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
+    overview: loadOverview, accounts: loadAccounts, roles: loadRoles, admins: loadAdmins, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
     students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
@@ -1975,6 +1988,81 @@
     statBars('stSignups', st.daily_signups);
     statList('stSubjects', st.top_subjects);
     statList('stUnis', st.students_by_university);
+  }
+
+  // ===== Roles page =====
+  const ROLE_DESC = {
+    owner: 'كل شيء مفتوح. وهو الوحيد الذي يدير المالكين ويعيّن المدراء.',
+    admin: 'يدير المنصة كاملة: الحسابات والمناهج والمتجر والإحصائيات، لكن لا يلمس حساب المالك.',
+    supervisor: 'يعمل بالصلاحيات التي تُمنح له فقط (الإحصائيات، الحظر، المحتوى، المناهج مثلًا).',
+    store_manager: 'يدير المتجر والمندوبين والطلبات.',
+    professor: 'دكتور: بنك أسئلته وامتحاناته وملازمه وكورساته وطلابه ومساعديه.',
+    assistant: 'مساعد دكتور: يعمل ضمن مادة الدكتور بالصلاحيات التي يمنحها له.',
+    reseller: 'مندوب: يأخذ أكواد التفعيل ويبيعها ضمن حصته.',
+    representative: 'ممثل عام: يرفع أسماء طلاب دفعته ويولّد أكواد التوثيق.',
+    student: 'طالب: يستخدم التطبيق للدراسة.',
+  };
+  const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'store_manager', 'professor', 'assistant', 'reseller', 'representative', 'student'];
+  let rolesData = [], rolesOpen = null, rolesKeep = false;
+  async function loadRoles(){
+    if (!rolesKeep) rolesOpen = null;
+    rolesKeep = false;
+    document.getElementById('rolesBody').innerHTML = '<div class="empty-row">جارٍ التحميل…</div>';
+    await loadAccounts();
+    try { rolesData = await apiFetch('/api/admin/roles'); } catch (e) { rolesData = []; }
+    renderRoles();
+  }
+  function personCard(a, sub){
+    return `<div class="cat-card" onclick="showAccountDetails('${a.id}')">
+      <div class="cat-avatar">${esc(initialsOf(a.full_name).charAt(0) || '?')}</div>
+      <div class="cat-card-name">${esc(a.full_name)}</div>
+      <div class="cat-card-sub" dir="auto">${sub !== undefined ? sub : esc(a.email)}</div>
+      <div>${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : ''}</div></div>`;
+  }
+  function renderRoles(){
+    const box = document.getElementById('rolesBody');
+    if (!rolesOpen){
+      const byRole = Object.fromEntries(rolesData.map(r => [r.role, r]));
+      box.innerHTML = `<div class="dash-card-head"><span class="dash-card-title">الأدوار</span></div>
+        <div class="cat-grid">${ROLE_ORDER.map(r => `
+          <div class="cat-card" onclick="rolesOpen='${r}'; renderRoles()" style="align-items:flex-start; text-align:start;">
+            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;"><span class="cat-card-name">${ROLE_NAME[r] || r}</span>${roleBadge(r)}</div>
+            <div class="cat-card-sub" style="line-height:1.7;">${esc(ROLE_DESC[r] || '')}</div>
+            <div style="font-weight:800; font-size:1.2rem;">${numAr((byRole[r] || {}).count)} <span class="cat-card-sub">حساب</span></div>
+          </div>`).join('')}</div>`;
+      return;
+    }
+    const r = rolesOpen, info = rolesData.find(x => x.role === r) || {permissions: []};
+    const members = allAccounts.filter(a => a.role === r);
+    const addable = FIND_WORD[r];
+    box.innerHTML = `
+      <button class="btn btn-ghost" style="margin-bottom:14px;" onclick="rolesOpen=null; renderRoles()">→ الأدوار</button>
+      <div class="cat-title2">${ROLE_NAME[r] || r}
+        ${addable ? `<button class="btn" style="margin-inline-start:auto;" onclick="promptAddUser('${r}')">+ إضافة</button>` : ''}</div>
+      <div class="item-meta" style="margin-bottom:12px; line-height:1.8;">${esc(ROLE_DESC[r] || '')}</div>
+      <div style="font-weight:800; font-size:.84rem; margin-bottom:6px;">الصلاحيات الافتراضية</div>
+      <div style="margin-bottom:18px;">${info.permissions.length ? info.permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join('') : '<span class="cell-sub">لا صلاحيات افتراضية — تُمنح لكل حساب على حدة</span>'}</div>
+      <div style="font-weight:800; font-size:.84rem; margin-bottom:8px;">الحسابات (${numAr(members.length)})</div>
+      <div class="cat-grid">${members.slice(0, 200).map(a => personCard(a)).join('') || '<div class="empty-row">لا توجد حسابات بهذا الدور</div>'}</div>
+      ${members.length > 200 ? '<div class="cell-sub">يُعرض أول 200 فقط — استخدم صفحة الحسابات للبحث.</div>' : ''}`;
+  }
+
+  // ===== Admins page: every account that runs the platform =====
+  async function loadAdmins(){
+    document.getElementById('adminsBody').innerHTML = '<div class="empty-row">جارٍ التحميل…</div>';
+    await loadAccounts();
+    renderAdmins();
+  }
+  function renderAdmins(){
+    const box = document.getElementById('adminsBody'); if (!box) return;
+    const q = (document.getElementById('adminsSearch')?.value || '').trim().toLowerCase();
+    const groups = [['owner', 'المالك'], ['admin', 'الأدمن'], ['supervisor', 'السوبر فايزر'], ['store_manager', 'مدراء المتجر']];
+    box.innerHTML = groups.map(([role, title]) => {
+      const list = allAccounts.filter(a => a.role === role && (!q || a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)));
+      if (!list.length) return '';
+      return `<div style="font-weight:800; margin:6px 0 10px;">${title} <span class="cell-sub">· ${numAr(list.length)}</span></div>
+        <div class="cat-grid">${list.map(a => personCard(a)).join('')}</div>`;
+    }).join('') || '<div class="empty-row">لا توجد نتائج</div>';
   }
 
   async function loadPeople(role){
@@ -2341,7 +2429,7 @@
 
   async function promptAddUser(presetRole, skipSearch){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!skipSearch && (presetRole === 'professor' || presetRole === 'representative')) return openFindAccount(presetRole);
+    if (!skipSearch && FIND_WORD[presetRole]) return openFindAccount(presetRole);
     let subjects = [];
     try { subjects = await subjectOptions(); } catch (e) { /* handled below */ }
     let professors = [{value: '', label: 'لا ينطبق — ليس مساعداً'}];
@@ -2393,7 +2481,7 @@
   }
 
   // ---- Add a doctor / representative: search an existing account first ----
-  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل'};
+  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
   let findTimer = null;
   async function openFindAccount(role){
     if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) { /* shown empty */ } }
@@ -2415,7 +2503,8 @@
     const box = document.getElementById('findResults'); if (!box) return;
     const q = (document.getElementById('findInput')?.value || '').trim().toLowerCase();
     if (!q){ box.innerHTML = '<div class="cell-sub" style="padding:8px 2px;">ابدأ الكتابة لتظهر النتائج</div>'; return; }
-    const list = allAccounts.filter(a => a.role !== role && a.role !== 'owner' && a.role !== 'admin' &&
+    const staff = ['admin', 'supervisor', 'store_manager'].includes(role);
+    const list = allAccounts.filter(a => a.role !== role && a.role !== 'owner' && (staff || a.role !== 'admin') &&
       [a.full_name, a.email, a.phone, a.username].some(v => (v || '').toLowerCase().includes(q))).slice(0, 30);
     box.innerHTML = list.map(a => `
       <div onclick="pickFoundAccount('${a.id}','${role}')" style="display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:8px; border-radius:14px; border:1px solid var(--glass-border); background:var(--glass-bg-strong); cursor:pointer;">
@@ -2433,7 +2522,7 @@
       if (after) await after();
       showToast(`صار ${a.full_name} ${FIND_WORD[role]}`);
       acctTree = null; await loadAccounts();
-      showSection(role === 'professor' ? 'doctors' : 'reps');
+      showSection(role === 'professor' ? 'doctors' : role === 'representative' ? 'reps' : (lastSectionId === 'roles' ? 'roles' : 'admins'));
     };
     if (role === 'professor'){
       let subjects = []; try { subjects = await subjectOptions(); } catch (e) {}
@@ -2442,6 +2531,14 @@
         {id: 'subjectId', label: 'المادة التي يدرّسها', type: 'select', value: subjects[0].value, options: subjects},
         {id: 'title', label: 'اللقب العلمي', type: 'text', value: 'أستاذ مساعد'},
       ], v => save({}, () => apiFetch('/api/admin/professors/' + a.id, {method: 'PUT', body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'})})));
+    } else if (['admin', 'supervisor', 'store_manager'].includes(role)){
+      if (role === 'admin'){
+        if (await confirmModal(`تحويل ${a.full_name} إلى أدمن؟ سيملك صلاحيات الإدارة كاملة.`)) await save({});
+      } else {
+        openGenericModal('تعيين ' + FIND_WORD[role] + ': ' + common, [
+          {id: 'perms', label: 'الصلاحيات', type: 'checks', value: role === 'supervisor' ? ['dashboard.analytics', 'users.ban', 'content.manage', 'catalog.manage'] : ['store.manage', 'resellers.manage'], options: STAFF_PERM_OPTIONS},
+        ], v => save({permissions: v.perms}));
+      }
     } else {
       let scope = {unis: [], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
       try { scope = await scopeOptions(); } catch (e) {}
@@ -4295,7 +4392,7 @@
     } catch (e) { /* page still shows the account row */ }
     if (acctPageId === id) renderAccountPage();
   }
-  function closeAccountPage(){ acctPageId = null; acctEdit = false; document.body.classList.remove('acct-full'); showSection(acctFrom || 'accounts'); }
+  function closeAccountPage(){ acctPageId = null; acctEdit = false; document.body.classList.remove('acct-full'); if (acctFrom === 'roles') rolesKeep = true; showSection(acctFrom || 'accounts'); }
 
   async function startAccountEdit(){
     const a = allAccounts.find(x => x.id === acctPageId); if (!a) return;

@@ -85,7 +85,7 @@ _ADMIN_RULES: list[tuple[re.Pattern, str]] = [(re.compile(p), perm) for p, perm 
     (r"^/api/admin/users/[^/]+/(ban|unban)$", "users.ban"),
     (r"^/api/admin/bans(/|$)", "users.ban"),
     (r"^/api/admin/resellers(/|$)", "resellers.manage"),
-    (r"^/api/admin/(users|professors)(/|$)", "users.manage"),
+    (r"^/api/admin/(users|professors|roles)(/|$)", "users.manage"),
     (r"^/api/admin/catalog(/|$)", "catalog.manage"),
     # Questions and pearls are written by doctors/assistants, not by staff;
     # the admin API only keeps list + delete on them for moderation.
