@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from . import models, permissions
 from .database import get_db
-from .security import decode_access_token
+from .security import client_ctx, decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -32,6 +32,13 @@ def get_current_user_allow_banned(
     user = db.get(models.User, payload.get("sub"))
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "المستخدم غير موجود")
+    # Sessions opened before IP tracking existed pick their address up on the
+    # next request, so the account page shows it without waiting for a re-login.
+    ip, ua = client_ctx.get()
+    if ip and not session.ip_address:
+        session.ip_address = ip
+        session.user_agent = session.user_agent or (ua[:300] or None)
+        db.commit()
     # A doctor who teaches several subjects (possibly in different departments)
     # says which one a request is for; see professors._get_own_profile.
     user._active_subject_id = request.headers.get("x-subject-id") or None

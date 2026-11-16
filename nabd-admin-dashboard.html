@@ -229,9 +229,9 @@
   .cat-search{width:100%; max-width:340px;}
   body.acct-full .sidebar{display:none;}
   body.acct-full .dash-content{padding:22px clamp(16px,3vw,48px);}
-  .acct-grid{columns:2 400px; column-gap:16px;}
-  .acct-grid > .dash-card{margin:0 0 16px !important; break-inside:avoid;}
-  .acct-grid > .acct-wide{column-span:all;}
+  .acct-cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;}
+  .acct-col > .dash-card, .acct-cols + div > .dash-card{margin:0 0 16px !important;}
+  @media (max-width:900px){ .acct-cols{grid-template-columns:1fr;} }
   .cat-top{margin-bottom:6px;} .cat-back{background:none; font:inherit; font-size:.82rem; font-weight:700; color:var(--accent); cursor:pointer; padding:4px 0;}
   .cat-title2{display:flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:800; margin:4px 0 16px;}
   .cat-kebab{width:28px; height:28px; border-radius:50%; background:transparent; font-size:1.1rem; line-height:1; color:var(--ink-faint); cursor:pointer;}
@@ -4145,7 +4145,7 @@
       const grid = 'display:grid; grid-template-columns:minmax(120px,1.2fr) minmax(110px,1fr) minmax(120px,1fr) 70px; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--glass-border); font-size:.82rem;';
       const dev = `<div class="cell-sub" style="margin-bottom:8px;">${ov.devices_total} تسجيل دخول — ${ov.distinct_devices} جهاز مختلف — ${ov.distinct_ips} عنوان IP</div>` +
         (ov.devices.length ? `<div style="${grid} color:var(--ink-faint); font-size:.74rem;"><span>الجهاز</span><span>عنوان IP</span><span>وقت الدخول</span><span></span></div>` +
-          ov.devices.map(d => `<div style="${grid}"><span>${esc(d.label)}</span><span class="mono"><bdi dir="ltr">${esc(d.ip || '—')}</bdi></span><span>${fmt(d.at)}</span><span>${d.active ? '<span class="badge badge-active">نشط</span>' : ''}</span></div>`).join('')
+          ov.devices.map(d => `<div style="${grid}"><span>${esc(d.label)}</span><span style="text-align:start; font-family:monospace;"><bdi dir="ltr">${esc(d.ip || '—')}</bdi></span><span>${fmt(d.at)}</span><span>${d.active ? '<span class="badge badge-active">نشط</span>' : ''}</span></div>`).join('')
           : '<div class="cell-sub">لا يوجد</div>');
       const bans = ov.bans.map(b => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(b.reason)} <span class="cell-sub">(${esc(b.status)})</span></span><span class="activity-time">${fmtDate(b.at)}</span></div>`).join('');
       const logs = ov.activity.map(l => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(l.action)}</span><span class="activity-time">${fmtDate(l.at)}</span></div>`).join('');
@@ -4155,9 +4155,9 @@
         (logs ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الإجراءات</div>${logs}` : ''));
     }
 
-    const actions = ed ? '' : card('إجراءات', `<div style="display:flex; gap:8px; flex-wrap:wrap;">` +
-      (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`) : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
-      (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '') + `</div>`);
+    const actionBtns = (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`) : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
+      (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '');
+    const actions = (ed || !actionBtns) ? '' : card('إجراءات', `<div style="display:flex; gap:8px; flex-wrap:wrap;">${actionBtns}</div>`);
 
     document.getElementById('accountPage').innerHTML = `
       <div style="display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
@@ -4171,7 +4171,11 @@
         <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>
           <div style="margin-top:4px;">${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
       </div>
-      <div class="acct-grid">${identity}${study}${role}${security}${activity.replace('class="dash-card glass"', 'class="dash-card glass acct-wide"')}${actions}</div>`;
+      <div class="acct-cols">
+        <div class="acct-col">${identity}${study}${role}</div>
+        <div class="acct-col">${security}${actions}</div>
+      </div>
+      <div>${activity}</div>`;
     if (a.role === 'student' && ed) apInit(a);
   }
   function acctName(id){
