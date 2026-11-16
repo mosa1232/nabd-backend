@@ -33,6 +33,57 @@ def verify_password(password: str, stored_hash: str | None) -> bool:
     return hmac.compare_digest(check.hex(), digest_hex)
 
 
+# ---- admin-readable password copy (encrypted, not plaintext) -----------------
+def _vault():
+    from cryptography.fernet import Fernet
+    raw = (os.environ.get("PASSWORD_VAULT_KEY") or "").strip()
+    if raw:
+        key = raw.encode()
+    else:  # fall back to a key derived from the JWT secret
+        key = base64.urlsafe_b64encode(hashlib.sha256(("vault:" + settings.jwt_secret).encode()).digest())
+    return Fernet(key)
+
+
+def vault_encrypt(password: str | None) -> str | None:
+    if not password:
+        return None
+    try:
+        return _vault().encrypt(password.encode()).decode()
+    except Exception:
+        return None
+
+
+def remember_password(user: "models.User", password: str | None) -> None:
+    """Keeps an encrypted, admin-readable copy next to the hash. Caller commits."""
+    if password:
+        user.password_vault = vault_encrypt(password)
+
+
+def recall_password(user: "models.User") -> str | None:
+    if not user.password_vault:
+        return None
+    try:
+        return _vault().decrypt(user.password_vault.encode()).decode()
+    except Exception:
+        return None
+
+
+# ---- who is calling: IP and browser, set per request by a middleware ---------
+import contextvars
+client_ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("client_ctx", default=("", ""))
+
+
+def describe_device(ua: str) -> str:
+    u = ua or ""
+    if not u:
+        return "جهاز غير معروف"
+    os_ = ("iPhone" if "iPhone" in u else "iPad" if "iPad" in u else "Android" if "Android" in u else
+           "Windows" if "Windows" in u else "Mac" if "Macintosh" in u or "Mac OS" in u else "Linux" if "Linux" in u else "")
+    br = ("Edge" if "Edg/" in u else "Opera" if "OPR/" in u else "Chrome" if ("Chrome" in u or "CriOS" in u) else
+          "Firefox" if "Firefox" in u or "FxiOS" in u else "Safari" if "Safari" in u else "")
+    return " · ".join(x for x in (br, os_) if x) or "متصفح"
+
+
 def create_access_token(user_id: str, session_id: str) -> str:
     payload = {
         "sub": user_id,
@@ -162,7 +213,11 @@ def start_new_session(db: Session, user: models.User, device_label: str) -> mode
         models.UserSession.is_active == True,  # noqa: E712
     ).update({"is_active": False})
 
-    session = models.UserSession(user_id=user.id, device_label=device_label, is_active=True)
+    ip, ua = client_ctx.get()
+    if ua:
+        device_label = describe_device(ua)
+    session = models.UserSession(user_id=user.id, device_label=device_label, is_active=True,
+                                 ip_address=ip or None, user_agent=(ua or None) and ua[:300])
     db.add(session)
     db.commit()
     db.refresh(session)

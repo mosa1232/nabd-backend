@@ -13,7 +13,7 @@ from ..deps import admin_gate, get_current_user
 from ..permissions import (
     PERMISSIONS, PROF_PERMS, RESELLER_PERMS, STAFF_PERMS, parse_permissions, serialize_permissions,
 )
-from ..security import hash_password
+from ..security import hash_password, recall_password, remember_password, vault_encrypt
 from ..compress import optimize_upload
 from ..storage import media_url, name_from_url, storage
 from .store import issue_codes_for_paid_order
@@ -208,6 +208,7 @@ def create_user(body: schemas.UserCreateIn, db: Session = Depends(get_db), actor
         full_name=body.full_name.strip(),
         role=body.role,
         password_hash=hash_password(body.password) if body.password else None,
+        password_vault=vault_encrypt(body.password),
         scope_university_id=scope_uni,
         scope_stage_id=scope_stage,
         scope_department_id=scope_dept,
@@ -347,6 +348,7 @@ def update_user(user_id: str, body: schemas.UserUpdateIn, db: Session = Depends(
         user.phone = body.phone.strip() or None
     if body.password:
         user.password_hash = hash_password(body.password)
+        remember_password(user, body.password)
     if body.permissions is not None:
         user.permissions = _clean_permissions(body.role, body.permissions)
     if body.role == models.Role.assistant.value and body.parent_user_id:
@@ -391,7 +393,7 @@ def create_reseller(body: schemas.ResellerCreateIn, db: Session = Depends(get_db
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
     user = models.User(
         email=email, full_name=body.full_name.strip(), role=models.Role.reseller,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password), password_vault=vault_encrypt(body.password),
         permissions=serialize_permissions(p for p in body.permissions if p in RESELLER_PERMS),
         code_quota=body.code_quota,
     )
@@ -508,6 +510,7 @@ def reset_user_password(user_id: str, db: Session = Depends(get_db), actor: mode
     _guard_role_change(actor, user.role.value, user)
     temp = secrets.token_urlsafe(9)  # 12 url-safe characters
     user.password_hash = hash_password(temp)
+    remember_password(user, temp)
     user.password_changed_at = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -533,7 +536,7 @@ def user_overview(user_id: str, db: Session = Depends(get_db)):
     exam_pct = round(100 * sum(a.score for a in attempts) / max(1, sum(a.total for a in attempts))) if attempts else None
     codes = db.query(models.ActivationCode).filter(models.ActivationCode.activated_by_user_id == u.id).all()
     orders = db.query(models.Order).filter(models.Order.user_id == u.id).all()
-    sessions = db.query(models.UserSession).filter(models.UserSession.user_id == u.id).order_by(models.UserSession.created_at.desc()).limit(5).all()
+    sessions = db.query(models.UserSession).filter(models.UserSession.user_id == u.id).order_by(models.UserSession.created_at.desc()).limit(100).all()
     bans = db.query(models.BanRecord).filter(models.BanRecord.user_id == u.id).order_by(models.BanRecord.created_at.desc()).limit(5).all()
     logs = db.query(models.ActivityLog).filter(models.ActivityLog.user_id == u.id).order_by(models.ActivityLog.created_at.desc()).limit(8).all()
     profs = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == u.id).all()
@@ -544,11 +547,31 @@ def user_overview(user_id: str, db: Session = Depends(get_db)):
         "exams_done": len(attempts), "exam_pct": exam_pct,
         "subscriptions": [{"subject": c.subject.name if c.subject_id else "VIP — جميع المواد", "activated_at": c.activated_at, "expires_at": c.expires_at} for c in codes],
         "orders": {"count": len(orders), "total": sum(o.total or 0 for o in orders)},
-        "devices": [{"label": s.device_label, "active": bool(s.is_active), "at": s.created_at} for s in sessions],
+        "devices": [{"label": s.device_label, "active": bool(s.is_active), "at": s.created_at, "ip": s.ip_address} for s in sessions],
+        "devices_total": len(sessions),
+        "distinct_devices": len({(s.device_label, s.ip_address) for s in sessions}),
+        "distinct_ips": len({s.ip_address for s in sessions if s.ip_address}),
+        "has_vault": bool(u.password_vault),
         "bans": [{"reason": b.reason, "status": b.status.value if hasattr(b.status, "value") else str(b.status), "at": b.created_at} for b in bans],
         "activity": [{"action": l.action, "at": l.created_at} for l in logs],
         "teaches": [{"subject": p.subject.name if p.subject else "—", "title": p.title} for p in profs],
     }
+
+
+@router.get("/users/{user_id}/password")
+def reveal_user_password(user_id: str, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """Shows the password the account is currently using, if the server has it
+    (it is captured when the password is set or the user signs in with it).
+    Full admins only; every reveal is written to the activity log."""
+    if actor.role != models.Role.admin:
+        raise HTTPException(403, "عرض كلمة المرور للمدير فقط")
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    pw = recall_password(user)
+    db.add(models.ActivityLog(user_id=actor.id, action=f"عرض كلمة مرور {user.email}", ip_address=""))
+    db.commit()
+    return {"password": pw}
 
 
 class _PlacementIn(schemas.BaseModel):
@@ -604,6 +627,7 @@ def set_user_password(user_id: str, body: _SetPasswordIn, db: Session = Depends(
     if len(pw) < 8:
         raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
     user.password_hash = hash_password(pw)
+    remember_password(user, pw)
     user.password_changed_at = datetime.utcnow()
     user.failed_login_attempts = 0
     user.locked_until = None

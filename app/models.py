@@ -58,6 +58,10 @@ class User(Base):
     full_name = Column(String, nullable=False)
     google_sub = Column(String, unique=True, index=True, nullable=True)
     password_hash = Column(String, nullable=True)  # null for Google-only / dev-login accounts
+    # Reversible copy of the password, encrypted with the server's key, so an
+    # admin can read it back (the owner asked for this). Filled whenever the
+    # password is set/changed or the user signs in with it; admin-only to read.
+    password_vault = Column(Text, nullable=True)
     role = Column(Enum(Role), default=Role.student, nullable=False)
     university_id = Column(String, ForeignKey("universities.id"), nullable=True)
     stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
@@ -119,6 +123,8 @@ class UserSession(Base):
     id = Column(String, primary_key=True, default=gen_id)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     device_label = Column(String, default="جهاز غير معروف")
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -9,7 +9,7 @@ from ..config import get_settings
 from ..database import get_db
 from ..deps import get_current_user, user_permissions
 from ..permissions import PERMISSIONS, PROF_PERMS, parse_permissions, serialize_permissions
-from ..security import hash_password
+from ..security import hash_password, vault_encrypt
 from ..compress import optimize_upload
 from ..storage import media_url, storage
 from .admin import (
@@ -729,7 +729,7 @@ def create_assistant(body: schemas.AssistantCreateIn, db: Session = Depends(get_
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
     a = models.User(
         email=email, full_name=body.full_name.strip(), role=models.Role.assistant,
-        password_hash=hash_password(body.password), parent_user_id=user.id,
+        password_hash=hash_password(body.password), password_vault=vault_encrypt(body.password), parent_user_id=user.id,
         permissions=serialize_permissions(p for p in body.permissions if p in PROF_PERMS),
     )
     db.add(a)

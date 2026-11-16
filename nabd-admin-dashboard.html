@@ -4080,7 +4080,7 @@
       ? row('الاسم الكامل', inp('efName', a.full_name)) + row('البريد الإلكتروني', inp('efEmail', a.email, 'text')) +
         row('رقم الهاتف', inp('efPhone', a.phone, 'tel', '07xxxxxxxxx')) +
         row('الدور', sel('efRole', (roleOptionsForMe().some(o => o.value === a.role) ? roleOptionsForMe() : ROLE_OPTIONS), a.role)) +
-        row('كلمة مرور جديدة', inp('efPass', '', 'password', 'اتركه فارغًا للإبقاء على الحالية'))
+        row('كلمة مرور جديدة', inp('efPass', '', 'text', 'اتركه فارغًا للإبقاء على الحالية'))
       : row('الاسم الكامل', esc(a.full_name)) + row('البريد الإلكتروني', esc(a.email), true) + row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
         row('الدور', esc(ROLE_NAME[a.role] || a.role)) +
         (ov && ov.caption ? row('النبذة', esc(ov.caption)) : ''));
@@ -4112,7 +4112,8 @@
 
     // ---- account & security
     const security = card('الحساب والأمان',
-      row('كلمة المرور', a.has_password ? 'معيّنة' + (a.password_changed_at ? ' — آخر تغيير ' + fmt(a.password_changed_at) : '') : 'غير معيّنة (يدخل عبر Google)') +
+      row('كلمة المرور', (a.has_password ? 'معيّنة' + (a.password_changed_at ? ' — آخر تغيير ' + fmt(a.password_changed_at) : '') : 'غير معيّنة (يدخل عبر Google)') +
+        (currentRole === 'admin' && a.has_password ? ` <button class="btn btn-ghost" style="padding:5px 12px; font-size:.74rem; margin-inline-start:8px;" onclick="revealAccountPassword()">إظهارها</button><div id="apShown" style="margin-top:8px;"></div>` : '')) +
       (ov ? row('ربط Google', ov.has_google ? 'مربوط' : 'غير مربوط') : '') +
       row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
       row('الحالة', a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>') +
@@ -4126,11 +4127,12 @@
       const stats = a.role === 'student' ? row('الأسئلة المجابة', `${ov.answered}${ov.accuracy != null ? ' — دقة ' + ov.accuracy + '%' : ''}`) +
         row('الامتحانات المنجزة', `${ov.exams_done}${ov.exam_pct != null ? ' — معدل ' + ov.exam_pct + '%' : ''}`) : '';
       const subs = ov.subscriptions.length ? ov.subscriptions.map(s => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(s.subject)}</span><span class="activity-time">${s.expires_at ? 'حتى ' + fmtDate(s.expires_at) : 'بلا انتهاء'}</span></div>`).join('') : '<div class="cell-sub">لا توجد اشتراكات مفعّلة</div>';
-      const dev = ov.devices.map(d => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(d.label)}${d.active ? ' <span class="badge badge-active">نشط</span>' : ''}</span><span class="activity-time">${fmt(d.at)}</span></div>`).join('') || '<div class="cell-sub">لا يوجد</div>';
+      const dev = `<div class="cell-sub" style="margin-bottom:6px;">${ov.devices_total} تسجيل دخول — ${ov.distinct_devices} جهاز مختلف — ${ov.distinct_ips} عنوان IP</div>` +
+        (ov.devices.map(d => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(d.label)} <span class="mono" dir="ltr" style="color:var(--ink-faint);">${esc(d.ip || 'IP غير مسجّل')}</span>${d.active ? ' <span class="badge badge-active">نشط الآن</span>' : ''}</span><span class="activity-time">${fmt(d.at)}</span></div>`).join('') || '<div class="cell-sub">لا يوجد</div>');
       const bans = ov.bans.map(b => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(b.reason)} <span class="cell-sub">(${esc(b.status)})</span></span><span class="activity-time">${fmtDate(b.at)}</span></div>`).join('');
       const logs = ov.activity.map(l => `<div class="activity-row"><span class="activity-dot"></span><span class="activity-text">${esc(l.action)}</span><span class="activity-time">${fmtDate(l.at)}</span></div>`).join('');
       activity = card('النشاط', stats + row('الطلبات', `${ov.orders.count} طلب — ${fmtIQD(ov.orders.total)}`) +
-        `<div style="margin-top:10px; font-weight:700; font-size:.82rem;">الاشتراكات</div>${subs}<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الأجهزة</div>${dev}` +
+        `<div style="margin-top:10px; font-weight:700; font-size:.82rem;">الاشتراكات</div>${subs}<div style="margin-top:12px; font-weight:700; font-size:.82rem;">الأجهزة وعناوين IP</div>${dev}` +
         (bans ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">سجل الحظر</div>${bans}` : '') +
         (logs ? `<div style="margin-top:12px; font-weight:700; font-size:.82rem;">آخر الإجراءات</div>${logs}` : ''));
     }
@@ -4164,6 +4166,16 @@
     if (!stageId || !acctTree) return '';
     for (const s of acctTree) for (const u of s.universities) for (const d of u.departments) if (d.stages.some(x => x.id === stageId)) return d.name;
     return '';
+  }
+
+  async function revealAccountPassword(){
+    const box = document.getElementById('apShown'); if (!box) return;
+    try {
+      const r = await apiFetch('/api/admin/users/' + acctPageId + '/password');
+      box.innerHTML = r.password
+        ? `<span class="mono" id="apPwText" dir="ltr" style="font-size:1.05rem; font-weight:800; user-select:all;">${esc(r.password)}</span> <button class="btn btn-ghost" style="padding:4px 10px; font-size:.72rem;" onclick="copyText(document.getElementById('apPwText').textContent, this)">نسخ</button>`
+        : '<span class="cell-sub">غير متوفرة بعد — تظهر بعد أن يسجّل دخوله مرة أخرى أو تعيّن له كلمة جديدة من «تعديل».</span>';
+    } catch (e) { showToast(e.detail || 'تعذّر الإظهار', 'error'); }
   }
 
   async function unbanAndRefresh(id){ await unbanUserAccount(id); renderAccountPage(); }

@@ -16,11 +16,36 @@ from .routers import (
     notifications, professors, public, questions, reseller, store, students, summer,
 )
 from .storage import name_from_url, storage
+from .security import client_ctx
 
 settings = get_settings()
 FRONTEND_DIR = Path(__file__).resolve().parent.parent
 
 app = FastAPI(title="Nabd API", version="0.1.0")
+
+
+class _ClientInfoMiddleware:
+    """Records the caller's IP and browser for the request so a login can store
+    them on its session. Behind Caddy the real address is the first entry of
+    X-Forwarded-For (Caddy sets it from the TCP peer)."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            h = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+            ip = (h.get("x-forwarded-for", "").split(",")[0].strip()
+                  or h.get("x-real-ip", "") or (scope.get("client") or ("",))[0])
+            token = client_ctx.set((ip[:64], h.get("user-agent", "")))
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                client_ctx.reset(token)
+        else:
+            await self.app(scope, receive, send)
+
+
+app.add_middleware(_ClientInfoMiddleware)
 
 # Required by Authlib to stash the OAuth `state` between the redirect to
 # Google and the callback.

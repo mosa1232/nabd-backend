@@ -18,6 +18,7 @@ from ..security import (
     decode_2fa_pending_token, decode_access_token, generate_reset_token,
     generate_totp_secret, hash_password, hash_reset_token, set_session_cookie,
     start_new_session, totp_provisioning_uri, verify_password, verify_totp,
+    remember_password, vault_encrypt,
 )
 from ..compress import optimize_upload
 from ..storage import media_url, storage
@@ -231,6 +232,7 @@ def login(body: schemas.PasswordLoginIn, response: Response, db: Session = Depen
         raise HTTPException(403, "هذا الحساب محظور")
 
     _clear_failed_attempts(db, user)
+    remember_password(user, body.password)
 
     if user.totp_enabled:
         return {"requires_2fa": True, "pending_token": create_2fa_pending_token(user.id)}
@@ -319,7 +321,7 @@ def register(body: schemas.RegisterIn, response: Response, db: Session = Depends
     # Same bootstrap rule as Google/dev-login: if there's no admin on the
     # platform yet, this new account becomes one, regardless of sign-up path.
     role = models.Role.admin if _should_bootstrap_admin(db, email) else models.Role.student
-    user = models.User(email=email, full_name=full_name, role=role, password_hash=hash_password(body.password))
+    user = models.User(email=email, full_name=full_name, role=role, password_hash=hash_password(body.password), password_vault=vault_encrypt(body.password))
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -766,6 +768,7 @@ def change_password(
         raise HTTPException(400, "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل")
 
     user.password_hash = hash_password(body.new_password)
+    remember_password(user, body.new_password)
     user.password_changed_at = datetime.utcnow()
     db.commit()
     return {"ok": True}
@@ -922,6 +925,7 @@ def reset_password(body: schemas.ResetPasswordIn, db: Session = Depends(get_db))
         raise HTTPException(403, "هذا الحساب محظور")
 
     user.password_hash = hash_password(body.new_password)
+    remember_password(user, body.new_password)
     user.password_changed_at = datetime.utcnow()
     # One use only.
     user.reset_token_hash = None
