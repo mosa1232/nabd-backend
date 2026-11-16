@@ -142,6 +142,14 @@
     font-weight:600; color:var(--ink-soft); width:100%; text-align:start; transition:.15s;
   }
   .nav-item svg{width:17px; height:17px; flex:none;}
+  .nav-group{display:flex; align-items:center; gap:8px; width:100%; margin-top:10px; padding:7px 10px; border-radius:10px; background:transparent; color:var(--ink-faint); font:inherit; font-size:.7rem; font-weight:800; letter-spacing:.03em; cursor:pointer; text-align:start;}
+  .nav-group:hover{background:var(--track); color:var(--ink);}
+  .nav-group .chev{margin-inline-start:auto; width:12px; height:12px; transition:transform .18s; flex:none;}
+  .nav-group.closed .chev{transform:rotate(90deg);}
+  .nav-g-badge{background:var(--danger); color:#fff; border-radius:9px; font-size:.62rem; min-width:17px; height:17px; display:none; align-items:center; justify-content:center; padding:0 5px;}
+  .nav-group-body{display:flex; flex-direction:column; gap:3px; padding-top:3px;}
+  .nav-group-body.closed{display:none;}
+  .nav-group-body .nav-item{padding-inline-start:16px;}
   .nav-item.active{background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;}
   .nav-item:hover:not(.active){background:var(--track);}
   .sidebar-footer{margin-top:auto; padding-top:14px; border-top:1px solid var(--glass-border);}
@@ -273,6 +281,10 @@
   .st-row .n{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .st-row .b{flex:2; height:8px; border-radius:99px; background:var(--track); overflow:hidden;} .st-row .b i{display:block; height:100%; background:var(--accent);}
   .st-row .c{width:56px; text-align:end; font-weight:800;}
+  .ie-steps{display:grid; gap:8px; font-size:.84rem; line-height:1.8; margin-bottom:12px;} .ie-steps b{display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.72rem; margin-inline-end:6px;}
+  .ie-ds{display:flex; align-items:center; gap:12px; padding:12px 14px; border:1.5px solid var(--glass-border); border-radius:14px; margin-bottom:8px; cursor:pointer; background:var(--glass-bg-strong);}
+  .ie-ds.on{border-color:var(--accent); background:rgba(76,95,224,.07);} .ie-ds input{width:18px; height:18px; flex:none;}
+  .dropzone.over{border-color:var(--accent); background:rgba(76,95,224,.08);}
   .ops-filters{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
   .ops-filters input, .ops-filters select{padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.84rem;}
   .ops-filters input[type=text], .ops-filters input.q{flex:1; min-width:200px;}
@@ -660,25 +672,30 @@
 
       <!-- ===== ADMIN: Import/Export ===== -->
       <section class="dash-section" id="sec-importexport">
-        <div class="ie-grid">
+        <div class="st-kpis" id="ieKpis"></div>
+        <div class="st-two">
           <div class="dash-card glass">
-            <div class="dash-card-head"><span class="dash-card-title">استيراد بيانات</span></div>
-            <div class="dropzone" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault()" ondrop="event.preventDefault(); handleImportFileSelect(event.dataTransfer.files[0]);">
+            <div class="dash-card-head"><span class="dash-card-title">تصدير البيانات (Excel)</span></div>
+            <div class="cell-sub" style="margin-bottom:12px;">اختر ما تريد في ملف واحد، كل نوع بورقة (Sheet) مستقلة.</div>
+            <div id="ieDatasets"></div>
+            <button class="btn" style="width:100%; justify-content:center; margin-top:14px;" onclick="exportData()" id="ieExportBtn">تصدير الملف</button>
+            <div id="ieExportMsg" class="cell-sub" style="margin-top:10px;"></div>
+          </div>
+          <div class="dash-card glass">
+            <div class="dash-card-head"><span class="dash-card-title">استيراد الطلاب (Excel)</span></div>
+            <div class="ie-steps">
+              <div><b>١</b> نزّل القالب واملأه (الاسم، البريد، الجامعة، المرحلة).
+                <button class="btn btn-ghost" style="padding:5px 12px; font-size:.74rem; margin-inline-start:8px;" onclick="downloadTemplate('students')">قالب الطلاب</button></div>
+              <div><b>٢</b> اسحب الملف هنا أو اضغط لاختياره.</div>
+            </div>
+            <div class="dropzone" id="ieDrop" onclick="document.getElementById('importFileInput').click()" ondragover="event.preventDefault(); this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault(); this.classList.remove('over'); handleImportFileSelect(event.dataTransfer.files[0]);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
               <div id="importDropLabel">اسحب ملف Excel هنا أو اضغط للاختيار</div>
             </div>
             <input type="file" id="importFileInput" accept=".xlsx" style="display:none;" onchange="handleImportFileSelect(this.files[0])" />
-            <div style="margin-top:14px; font-size:.78rem; color:var(--ink-faint);">تنزيل قالب فارغ: <span class="link-accent" style="color:var(--accent); font-weight:700; cursor:pointer;" onclick="downloadTemplate('students')">قالب طلاب.xlsx</span></div>
-            <button class="btn" style="width:100%; justify-content:center; margin-top:16px;" onclick="submitImport()">استيراد</button>
-            <div id="importStatus" style="display:none; margin-top:10px; font-size:.8rem;"></div>
-          </div>
-          <div class="dash-card glass">
-            <div class="dash-card-head"><span class="dash-card-title">تصدير بيانات</span></div>
-            <label class="check-row"><input type="checkbox" checked /> الطلاب</label>
-            <label class="check-row"><input type="checkbox" checked /> الأسئلة</label>
-            <label class="check-row"><input type="checkbox" /> الطلبات</label>
-            <label class="check-row"><input type="checkbox" /> سجل النشاطات</label>
-            <button class="btn" style="width:100%; justify-content:center; margin-top:16px;" onclick="exportData()">تصدير Excel</button>
+            <div class="ie-steps" style="margin-top:12px;"><div><b>٣</b> اضغط استيراد — الموجود مسبقًا (نفس البريد) يُتخطّى ولا يتكرر.</div></div>
+            <button class="btn" style="width:100%; justify-content:center; margin-top:10px;" id="ieImportBtn" onclick="submitImport()">استيراد</button>
+            <div id="importStatus" style="display:none; margin-top:14px;"></div>
           </div>
         </div>
       </section>
@@ -777,55 +794,11 @@
 
       <!-- ===== PROFESSOR: Students ===== -->
       <section class="dash-section" id="sec-p-students">
+        <div class="st-kpis" id="pStuKpis"></div>
         <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">طلابي</span></div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>الطالب</th><th>آخر نشاط</th><th>عدد الإجابات</th><th>متوسط الأداء</th></tr></thead>
-              <tbody id="pStudentsBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== RESELLER: Overview ===== -->
-      <section class="dash-section" id="sec-r-overview">
-        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
-          <div class="kpi-card glass"><div class="kpi-label">أكواد متاحة</div><div class="kpi-value mono" id="rKpiAvailable">—</div></div>
-          <div class="kpi-card glass"><div class="kpi-label">أكواد مباعة</div><div class="kpi-value mono" id="rKpiSold">—</div></div>
-          <div class="kpi-card glass"><div class="kpi-label">أكواد مفعّلة</div><div class="kpi-value mono" id="rKpiActivated">—</div></div>
-        </div>
-        <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">المبيعات آخر 7 أيام</span></div>
-          <div class="bar-chart" id="resellerBars"></div>
-        </div>
-      </section>
-
-      <!-- ===== RESELLER: Sales ===== -->
-      <section class="dash-section" id="sec-r-sales">
-        <div class="dash-card glass">
-          <div class="dash-card-head"><span class="dash-card-title">سجل المبيعات</span></div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>الكود</th><th>الحالة</th><th>تاريخ البيع</th></tr></thead>
-              <tbody id="resellerCodesBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== RESELLER: Codes (self-service) ===== -->
-      <section class="dash-section" id="sec-r-codes">
-        <div class="dash-card glass">
-          <div id="rQuotaInfo" class="item-meta" style="margin-bottom:10px;"></div>
-          <button class="btn" id="rTakeBtn" style="margin-bottom:12px;" onclick="promptTakeCode()">+ أخذ كود</button>
-          <div class="dash-card-head"><span class="dash-card-title">الأكواد</span></div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>الكود</th><th>المادة</th><th>الحالة</th><th>تاريخ البيع</th></tr></thead>
-              <tbody id="rCodesFullBody"></tbody>
-            </table>
-          </div>
+          <div class="dash-card-head"><span class="dash-card-title">طلابي</span><span class="cell-sub" id="pStuCount"></span></div>
+          <div class="ops-filters" id="pStuFilters"></div>
+          <div class="st-wrap"><table class="st-table"><thead><tr><th>الطالب</th><th>آخر نشاط</th><th>الإجابات</th><th>الدقة</th></tr></thead><tbody id="pStudentsBody"></tbody></table></div>
         </div>
       </section>
 
@@ -840,8 +813,10 @@
             <button class="btn" onclick="openProfQuestionEditor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>سؤال جديد</button>
             </div>
           </div>
-          <div class="item-meta" style="margin-bottom:12px;">الأسئلة تُضاف تلقائياً إلى مادتك وتظهر لطلابها في بنك الأسئلة.</div>
+          <div class="st-kpis" id="pQKpis"></div>
+          <div class="ops-filters" id="pQFilters"></div>
           <div id="pQuestionsList"></div>
+          <div class="ops-pager" id="pQPager"></div>
         </div>
       </section>
 
@@ -1833,14 +1808,54 @@
     `).join('');
   }
 
+  // Sidebar sections that open and close. Each item belongs to a section; the
+  // open/closed state is remembered, and the section holding the current page
+  // always opens itself.
+  const NAV_GROUP = {
+    overview: 'الرئيسية',
+    accounts: 'المستخدمون', roles: 'المستخدمون', admins: 'المستخدمون', doctors: 'المستخدمون', reps: 'المستخدمون', resellers: 'المستخدمون',
+    students: 'الطلاب والدعم', support: 'الطلاب والدعم', bans: 'الطلاب والدعم',
+    catalog: 'المحتوى', summer: 'المحتوى', notifications: 'المحتوى', media: 'المحتوى', importexport: 'المحتوى',
+    store: 'المتجر', logs: 'النظام',
+  };
+  function navOpenSet(){ try { return new Set(JSON.parse(localStorage.getItem('kiur_nav_open') || 'null') || []); } catch (e) { return new Set(); } }
+  function navSave(set){ try { localStorage.setItem('kiur_nav_open', JSON.stringify([...set])); } catch (e) { /* private mode */ } }
   function renderSidebar(){
-    document.getElementById('sidebarNav').innerHTML = roles[currentRole].items.map(it => `
-      ${it.group ? `<div style="margin:14px 8px 4px; font-size:.68rem; font-weight:800; color:var(--ink-faint); letter-spacing:.02em;">${it.group}</div>` : ''}
-      <button class="nav-item" data-sec="${it.id}" onclick="showSection('${it.id}')">
-        ${ICONS[it.icon]}<span>${it.label}</span>${it.id === 'support' ? '<span class="nav-badge" id="supportNavBadge" style="display:none;"></span>' : ''}
-      </button>
-    `).join('');
+    const items = roles[currentRole].items;
+    let cur = null;
+    items.forEach(it => { if (it.group) cur = it.group; it._g = NAV_GROUP[it.id] || it.group || cur; });
+    const item = it => `<button class="nav-item" data-sec="${it.id}" onclick="showSection('${it.id}')">
+        ${ICONS[it.icon]}<span>${it.label}</span>${it.id === 'support' ? '<span class="nav-badge" id="supportNavBadge" style="display:none;"></span>' : ''}</button>`;
+    const nav = document.getElementById('sidebarNav');
+    if (!items.some(it => it._g)){ nav.innerHTML = items.map(item).join(''); }
+    else {
+      const order = []; items.forEach(it => { if (!order.includes(it._g)) order.push(it._g); });
+      let open = navOpenSet();
+      if (!localStorage.getItem('kiur_nav_open')) open = new Set([order[0]]);   // first visit: only the first section; the one holding the current page opens itself
+      nav.innerHTML = order.map(g => {
+        const isOpen = open.has(g);
+        return `<button class="nav-group ${isOpen ? '' : 'closed'}" data-g="${esc(g)}" onclick="toggleNavGroup(this.dataset.g)"><span>${esc(g)}</span><span class="nav-g-badge"></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="nav-group-body ${isOpen ? '' : 'closed'}" data-gb="${esc(g)}">${items.filter(it => it._g === g).map(item).join('')}</div>`;
+      }).join('');
+    }
     if (can('support.manage')) refreshSupportBadge();
+  }
+  function toggleNavGroup(g){
+    const head = document.querySelector(`.nav-group[data-g="${CSS.escape(g)}"]`), body = document.querySelector(`.nav-group-body[data-gb="${CSS.escape(g)}"]`);
+    if (!head || !body) return;
+    const closing = !body.classList.contains('closed');
+    body.classList.toggle('closed', closing); head.classList.toggle('closed', closing);
+    const open = navOpenSet(); if (!localStorage.getItem('kiur_nav_open')) document.querySelectorAll('.nav-group-body:not(.closed)').forEach(b => open.add(b.dataset.gb));
+    closing ? open.delete(g) : open.add(g); navSave(open);
+  }
+  function openNavFor(sectionId){
+    const btn = document.querySelector(`.nav-item[data-sec="${sectionId}"]`);
+    const body = btn && btn.closest('.nav-group-body');
+    if (body && body.classList.contains('closed')){
+      body.classList.remove('closed'); document.querySelector(`.nav-group[data-g="${CSS.escape(body.dataset.gb)}"]`)?.classList.remove('closed');
+      const open = navOpenSet(); open.add(body.dataset.gb); navSave(open);
+    }
   }
 
   function switchRole(role){
@@ -1865,6 +1880,7 @@
     const target = document.getElementById('sec-' + id);
     if (target) target.classList.add('active');
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
+    openNavFor(id);
     const item = roles[currentRole].items.find(it => it.id === id);
     document.getElementById('dashTitle').textContent = item ? item.label : '';
     closeSidebarMobile();
@@ -1933,7 +1949,7 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, support: loadSupport, roles: loadRoles, admins: loadAdmins, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
+    overview: loadOverview, importexport: loadImportExport, accounts: loadAccounts, support: loadSupport, roles: loadRoles, admins: loadAdmins, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
     students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
@@ -2067,6 +2083,8 @@
       const r = await apiFetch('/api/admin/support/unread');
       const b = document.getElementById('supportNavBadge'); if (!b) return;
       if (r.threads > 0){ b.textContent = r.threads > 99 ? '99+' : r.threads; b.style.display = 'flex'; } else b.style.display = 'none';
+      const gb = b.closest('.nav-group-body'); const gh = gb && document.querySelector(`.nav-group[data-g="${CSS.escape(gb.dataset.gb)}"] .nav-g-badge`);
+      if (gh){ gh.textContent = r.threads > 99 ? '99+' : r.threads; gh.style.display = r.threads > 0 && gb.classList.contains('closed') ? 'flex' : 'none'; }
     } catch (e) { /* ignore */ }
   }
   setInterval(refreshSupportBadge, 25000);
@@ -3451,14 +3469,26 @@
       onSaved: loadProfessorQuestions,
     }, q);
   }
+  let pQType = 'all', pQQ = '', pQShown = 30;
   async function loadProfessorQuestions(){
     const el = document.getElementById('pQuestionsList');
     if (!liveMode){ el.innerHTML = '<div class="empty-row">سجّل دخول حقيقي لإدارة الأسئلة</div>'; return; }
-    try {
-      profQuestions = await apiFetch('/api/professors/me/questions');
-      el.innerHTML = profQuestions.map(q => questionRowHtml(q, 'openProfQuestionEditor', 'deleteProfQuestion')).join('')
-        || '<div class="empty-row">لا توجد أسئلة بعد — اضغط «سؤال جديد»</div>';
-    } catch (e) { el.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الأسئلة')}</div>`; }
+    try { profQuestions = await apiFetch('/api/professors/me/questions'); }
+    catch (e) { el.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الأسئلة')}</div>`; return; }
+    renderProfQuestions();
+  }
+  function renderProfQuestions(){
+    const by = t => profQuestions.filter(q => (q.qtype || 'mcq') === t).length;
+    document.getElementById('pQKpis').innerHTML = kpiRow([['إجمالي الأسئلة', numAr(profQuestions.length), 'تظهر لطلاب مادتك تلقائيًا'], ['اختيارات', numAr(by('mcq'))], ['صح / خطأ', numAr(by('true_false'))], ['مقالي', numAr(by('essay'))], ['بصور', numAr(profQuestions.filter(q => q.image_url).length)]]);
+    const types = [['all', 'الكل', profQuestions.length], ['mcq', 'اختيارات', by('mcq')], ['true_false', 'صح/خطأ', by('true_false')], ['essay', 'مقالي', by('essay')], ['image', 'بصور', profQuestions.filter(q => q.image_url).length]];
+    document.getElementById('pQFilters').innerHTML = types.map(([k, l, n]) => `<button class="cat-tab ${k === pQType ? 'on' : ''}" onclick="pQType='${k}'; pQShown=30; renderProfQuestions()">${l} <b>${n}</b></button>`).join('') +
+      `<input type="text" class="q" placeholder="ابحث في نص السؤال أو الخيارات أو التصنيف..." value="${esc(pQQ)}" oninput="pQQ=this.value; pQShown=30; renderProfQuestions(); const i=document.querySelector('#pQFilters .q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);" />`;
+    const q = pQQ.trim().toLowerCase();
+    const list = profQuestions.filter(x => (pQType === 'all' || (pQType === 'image' ? !!x.image_url : (x.qtype || 'mcq') === pQType)) &&
+      (!q || [x.text, x.eyebrow, x.rationale, ...(x.choices || []).map(c => c.text)].some(v => (v || '').toLowerCase().includes(q))));
+    document.getElementById('pQuestionsList').innerHTML = list.slice(0, pQShown).map(x => questionRowHtml(x, 'openProfQuestionEditor', 'deleteProfQuestion')).join('')
+      || '<div class="empty-row">لا توجد أسئلة بهذه المواصفات — اضغط «سؤال جديد»</div>';
+    document.getElementById('pQPager').innerHTML = list.length > pQShown ? `<button class="btn btn-ghost" onclick="pQShown+=30; renderProfQuestions()">عرض المزيد (${numAr(list.length - pQShown)})</button>` : '';
   }
   async function deleteProfQuestion(id){
     if (!await confirmModal('حذف هذا السؤال نهائياً؟')) return;
@@ -3661,57 +3691,65 @@
     } catch (e) { showToast('تعذّر تنزيل القالب', 'error'); }
   }
 
+  const EXPORT_SETS = [
+    ['students', 'الطلاب', 'الاسم والبريد والهاتف والجامعة والمرحلة والحالة'],
+    ['questions', 'الأسئلة', 'بنك الأسئلة كاملًا مع الخيارات والمواد'],
+    ['orders', 'الطلبات', 'طلبات المتجر والمشترين والمبالغ'],
+    ['logs', 'سجل النشاطات', 'كل الإجراءات المسجّلة على المنصة'],
+  ];
+  let exportPick = new Set(['students', 'questions']), exportCounts = {};
+  async function loadImportExport(){
+    if (liveMode){ try { exportCounts = await apiFetch('/api/admin/export/summary'); } catch (e) { exportCounts = {}; } }
+    document.getElementById('ieKpis').innerHTML = kpiRow(EXPORT_SETS.map(([k, l]) => [l, numAr(exportCounts[k] || 0), 'سجل']));
+    renderExportSets();
+    let last = null; try { last = localStorage.getItem('kiur_last_export'); } catch (e) {}
+    document.getElementById('ieExportMsg').textContent = last ? 'آخر تصدير: ' + new Date(last).toLocaleString('ar-IQ') : '';
+  }
+  function renderExportSets(){
+    document.getElementById('ieDatasets').innerHTML = EXPORT_SETS.map(([k, l, d]) => `
+      <label class="ie-ds ${exportPick.has(k) ? 'on' : ''}"><input type="checkbox" ${exportPick.has(k) ? 'checked' : ''} onchange="this.checked ? exportPick.add('${k}') : exportPick.delete('${k}'); renderExportSets()" />
+        <span style="flex:1;"><b>${l}</b><span class="cell-sub" style="display:block;">${d}</span></span><span class="mono">${numAr(exportCounts[k] || 0)}</span></label>`).join('');
+  }
   async function exportData(){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    const boxes = document.querySelectorAll('#sec-importexport .check-row input[type=checkbox]');
-    const keys = ['students', 'questions', 'orders', 'logs'];
-    const selected = [];
-    boxes.forEach((box, i) => { if (box.checked) selected.push(keys[i]); });
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const selected = [...exportPick];
     if (!selected.length){ showToast('اختر بيانات واحدة على الأقل للتصدير'); return; }
+    const btn = document.getElementById('ieExportBtn'), msg = document.getElementById('ieExportMsg');
+    btn.disabled = true; msg.textContent = 'جارٍ تجهيز الملف…';
     try {
-      const res = await fetch(API_BASE_URL + '/api/admin/export?datasets=' + selected.join(','), {
-        headers: {'Authorization': 'Bearer ' + authToken},
-      });
+      const res = await fetch(API_BASE_URL + '/api/admin/export?datasets=' + selected.join(','), {headers: {'Authorization': 'Bearer ' + authToken}});
       if (!res.ok) throw new Error('فشل التصدير');
-      downloadBlob(await res.blob(), 'Kiur-تصدير.xlsx');
-    } catch (e) { showToast('تعذّر تصدير البيانات', 'error'); }
+      const blob = await res.blob();
+      downloadBlob(blob, `Kiur-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      try { localStorage.setItem('kiur_last_export', new Date().toISOString()); } catch (e) {}
+      msg.textContent = `تم التصدير — ${fmtSize(blob.size)}`;
+    } catch (e) { msg.textContent = 'تعذّر تصدير البيانات'; showToast('تعذّر تصدير البيانات', 'error'); }
+    finally { btn.disabled = false; }
   }
 
   let selectedImportFile = null;
   function handleImportFileSelect(file){
     selectedImportFile = file || null;
-    document.getElementById('importDropLabel').textContent =
-      selectedImportFile ? ('الملف المحدد: ' + selectedImportFile.name) : 'اسحب ملف Excel هنا أو اضغط للاختيار';
+    document.getElementById('importDropLabel').innerHTML = selectedImportFile
+      ? `<b>${esc(selectedImportFile.name)}</b><span class="cell-sub" style="display:block;">${fmtSize(selectedImportFile.size)} — اضغط للتغيير</span>` : 'اسحب ملف Excel هنا أو اضغط للاختيار';
   }
 
   async function submitImport(){
-    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً (وضع المعاينة بدون اتصال لا يدعم هذا الإجراء)'); return; }
-    if (!selectedImportFile){ showToast('اختر ملفاً أولاً'); return; }
-    const status = document.getElementById('importStatus');
-    status.style.display = 'block';
-    status.style.color = 'var(--ink-faint)';
-    status.textContent = 'جارٍ الاستيراد...';
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    if (!selectedImportFile){ showToast('اختر ملفًا أولًا'); return; }
+    const status = document.getElementById('importStatus'), btn = document.getElementById('ieImportBtn');
+    status.style.display = 'block'; status.innerHTML = '<div class="cell-sub">جارٍ الاستيراد…</div>'; btn.disabled = true;
     try {
-      const form = new FormData();
-      form.append('file', selectedImportFile);
-      const res = await fetch(API_BASE_URL + '/api/admin/import', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + authToken},
-        body: form,
-      });
+      const form = new FormData(); form.append('file', selectedImportFile);
+      const res = await fetch(API_BASE_URL + '/api/admin/import', {method: 'POST', headers: {'Authorization': 'Bearer ' + authToken}, body: form});
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'فشل الاستيراد');
-      const kindLabel = data.kind === 'students' ? 'طلاب' : 'أسئلة';
-      let msg = `تم استيراد ${data.created} ${kindLabel} بنجاح`;
-      if (data.skipped) msg += ` (تخطّي ${data.skipped} مكرر)`;
-      if (data.errors && data.errors.length) msg += ` — ${data.errors.length} صف فيه خطأ (راجع الـ console)`;
-      status.style.color = 'var(--success)';
-      status.textContent = msg;
-      if (data.errors && data.errors.length) console.warn('أخطاء الاستيراد:', data.errors);
-    } catch (e) {
-      status.style.color = 'var(--danger)';
-      status.textContent = e.message || 'تعذّر الاستيراد';
-    }
+      if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'فشل الاستيراد');
+      const errs = data.errors || [];
+      status.innerHTML = `<div class="st-kpis" style="margin:0 0 10px;">${kpiRow([['أُضيف', numAr(data.created)], ['تُخطّي (مكرر)', numAr(data.skipped || 0)], ['صفوف بها خطأ', numAr(errs.length)]])}</div>
+        ${errs.length ? `<div style="font-weight:800; font-size:.82rem; margin-bottom:6px;">الصفوف التي لم تُستورد</div><div class="ban-quote" style="max-height:200px; overflow:auto;">${errs.map(e => `<div>• ${esc(typeof e === 'string' ? e : JSON.stringify(e))}</div>`).join('')}</div>` : '<div class="cell-sub" style="color:var(--success);">تم الاستيراد بدون أخطاء.</div>'}`;
+      loadImportExport();
+    } catch (e) { status.innerHTML = `<div style="color:var(--danger); font-size:.84rem;">${esc(e.message || 'تعذّر الاستيراد')}</div>`; }
+    finally { btn.disabled = false; }
   }
 
   const logs = {q: '', days: 7, offset: 0, rows: [], total: 0};
@@ -4157,21 +4195,22 @@
     } catch (e) { showToast(e.detail || 'تعذّر حذف المحاضرة', 'error'); }
   }
 
+  let pStu = [], pStuQ = '', pStuSort = 'answers';
   async function loadProfessorStudents(){
-    let students = [
-      {name:'زهراء علي', last_answered_at: new Date(), answered_count:6, avg_score:78},
-      {name:'حسين كاظم', last_answered_at: new Date(Date.now()-86400e3), answered_count:7, avg_score:54},
-      {name:'مريم صالح', last_answered_at: new Date(Date.now()-3*86400e3), answered_count:3, avg_score:82},
-    ];
-    students = await liveOrDemo('/api/professors/me/students', students);
-    document.getElementById('pStudentsBody').innerHTML = students.map(s => `
-      <tr>
-        <td><div class="cell-name">${esc(s.name)}</div></td>
-        <td>${fmtDate(s.last_answered_at)}</td>
-        <td>${s.answered_count}</td>
-        <td><span class="badge ${s.avg_score>=60?'badge-active':'badge-idle'}">${s.avg_score}%</span></td>
-      </tr>
-    `).join('') || `<tr><td colspan="4" class="empty-row">لا يوجد طلاب نشطون بعد</td></tr>`;
+    if (!liveMode){ document.getElementById('pStudentsBody').innerHTML = '<tr><td colspan="4" class="empty-row">سجّل دخول حقيقي</td></tr>'; return; }
+    try { pStu = await apiFetch('/api/professors/me/students'); } catch (e) { pStu = []; }
+    renderProfessorStudents();
+  }
+  function renderProfessorStudents(){
+    const week = Date.now() - 7 * 864e5, at = s => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(s.last_answered_at) ? s.last_answered_at : s.last_answered_at + 'Z').getTime();
+    const avg = pStu.length ? Math.round(pStu.reduce((a, s) => a + s.avg_score, 0) / pStu.length) : null;
+    document.getElementById('pStuKpis').innerHTML = kpiRow([['طلاب أجابوا بمادتي', numAr(pStu.length)], ['المعدل العام', pc(avg)], ['نشطون آخر 7 أيام', numAr(pStu.filter(s => at(s) >= week).length)], ['يحتاجون دعمًا', numAr(pStu.filter(s => s.avg_score < 50).length), 'دقة أقل من 50%']]);
+    document.getElementById('pStuFilters').innerHTML = `<input type="text" class="q" placeholder="ابحث باسم الطالب..." value="${esc(pStuQ)}" oninput="pStuQ=this.value; renderProfessorStudents(); const i=document.querySelector('#pStuFilters .q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);" />` +
+      sel('pStuSortSel', [['answers', 'الأكثر إجابات'], ['avg_hi', 'الأعلى دقة'], ['avg_lo', 'الأقل دقة (يحتاج دعمًا)'], ['recent', 'الأحدث نشاطًا'], ['name', 'الاسم']], pStuSort, "pStuSort=this.value; renderProfessorStudents()");
+    const q = pStuQ.trim().toLowerCase();
+    const list = pStu.filter(s => !q || s.name.toLowerCase().includes(q)).sort({answers: (a, b) => b.answered_count - a.answered_count, avg_hi: (a, b) => b.avg_score - a.avg_score, avg_lo: (a, b) => a.avg_score - b.avg_score, recent: (a, b) => at(b) - at(a), name: (a, b) => a.name.localeCompare(b.name, 'ar')}[pStuSort]);
+    document.getElementById('pStuCount').textContent = `${numAr(list.length)} طالب`;
+    document.getElementById('pStudentsBody').innerHTML = list.map(s => `<tr><td><b>${esc(s.name)}</b></td><td class="cell-sub">${ago(s.last_answered_at)}</td><td class="n">${numAr(s.answered_count)}</td><td class="n">${accPill(s.avg_score)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty-row">لا يوجد طلاب نشطون بعد</td></tr>';
   }
 
   // Sections (colleges) for the pickers (summer training can be limited to

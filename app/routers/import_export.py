@@ -41,6 +41,18 @@ def students_template():
 
 
 # ------------------------------------------------------------------- export
+@router.get("/export/summary")
+def export_summary(db: Session = Depends(get_db)):
+    """Row counts shown next to each dataset on the export screen."""
+    from sqlalchemy import func
+    return {
+        "students": db.query(func.count(models.User.id)).filter(models.User.role == models.Role.student).scalar() or 0,
+        "questions": db.query(func.count(models.Question.id)).scalar() or 0,
+        "orders": db.query(func.count(models.Order.id)).scalar() or 0,
+        "logs": db.query(func.count(models.ActivityLog.id)).scalar() or 0,
+    }
+
+
 @router.get("/export")
 def export_data(datasets: str, db: Session = Depends(get_db)):
     """datasets: comma-separated subset of students,questions,orders,logs"""
