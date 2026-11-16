@@ -533,6 +533,29 @@ class Notification(Base):
     target_stage_id = Column(String, ForeignKey("stages.id"), nullable=True)
 
 
+class SupportThread(Base):
+    """One support conversation between a user and the staff."""
+    __tablename__ = "support_threads"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    status = Column(String, default="open")          # "open" | "closed"
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+    closed_at = Column(DateTime, nullable=True)
+    staff_unread = Column(Integer, default=0)       # user messages staff has not read
+    student_unread = Column(Integer, default=0)     # staff replies the user has not read
+
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+    id = Column(String, primary_key=True, default=gen_id)
+    thread_id = Column(String, ForeignKey("support_threads.id"), nullable=False, index=True)
+    sender_id = Column(String, ForeignKey("users.id"), nullable=True)
+    from_staff = Column(Boolean, default=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class NotificationRead(Base):
     __tablename__ = "notification_reads"
     id = Column(String, primary_key=True, default=gen_id)

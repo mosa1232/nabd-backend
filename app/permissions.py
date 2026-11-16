@@ -24,6 +24,7 @@ PERMISSIONS: dict[str, str] = {
     "content.manage": "المحتوى (التدريب الصيفي والإشعارات والملفات)",
     "store.manage": "المتجر (المنتجات والأقسام والطلبات)",
     "resellers.manage": "إدارة المندوبين وصلاحياتهم",
+    "support.manage": "الدعم: الرد على محادثات الطلاب",
     # reseller
     "codes.view": "عرض الأكواد وسجل المبيعات",
     "codes.generate": "توليد/أخذ أكواد جديدة",
@@ -39,7 +40,7 @@ PERMISSIONS: dict[str, str] = {
 }
 
 STAFF_PERMS = {"dashboard.analytics", "users.manage", "users.ban", "catalog.manage",
-               "content.manage", "store.manage", "resellers.manage"}
+               "content.manage", "store.manage", "resellers.manage", "support.manage"}
 RESELLER_PERMS = {"codes.view", "codes.generate"}
 REP_PERMS = {"rep.codes"}
 PROF_PERMS = {"prof.questions", "prof.exams", "prof.courses", "prof.booklets", "prof.pearls", "prof.students"}
@@ -48,7 +49,7 @@ PROF_PERMS = {"prof.questions", "prof.exams", "prof.courses", "prof.booklets", "
 ROLE_DEFAULTS: dict[str, set[str]] = {
     "owner": set(PERMISSIONS),
     "admin": set(PERMISSIONS),
-    "supervisor": {"dashboard.analytics", "users.ban", "content.manage", "catalog.manage"},
+    "supervisor": {"dashboard.analytics", "users.ban", "content.manage", "catalog.manage", "support.manage"},
     "store_manager": {"store.manage", "resellers.manage"},
     "reseller": set(),          # everything a reseller can do is granted per reseller
     "professor": set(PROF_PERMS),
@@ -80,13 +81,18 @@ def effective_permissions(role, raw_extra: str | None) -> set[str]:
         # An admin whose permissions the owner has limited gets only those; an
         # admin with none recorded (older accounts) keeps full access.
         chosen = parse_permissions(raw_extra) & STAFF_PERMS
-        return chosen if chosen else set(PERMISSIONS)
+        if not chosen:
+            return set(PERMISSIONS)
+        if "users.manage" in chosen:      # whoever manages accounts can also answer support
+            chosen = chosen | {"support.manage"}
+        return chosen
     return set(base) | parse_permissions(raw_extra)
 
 
 # --- /api/admin/* : which permission each route family needs. First match
 # wins, so the narrow rules (ban/unban) sit above the broad ones (/users).
 _ADMIN_RULES: list[tuple[re.Pattern, str]] = [(re.compile(p), perm) for p, perm in [
+    (r"^/api/admin/support(/|$)", "support.manage"),
     (r"^/api/admin/users/[^/]+/(ban|unban)$", "users.ban"),
     (r"^/api/admin/bans(/|$)", "users.ban"),
     (r"^/api/admin/resellers(/|$)", "resellers.manage"),

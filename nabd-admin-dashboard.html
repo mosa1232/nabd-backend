@@ -273,6 +273,16 @@
   .st-row .n{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .st-row .b{flex:2; height:8px; border-radius:99px; background:var(--track); overflow:hidden;} .st-row .b i{display:block; height:100%; background:var(--accent);}
   .st-row .c{width:56px; text-align:end; font-weight:800;}
+  .nav-badge{margin-inline-start:auto; background:var(--danger); color:#fff; font-size:.68rem; font-weight:800; min-width:20px; height:20px; border-radius:10px; display:flex; align-items:center; justify-content:center; padding:0 6px;}
+  .sup-row{display:flex; align-items:center; gap:12px; padding:13px 14px; margin-bottom:8px; border-radius:16px; border:1px solid var(--glass-border); background:var(--glass-bg-strong); cursor:pointer;}
+  .sup-row:hover{border-color:var(--accent);}
+  .sup-row.unread{border-inline-start:4px solid var(--accent);}
+  .sup-pill{background:var(--accent); color:#fff; border-radius:10px; font-size:.7rem; font-weight:800; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 6px;}
+  .sup-msgs{display:flex; flex-direction:column; gap:10px; padding:14px; max-height:56vh; min-height:260px; overflow-y:auto; border:1px solid var(--glass-border); border-radius:18px; background:var(--glass-bg-strong);}
+  .sup-msg{max-width:78%; padding:10px 14px; border-radius:16px; font-size:.88rem; line-height:1.8; white-space:pre-wrap; word-break:break-word;}
+  .sup-msg small{display:block; font-size:.66rem; opacity:.65; margin-top:4px;}
+  .sup-msg.student{align-self:flex-start; background:var(--track);}
+  .sup-msg.staff{align-self:flex-end; background:var(--accent); color:#fff;}
   body.acct-full .sidebar{display:none;}
   body.acct-full .dash-content{padding:22px clamp(16px,3vw,48px);}
   .acct-cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start;}
@@ -482,6 +492,9 @@
         <div class="st-head"><div class="st-tabs" id="stTabs"></div><div class="st-period" id="stPeriod"></div></div>
         <div id="stBody"></div>
       </section>
+
+      <!-- ===== ADMIN: Support inbox ===== -->
+      <section class="dash-section" id="sec-support"><div class="dash-card glass" id="supportBox"></div></section>
 
       <!-- ===== ADMIN: Roles / Admins ===== -->
       <section class="dash-section" id="sec-roles"><div class="dash-card glass" id="rolesBody"></div></section>
@@ -1711,17 +1724,19 @@
     pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>',
     exam: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="m9.5 13 2 2 4-4"/></svg>',
     key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
     bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   };
 
   // ---------- Permissions ----------
   // The server enforces every permission on its own; this only decides which
   // pages and buttons are worth showing. Mirrors app/permissions.py.
-  const ALL_STAFF_PERMS = ['dashboard.analytics','users.manage','users.ban','catalog.manage','content.manage','store.manage','resellers.manage'];
+  const ALL_STAFF_PERMS = ['dashboard.analytics','users.manage','users.ban','catalog.manage','content.manage','store.manage','resellers.manage','support.manage'];
   const PROF_PERM_LIST = ['prof.questions','prof.exams','prof.courses','prof.booklets','prof.pearls','prof.students'];
   const PERM_LABELS = {
     'dashboard.analytics':'الإحصائيات ونظرة عامة وسجل النشاطات',
     'users.manage':'إدارة الحسابات والأدوار',
+    'support.manage':'الدعم: الرد على محادثات الطلاب',
     'users.ban':'الحظر والطعون',
     'catalog.manage':'إدارة المناهج',
     'content.manage':'المحتوى: التدريب الصيفي والإشعارات والملفات',
@@ -1758,6 +1773,7 @@
   const STAFF_NAV = [
     {id:'overview', label:'نظرة عامة', icon:'grid', perm:'dashboard.analytics'},
     {id:'accounts', label:'الحسابات', icon:'users', perm:'users.manage'},
+    {id:'support', label:'الدعم', icon:'chat', perm:'support.manage'},
     {id:'roles', label:'الأدوار', icon:'key', perm:'users.manage'},
     {id:'admins', label:'الأدمنية', icon:'users', perm:'users.manage'},
     {id:'doctors', label:'الدكاترة', icon:'student', perm:'users.manage'},
@@ -1846,9 +1862,10 @@
     document.getElementById('sidebarNav').innerHTML = roles[currentRole].items.map(it => `
       ${it.group ? `<div style="margin:14px 8px 4px; font-size:.68rem; font-weight:800; color:var(--ink-faint); letter-spacing:.02em;">${it.group}</div>` : ''}
       <button class="nav-item" data-sec="${it.id}" onclick="showSection('${it.id}')">
-        ${ICONS[it.icon]}<span>${it.label}</span>
+        ${ICONS[it.icon]}<span>${it.label}</span>${it.id === 'support' ? '<span class="nav-badge" id="supportNavBadge" style="display:none;"></span>' : ''}
       </button>
     `).join('');
+    if (can('support.manage')) refreshSupportBadge();
   }
 
   function switchRole(role){
@@ -1941,7 +1958,7 @@
 
   // ---------- Section loading (dispatch) ----------
   const sectionLoaders = {
-    overview: loadOverview, accounts: loadAccounts, roles: loadRoles, admins: loadAdmins, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
+    overview: loadOverview, accounts: loadAccounts, support: loadSupport, roles: loadRoles, admins: loadAdmins, doctors: () => loadPeople('professor'), reps: () => loadPeople('representative'), notifications: loadNotifHistory, catalog: loadCatalog,
     students: loadStudents, bans: loadBans, media: loadMedia, logs: loadLogs,
     'p-overview': loadProfessorOverview, 'p-booklets': loadProfessorBooklets, 'p-exams': loadProfessorExams,
     'p-courses': loadProfessorCourses, 'p-students': loadProfessorStudents,
@@ -2065,6 +2082,108 @@
       const d = await apiFetch(url);
       if (tab === statsTab) body.innerHTML = STAT_RENDER[tab](d);
     } catch (e) { body.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الإحصائيات')}</div>`; }
+  }
+
+  // ===== Support inbox (المحادثات مع الطلاب) =====
+  let supportFilter = 'open', supportOpen = null, supportTimer = null, supportSig = '';
+  async function refreshSupportBadge(){
+    if (!liveMode || !can('support.manage')) return;
+    try {
+      const r = await apiFetch('/api/admin/support/unread');
+      const b = document.getElementById('supportNavBadge'); if (!b) return;
+      if (r.threads > 0){ b.textContent = r.threads > 99 ? '99+' : r.threads; b.style.display = 'flex'; } else b.style.display = 'none';
+    } catch (e) { /* ignore */ }
+  }
+  setInterval(refreshSupportBadge, 25000);
+
+  async function loadSupport(){
+    clearInterval(supportTimer);
+    if (supportOpen) return openSupportThread(supportOpen, true);
+    const box = document.getElementById('supportBox');
+    if (!liveMode){ box.innerHTML = '<div class="empty-row">سجّل دخول حقيقي أولاً</div>'; return; }
+    const q = (document.getElementById('supportSearch')?.value || '');
+    const tabs = [['open', 'مفتوحة'], ['closed', 'مغلقة'], ['all', 'الكل']];
+    box.innerHTML = `<div class="dash-card-head"><span class="dash-card-title">الدعم — محادثات الطلاب</span></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+        ${tabs.map(([k, l]) => `<button class="cat-tab ${k === supportFilter ? 'on' : ''}" onclick="supportFilter='${k}'; loadSupport()">${l}</button>`).join('')}
+        <input class="search-input" id="supportSearch" placeholder="ابحث باسم الطالب أو بريده..." value="${esc(q)}" oninput="clearTimeout(window.__supQ); window.__supQ=setTimeout(loadSupport, 300)" style="flex:1; min-width:200px;" />
+      </div><div id="supportList"><div class="empty-row">جارٍ التحميل…</div></div>`;
+    document.getElementById('supportSearch').selectionStart = q.length;
+    try {
+      const rows = await apiFetch(`/api/admin/support/threads?status=${supportFilter}&q=${encodeURIComponent(q)}`);
+      document.getElementById('supportList').innerHTML = rows.map(r => `
+        <div class="sup-row ${r.unread ? 'unread' : ''}" onclick="openSupportThread('${r.id}')">
+          <div class="cell-avatar" style="background:var(--accent);">${initialsOf(r.student.name)}</div>
+          <div style="flex:1; min-width:0;"><div style="font-weight:800;">${esc(r.student.name)} ${r.status === 'closed' ? '<span class="badge">مغلقة</span>' : ''}</div>
+            <div class="cell-sub" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.last_from_staff ? 'أنت: ' : ''}${esc(r.last)}</div></div>
+          <div style="text-align:end; flex:none;"><div class="cell-sub">${fmtDT(r.updated_at)}</div>${r.unread ? `<span class="sup-pill">${r.unread}</span>` : ''}</div>
+        </div>`).join('') || `<div class="empty-row">${supportFilter === 'open' ? 'لا توجد محادثات مفتوحة 🎉' : 'لا توجد محادثات'}</div>`;
+    } catch (e) { document.getElementById('supportList').innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر التحميل')}</div>`; }
+    refreshSupportBadge();
+  }
+  async function openSupportThread(id, quiet){
+    supportOpen = id;
+    const box = document.getElementById('supportBox');
+    clearInterval(supportTimer);
+    let d;
+    try { d = await apiFetch('/api/admin/support/threads/' + id); }
+    catch (e) { supportOpen = null; showToast(e.detail || 'تعذّر فتح المحادثة', 'error'); return loadSupport(); }
+    const sig = JSON.stringify([d.status, d.messages.map(m => m.id)]);
+    const existing = document.getElementById('supMsgs');
+    if (quiet && existing && sig === supportSig) { refreshSupportBadge(); supportTimer = setInterval(pollSupportThread, 6000); return; }
+    supportSig = sig;
+    const draft = document.getElementById('supInput')?.value || '';
+    const st = d.student;
+    const stick = !existing || (existing.scrollHeight - existing.scrollTop - existing.clientHeight < 80);
+    box.innerHTML = `
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="supportOpen=null; supportSig=''; loadSupport()">→ المحادثات</button>
+        <span style="margin-inline-start:auto; display:flex; gap:8px; flex-wrap:wrap;">
+          ${can('users.manage') ? `<button class="btn btn-ghost" onclick="openSupportAccount('${st.id}')">فتح حساب الطالب</button>` : ''}
+          <button class="btn btn-ghost" onclick="setSupportStatus('${d.id}', '${d.status === 'open' ? 'closed' : 'open'}')">${d.status === 'open' ? 'تم الحل — إغلاق المحادثة' : 'إعادة فتح'}</button>
+        </span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <div class="cell-avatar" style="background:var(--accent); width:48px; height:48px;">${initialsOf(st.name)}</div>
+        <div><div style="font-size:1.15rem; font-weight:800;">${esc(st.name)} ${d.status === 'closed' ? '<span class="badge">مغلقة</span>' : ''}</div>
+          <div class="cell-sub" dir="auto">${esc(st.email)}${st.phone ? ' · ' + esc(st.phone) : ''}${st.university ? ' · ' + esc(st.university) : ''}${st.stage ? ' · ' + esc(st.stage) : ''}${st.banned ? ' · <b style="color:var(--danger)">محظور</b>' : ''}</div></div>
+      </div>
+      <div class="sup-msgs" id="supMsgs">${d.messages.map(m => `<div class="sup-msg ${m.from_staff ? 'staff' : 'student'}">${esc(m.body)}<small>${m.from_staff ? 'الدعم · ' : ''}${fmtDT(m.at)}</small></div>`).join('')}</div>
+      <div style="display:flex; gap:8px; margin-top:12px; align-items:flex-end;">
+        <textarea id="supInput" rows="2" maxlength="2000" placeholder="اكتب ردّك... (Enter للإرسال، Shift+Enter لسطر جديد)" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupportReply('${d.id}');}"
+          style="flex:1; padding:12px 14px; border-radius:14px; border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; resize:vertical;"></textarea>
+        <button class="btn" onclick="sendSupportReply('${d.id}')">إرسال</button>
+      </div>
+      ${d.status === 'closed' ? '<div class="cell-sub" style="margin-top:8px;">المحادثة مغلقة — أي رد منك يعيد فتحها.</div>' : ''}`;
+    if (draft) document.getElementById('supInput').value = draft;
+    const m = document.getElementById('supMsgs'); if (stick) m.scrollTop = m.scrollHeight;
+    refreshSupportBadge();
+    supportTimer = setInterval(pollSupportThread, 6000);
+  }
+  function pollSupportThread(){
+    if (lastSectionId !== 'support' || !supportOpen){ clearInterval(supportTimer); return; }
+    openSupportThread(supportOpen, true);
+  }
+  async function sendSupportReply(id){
+    const inp = document.getElementById('supInput'); const text = inp.value.trim(); if (!text) return;
+    inp.disabled = true;
+    try {
+      await apiFetch(`/api/admin/support/threads/${id}/messages`, {method: 'POST', body: JSON.stringify({body: text})});
+      inp.value = ''; supportSig = '';
+      await openSupportThread(id);
+      document.getElementById('supInput')?.focus();
+    } catch (e) { showToast(e.detail || 'تعذّر الإرسال', 'error'); inp.disabled = false; }
+  }
+  async function setSupportStatus(id, status){
+    try {
+      await apiFetch(`/api/admin/support/threads/${id}/status`, {method: 'POST', body: JSON.stringify({status})});
+      showToast(status === 'closed' ? 'أُغلقت المحادثة' : 'أُعيد فتح المحادثة');
+      if (status === 'closed'){ supportOpen = null; supportSig = ''; loadSupport(); } else { supportSig = ''; openSupportThread(id); }
+    } catch (e) { showToast(e.detail || 'تعذّر التنفيذ', 'error'); }
+  }
+  async function openSupportAccount(userId){
+    if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
+    showAccountDetails(userId);
   }
 
   // ===== Roles page =====
