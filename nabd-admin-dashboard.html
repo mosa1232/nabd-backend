@@ -457,6 +457,8 @@
       </section>
 
       <!-- ===== ADMIN: Notifications ===== -->
+      <section class="dash-section" id="sec-account"><div id="accountPage"></div></section>
+
       <section class="dash-section" id="sec-notifications">
         <div class="dash-card glass" style="margin-bottom:16px;">
           <div class="dash-card-head"><span class="dash-card-title">إرسال إشعار</span></div>
@@ -4026,40 +4028,147 @@
 
   // ===== ADMIN: full account details =====
   const ROLE_NAME = {admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
-  function showAccountDetails(id){
+﻿  // ===== ADMIN: full-page account =====
+  let acctPageId = null, acctTree = null;
+  async function showAccountDetails(id){
     const a = allAccounts.find(x => x.id === id);
     if (!a) return;
+    acctPageId = id;
+    document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('sec-account').classList.add('active');
+    document.getElementById('dashTitle').textContent = 'الحسابات';
+    window.scrollTo(0, 0);
+    if (a.role === 'student' && liveMode && !acctTree){
+      try { acctTree = nestCatalog(await apiFetch('/api/admin/catalog')); } catch (e) { acctTree = []; }
+    }
+    renderAccountPage();
+  }
+  function closeAccountPage(){ acctPageId = null; showSection('accounts'); }
+
+  function renderAccountPage(){
+    const a = allAccounts.find(x => x.id === acctPageId);
+    if (!a) return;
     const fmt = iso => iso ? new Date(iso).toLocaleString('ar-IQ') : '—';
+    const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--glass-border); font-size:.86rem;"><span style="width:130px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
+    const card = (title, inner) => `<div class="dash-card glass" style="margin-bottom:14px;"><div class="dash-card-head"><span class="dash-card-title">${title}</span></div>${inner}</div>`;
+    const field = 'width:100%; padding:11px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.88rem;';
     const parent = a.parent_user_id ? accountName(a.parent_user_id) : '';
-    const row = (label, value, mono) => `<div style="display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--glass-border); font-size:.84rem;"><span style="width:118px; color:var(--ink-faint); flex:none;">${label}</span><span style="flex:1; word-break:break-all; ${mono ? 'font-family:monospace; direction:ltr; text-align:end;' : ''}">${value}</span></div>`;
-    document.getElementById('acctTitle').textContent = a.full_name;
-    document.getElementById('acctBody').innerHTML =
-      row('الاسم', esc(a.full_name)) +
+    const btn = (label, fn, style = '') => `<button class="btn btn-ghost" style="padding:9px 16px; font-size:.8rem; ${style}" onclick="${fn}">${label}</button>`;
+
+    const info = card('المعلومات',
       row('البريد الإلكتروني', esc(a.email), true) +
       row('رقم الهاتف', esc(a.phone || 'لم يُدخل'), !!a.phone) +
-      row('كلمة المرور', a.has_password
-        ? '<span class="mono">••••••••••</span><div class="cell-sub" style="margin-top:4px;">محفوظة بشكل مشفّر ولا يمكن لأحد قراءتها — لكن يمكنك إعطاؤه كلمة مرور مؤقتة جديدة.</div>'
-        : 'لا توجد (يدخل عبر Google فقط)') +
-      row('الدور', esc(ROLE_NAME[a.role] || a.role)) +
       (parent ? row('يعمل مع الدكتور', esc(parent)) : '') +
-      (a.role === 'student' ? row('القسم', esc(catalogNameById[a.section_id] || '—')) + row('الجامعة', esc(catalogNameById[a.university_id] || '—')) + row('المرحلة', esc(a.is_graduate ? 'متخرج' : (catalogNameById[a.stage_id] || '—'))) : '') +
       (a.role === 'reseller' ? row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) : '') +
       (a.role === 'representative' ? row('يمثّل', esc(catalogNameById[a.scope_university_id] || '—')) + row('القسم', esc(a.scope_department_id ? (catalogNameById[a.scope_department_id] || '—') : 'كل الأقسام')) + row('المرحلة', esc(a.scope_stage_id ? (catalogNameById[a.scope_stage_id] || '—') : 'كل المراحل')) : '') +
       (a.role === 'student' ? row('التوثيق', a.verified_at ? ('موثّق باسم «' + esc(a.verified_name || '') + '» — ' + fmt(a.verified_at)) : 'غير موثّق') : '') +
       ((a.extra_permissions || []).length ? row('صلاحيات إضافية', a.extra_permissions.map(p => esc(PERM_LABELS[p] || p)).join('، ')) : '') +
-      row('الحالة', a.is_banned ? 'محظور' : 'نشط') +
       row('التحقق بخطوتين', a.totp_enabled ? 'مفعّل' : 'غير مفعّل') +
-      row('تاريخ الانضمام', fmt(a.created_at)) +
-      row('آخر دخول', fmt(a.last_login));
-    const btn = (label, fn, style = '') => `<button class="btn btn-ghost" style="padding:8px 14px; font-size:.76rem; ${style}" onclick="${fn}">${label}</button>`;
-    document.getElementById('acctActions').innerHTML =
-      btn('تعديل', `closeAccountDetails(); promptEditUser('${a.id}')`) +
-      btn('كلمة مرور مؤقتة', `resetAccountPassword('${a.id}')`) +
-      (a.is_banned ? btn('رفع الحظر', `closeAccountDetails(); unbanUserAccount('${a.id}')`)
-        : (a.role === 'admin' ? '' : btn('حظر', `closeAccountDetails(); promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
-      (a.totp_enabled ? btn('إعادة تعيين 2FA', `closeAccountDetails(); promptReset2FA('${a.id}')`) : '');
-    document.getElementById('acctOverlay').style.display = 'flex';
+      row('تاريخ الانضمام', fmt(a.created_at)) + row('آخر دخول', fmt(a.last_login)));
+
+    const study = a.role === 'student' ? card('الدراسة (كلية · جامعة · قسم · مرحلة)', `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:14px;">
+        <label style="font-size:.78rem; font-weight:700;">الكلية<select id="apSec" style="${field}" onchange="apFill('sec')"></select></label>
+        <label style="font-size:.78rem; font-weight:700;">الجامعة<select id="apUni" style="${field}" onchange="apFill('uni')"></select></label>
+        <label style="font-size:.78rem; font-weight:700;">القسم<select id="apDept" style="${field}" onchange="apFill('dept')"></select></label>
+        <label style="font-size:.78rem; font-weight:700;">المرحلة<select id="apStage" style="${field}"></select></label>
+      </div>
+      ${a.is_graduate ? '<div class="cell-sub" style="margin-bottom:10px;">الطالب مسجّل كمتخرج.</div>' : ''}
+      <button class="btn" onclick="saveAccountPlacement()">حفظ التغيير</button>`) : '';
+
+    const pw = card('كلمة المرور', `
+      <div class="cell-sub" style="margin-bottom:10px;">${a.has_password ? 'كلمات المرور تُحفظ مشفّرة، فلا يمكن لأي أحد (ولا حتى المشرف) قراءة الحالية. لكن تقدر تحدد له كلمة جديدة تشوفها أنت وتعطيها له.' : 'الحساب يدخل عبر Google فقط — تقدر تحدد له كلمة مرور أيضًا.'}</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input id="apPw" type="text" dir="ltr" autocomplete="off" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" style="${field} flex:1; min-width:220px; font-family:monospace;" />
+        ${btn('توليد', 'apGenPw()')}
+        <button class="btn" onclick="saveAccountPassword()">حفظ</button>
+      </div>
+      <div id="apPwDone" style="display:none; margin-top:12px; padding:12px; border-radius:12px; background:var(--track);"></div>`);
+
+    const actions = card('إجراءات',
+      `<div style="display:flex; gap:8px; flex-wrap:wrap;">` +
+      btn('تعديل البيانات', `promptEditUser('${a.id}')`) +
+      (a.is_banned ? btn('رفع الحظر', `unbanAndRefresh('${a.id}')`)
+        : (a.role === 'admin' ? '' : btn('حظر', `promptBanUser('${a.id}')`, 'color:var(--danger);'))) +
+      (a.totp_enabled ? btn('إعادة تعيين 2FA', `promptReset2FA('${a.id}')`) : '') +
+      `</div>`);
+
+    document.getElementById('accountPage').innerHTML = `
+      <button class="btn btn-ghost" style="margin-bottom:14px;" onclick="closeAccountPage()">→ الحسابات</button>
+      <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+        <div class="cell-avatar" style="background:var(--accent); width:60px; height:60px; font-size:1.3rem;">${initialsOf(a.full_name)}</div>
+        <div><div style="font-size:1.3rem; font-weight:800;">${esc(a.full_name)}</div>
+          <div style="margin-top:4px;">${roleBadge(a.role)} ${a.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
+      </div>
+      <div style="max-width:760px;">${study}${pw}${info}${actions}</div>`;
+    if (a.role === 'student') apInit(a);
   }
+
+  async function unbanAndRefresh(id){ await unbanUserAccount(id); renderAccountPage(); }
+
+  // placement pickers: college -> university -> department -> stage
+  function apInit(a){
+    const tree = acctTree || [];
+    let secId = a.section_id, uniId = a.university_id;
+    const uniRow = tree.flatMap(s => s.universities.map(u => ({s, u}))).find(x => x.u.id === uniId);
+    if (uniRow) secId = uniRow.s.id;
+    const secEl = document.getElementById('apSec');
+    secEl.innerHTML = '<option value="">—</option>' + tree.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    secEl.value = secId || '';
+    apFill('sec', uniId, a.stage_id);
+  }
+  function apFill(level, uniId, stageId){
+    const tree = acctTree || [];
+    const secEl = document.getElementById('apSec'), uniEl = document.getElementById('apUni'), deptEl = document.getElementById('apDept'), stEl = document.getElementById('apStage');
+    const opts = (list, ph) => `<option value="">${ph}</option>` + list.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+    if (level === 'sec'){
+      const sec = tree.find(s => s.id === secEl.value);
+      uniEl.innerHTML = opts(sec ? sec.universities : [], '—');
+      if (uniId) uniEl.value = uniId;
+    }
+    if (level === 'sec' || level === 'uni'){
+      const uni = tree.flatMap(s => s.universities).find(u => u.id === uniEl.value);
+      deptEl.innerHTML = opts(uni ? uni.departments : [], '—');
+      const dept = stageId && uni ? uni.departments.find(d => d.stages.some(s => s.id === stageId)) : null;
+      if (dept) deptEl.value = dept.id;
+    }
+    const uni = tree.flatMap(s => s.universities).find(u => u.id === uniEl.value);
+    const dept = uni ? uni.departments.find(d => d.id === deptEl.value) : null;
+    stEl.innerHTML = opts(dept ? dept.stages : [], '—');
+    if (stageId) stEl.value = stageId;
+  }
+  async function saveAccountPlacement(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const uni = document.getElementById('apUni').value, st = document.getElementById('apStage').value;
+    if (uni && !st && !(await confirmModal('لم تختر مرحلة — سيُحفظ الطالب بدون مرحلة. متابعة؟'))) return;
+    try {
+      await apiFetch('/api/admin/users/' + acctPageId + '/placement', {method: 'PUT', body: JSON.stringify({university_id: uni || null, stage_id: st || null})});
+      showToast('تم نقل الطالب');
+      await loadAccounts();
+      renderAccountPage();
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
+  }
+  function apGenPw(){
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const arr = new Uint32Array(10); crypto.getRandomValues(arr);
+    document.getElementById('apPw').value = [...arr].map(n => chars[n % chars.length]).join('');
+  }
+  async function saveAccountPassword(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    const pw = document.getElementById('apPw').value;
+    if (pw.length < 8){ showToast('كلمة المرور 8 أحرف على الأقل', 'error'); return; }
+    try {
+      await apiFetch('/api/admin/users/' + acctPageId + '/set-password', {method: 'POST', body: JSON.stringify({password: pw})});
+      const box = document.getElementById('apPwDone');
+      box.style.display = 'block';
+      box.innerHTML = `<div class="item-meta" style="margin-bottom:6px;">تم الحفظ — كلمة المرور الجديدة (تظهر هنا فقط الآن، وسُجّل خروج الحساب من أجهزته):</div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"><span class="mono" id="apPwShown" style="font-size:1.15rem; font-weight:800; direction:ltr; user-select:all;">${esc(pw)}</span>
+        <button class="btn btn-ghost" style="padding:6px 12px; font-size:.74rem;" onclick="copyText(document.getElementById('apPwShown').textContent, this)">نسخ</button></div>`;
+      document.getElementById('apPw').value = '';
+      showToast('تم تغيير كلمة المرور');
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
+  }
+
   function closeAccountDetails(){ document.getElementById('acctOverlay').style.display = 'none'; }
 
   async function resetAccountPassword(id){

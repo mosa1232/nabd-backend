@@ -519,6 +519,70 @@ def reset_user_password(user_id: str, db: Session = Depends(get_db), actor: mode
     return {"temporary_password": temp, "email": user.email}
 
 
+class _PlacementIn(schemas.BaseModel):
+    university_id: str | None = None
+    stage_id: str | None = None
+
+
+class _SetPasswordIn(schemas.BaseModel):
+    password: str
+
+
+@router.put("/users/{user_id}/placement")
+def set_student_placement(user_id: str, body: _PlacementIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """Moves a student to another college / university / department / stage.
+    The department is implied by the stage, and the stage must belong to the
+    chosen university, so the student can never end up half-moved."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    if user.role != models.Role.student:
+        raise HTTPException(400, "هذا الإجراء للطلاب فقط")
+    uni = db.get(models.University, body.university_id) if body.university_id else None
+    if body.university_id and not uni:
+        raise HTTPException(404, "الجامعة غير موجودة")
+    stage = db.get(models.Stage, body.stage_id) if body.stage_id else None
+    if body.stage_id and not stage:
+        raise HTTPException(404, "المرحلة غير موجودة")
+    if stage and (not uni or stage.university_id != uni.id):
+        raise HTTPException(400, "المرحلة لا تتبع الجامعة المختارة")
+    old = (user.university_id, user.stage_id)
+    user.university_id = uni.id if uni else None
+    user.section_id = uni.section_id if uni else None
+    user.stage_id = stage.id if stage else None
+    db.add(models.ActivityLog(user_id=actor.id, action=f"نقل الطالب {user.email} إلى جامعة/مرحلة جديدة", ip_address=""))
+    db.commit()
+    if old != (user.university_id, user.stage_id):
+        from .. import ranking
+        ranking.invalidate()
+    return {"ok": True, "university_id": user.university_id, "section_id": user.section_id, "stage_id": user.stage_id}
+
+
+@router.post("/users/{user_id}/set-password")
+def set_user_password(user_id: str, body: _SetPasswordIn, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """The admin picks the password. Passwords are stored only as one-way
+    hashes, so an existing one can never be read back — this sets a new one
+    (the admin already knows it, having typed or generated it) and signs the
+    account out everywhere."""
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "المستخدم غير موجود")
+    _guard_role_change(actor, user.role.value, user)
+    pw = body.password or ""
+    if len(pw) < 8:
+        raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
+    user.password_hash = hash_password(pw)
+    user.password_changed_at = datetime.utcnow()
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.query(models.UserSession).filter(
+        models.UserSession.user_id == user.id, models.UserSession.is_active.is_(True)
+    ).update({"is_active": False})
+    db.add(models.ActivityLog(user_id=actor.id, action=f"تغيير كلمة مرور {user.email}", ip_address=""))
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/users/{user_id}/2fa/reset")
 def reset_2fa(user_id: str, db: Session = Depends(get_db)):
     """Safety net for someone locked out of their own account (lost phone,
