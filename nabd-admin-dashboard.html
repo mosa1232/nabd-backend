@@ -901,21 +901,7 @@
       </section>
 
       <!-- ===== STORE MANAGER: resellers ===== -->
-      <section class="dash-section" id="sec-resellers">
-        <div class="dash-card glass">
-          <div class="dash-card-head">
-            <span class="dash-card-title">المندوبون وصلاحياتهم</span>
-            <button class="btn" onclick="promptAddReseller()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>مندوب جديد</button>
-          </div>
-          <div class="item-meta" style="margin-bottom:12px;">لكل مندوب صلاحياته الخاصة (عرض الأكواد / توليد أكواد) وحصة قصوى من الأكواد تحددها أنت.</div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>المندوب</th><th>الصلاحيات</th><th>الحصة</th><th>الأكواد</th><th></th></tr></thead>
-              <tbody id="resellersBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      <section class="dash-section" id="sec-resellers"><div class="dash-card glass" id="resellersBox"></div></section>
 
       <!-- ===== REPRESENTATIVE: student rosters & verification codes ===== -->
       <section class="dash-section" id="sec-rep-codes">
@@ -2578,7 +2564,7 @@
   }
 
   // ---- Add a doctor / representative: search an existing account first ----
-  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
+  const FIND_WORD = {professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
   let findTimer = null;
   async function openFindAccount(role){
     if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) { /* shown empty */ } }
@@ -2619,7 +2605,7 @@
       if (after) await after();
       showToast(`صار ${a.full_name} ${FIND_WORD[role]}`);
       acctTree = null; await loadAccounts();
-      showSection(role === 'professor' ? 'doctors' : role === 'representative' ? 'reps' : (lastSectionId === 'roles' ? 'roles' : 'admins'));
+      showSection(role === 'professor' ? 'doctors' : role === 'representative' ? 'reps' : role === 'reseller' ? 'resellers' : (lastSectionId === 'roles' ? 'roles' : 'admins'));
     };
     if (role === 'professor'){
       let subjects = []; try { subjects = await subjectOptions(); } catch (e) {}
@@ -2628,6 +2614,11 @@
         {id: 'subjectId', label: 'المادة التي يدرّسها', type: 'select', value: subjects[0].value, options: subjects},
         {id: 'title', label: 'اللقب العلمي', type: 'text', value: 'أستاذ مساعد'},
       ], v => save({}, () => apiFetch('/api/admin/professors/' + a.id, {method: 'PUT', body: JSON.stringify({subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد'})})));
+    } else if (role === 'reseller'){
+      openGenericModal('تعيين مندوب: ' + common, [
+        {id: 'perms', label: 'ماذا يستطيع هذا المندوب أن يفعل؟', type: 'checks', value: ['codes.view', 'codes.generate'], options: RESELLER_PERM_OPTIONS},
+        {id: 'quota', label: 'أقصى عدد أكواد يحملها (فارغ = بلا حد)', type: 'number', value: ''},
+      ], v => save({permissions: v.perms, code_quota: v.quota === '' ? null : parseInt(v.quota, 10)}));
     } else if (['admin', 'supervisor', 'store_manager'].includes(role)){
       if (role === 'admin'){
         openGenericModal('تعيين أدمن: ' + common, [
@@ -4349,21 +4340,102 @@
   // ===== STORE MANAGER: resellers =====
   const RESELLER_PERM_OPTIONS = ['codes.view', 'codes.generate'].map(c => ({value: c, label: PERM_LABELS[c]}));
   let allResellers = [];
+  let resellerOpen = null, resellerCodes = [];
   async function loadResellers(){
-    if (!liveMode){ document.getElementById('resellersBody').innerHTML = `<tr><td colspan="5" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
-    allResellers = await liveOrDemo('/api/admin/resellers', [], []);
-    document.getElementById('resellersBody').innerHTML = allResellers.map(r => `
-      <tr>
-        <td><div class="cell-user"><div class="cell-avatar" style="background:var(--accent)">${initialsOf(r.full_name)}</div><div><div class="cell-name">${esc(r.full_name)}</div><div class="cell-sub mono">${esc(r.email)}</div></div></div></td>
-        <td>${r.permissions.map(p => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[p] || p)}</span>`).join('') || '<span class="badge badge-disabled">لا صلاحيات</span>'}</td>
-        <td>${r.code_quota == null ? 'بلا حد' : r.code_quota}</td>
-        <td>${r.codes_held} <span class="cell-sub">(مباع ${r.codes_sold})</span></td>
-        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
-          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptEditReseller('${r.id}')">الصلاحيات والحصة</button>
-          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptGenerateCodes('${r.id}')">توليد أكواد</button>
-          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="openResellerCodesModal('${r.id}')">عرض أكواده</button>
-        </div></td>
-      </tr>`).join('') || `<tr><td colspan="5" class="empty-row">لا يوجد مندوبون — اضغط «مندوب جديد»</td></tr>`;
+    if (!liveMode){ document.getElementById('resellersBox').innerHTML = '<div class="empty-row">سجّل دخول حقيقي أولاً</div>'; return; }
+    try { allResellers = await liveOrDemo('/api/admin/resellers', [], []); } catch (e) { allResellers = []; }
+    if (resellerOpen && !allResellers.some(r => r.id === resellerOpen)) resellerOpen = null;
+    renderResellers();
+  }
+  function resellerAdd(){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    if (can('users.manage')) openFindAccount('reseller'); else promptAddReseller();
+  }
+  function renderResellers(){
+    const box = document.getElementById('resellersBox');
+    if (resellerOpen) return renderResellerPage();
+    const q = (document.getElementById('resellersSearch')?.value || '').trim().toLowerCase();
+    const list = allResellers.filter(r => !q || r.full_name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q));
+    const quota = r => r.code_quota == null ? 'بلا حد' : `الحصة ${numAr(r.code_quota)}`;
+    box.innerHTML = `
+      <div class="dash-card-head"><span class="dash-card-title">المندوبون</span><button class="btn" onclick="resellerAdd()">+ إضافة مندوب</button></div>
+      <input class="search-input" id="resellersSearch" placeholder="ابحث بالاسم أو البريد..." oninput="renderResellers(); document.getElementById('resellersSearch').focus()" value="${esc(q)}" style="margin-bottom:14px;" />
+      <div class="cat-grid">${list.map(r => `
+        <div class="cat-card" onclick="resellerOpen='${r.id}'; renderResellers()">
+          <div class="cat-avatar">${esc(initialsOf(r.full_name).charAt(0) || '?')}</div>
+          <div class="cat-card-name">${esc(r.full_name)}</div>
+          <div class="cat-card-sub">بحوزته ${numAr(r.codes_held)} · باع ${numAr(r.codes_sold)} · ${quota(r)}</div>
+          <div>${r.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div>
+        </div>`).join('')}
+        <div class="cat-card addnew" onclick="resellerAdd()">+ مندوب</div></div>`;
+  }
+  async function renderResellerPage(){
+    const box = document.getElementById('resellersBox');
+    const r = allResellers.find(x => x.id === resellerOpen); if (!r) { resellerOpen = null; return renderResellers(); }
+    const left = r.code_quota == null ? 'بلا حد' : numAr(Math.max(0, r.code_quota - r.codes_held));
+    const field = 'padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.86rem;';
+    box.innerHTML = `
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="resellerOpen=null; renderResellers()">→ المندوبون</button>
+        ${can('users.manage') ? `<button class="btn btn-ghost" style="margin-inline-start:auto;" onclick="openResellerAccount('${r.id}')">فتح صفحة الحساب الكاملة</button>` : ''}
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+        <div class="cell-avatar" style="background:var(--accent); width:60px; height:60px; font-size:1.3rem;">${initialsOf(r.full_name)}</div>
+        <div><div style="font-size:1.3rem; font-weight:800;">${esc(r.full_name)}</div><div class="cell-sub mono" dir="ltr" style="text-align:start;">${esc(r.email)}</div>
+          <div style="margin-top:4px;">${roleBadge('reseller')} ${r.is_banned ? '<span class="badge badge-disabled">محظور</span>' : '<span class="badge badge-active">نشط</span>'}</div></div>
+      </div>
+      <div class="st-kpis">${[['بحوزته', numAr(r.codes_held)], ['باع', numAr(r.codes_sold)], ['الحصة', r.code_quota == null ? 'بلا حد' : numAr(r.code_quota)], ['المتبقي من الحصة', left]].map(([l, v]) => `<div class="st-kpi"><div class="l">${l}</div><div class="v mono">${v}</div></div>`).join('')}</div>
+      <div class="acct-cols">
+        <div class="acct-col">
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">الصلاحيات والحصة</span></div>
+            <div style="display:grid; gap:8px; margin-bottom:12px;">${RESELLER_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.86rem;"><input type="checkbox" class="rsPerm" value="${o.value}" ${r.permissions.includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join('')}</div>
+            <label style="font-size:.78rem; font-weight:700;">أقصى عدد أكواد يحملها (فارغ = بلا حد)</label>
+            <input id="rsQuota" type="number" min="0" value="${r.code_quota == null ? '' : r.code_quota}" style="${field} width:100%; margin:6px 0 12px;" />
+            <button class="btn" onclick="saveResellerSettings('${r.id}')">حفظ</button></div>
+        </div>
+        <div class="acct-col">
+          <div class="dash-card glass"><div class="dash-card-head"><span class="dash-card-title">توليد أكواد</span></div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input id="rsCount" type="number" min="1" max="100" value="10" style="${field} width:110px;" />
+              <button class="btn" onclick="generateResellerCodes('${r.id}')">ولّد</button>
+              <span class="cell-sub">من 1 إلى 100 بالمرة، وتدخل رصيد المندوب مباشرة.</span></div></div>
+        </div>
+      </div>
+      <div class="dash-card glass" style="margin-top:16px;"><div class="dash-card-head"><span class="dash-card-title">أكواد المندوب</span></div><div id="rsCodes"><div class="empty-row">جارٍ التحميل…</div></div></div>`;
+    loadResellerCodesInline(r.id);
+  }
+  async function loadResellerCodesInline(id){
+    const el = document.getElementById('rsCodes'); if (!el) return;
+    try {
+      const codes = await apiFetch('/api/admin/resellers/' + id + '/codes');
+      const idle = codes.filter(c => c.status === 'idle'), used = codes.filter(c => c.status !== 'idle');
+      const label = {active: 'مفعّل', expired: 'منتهي'};
+      const row = (c, dim) => `<div style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--glass-border); ${dim ? 'opacity:.7;' : ''}">
+        <span class="mono" dir="ltr" style="font-weight:800; min-width:120px;">${esc(c.code)}</span><span class="cell-sub" style="flex:1;">${esc(c.subject_name)}</span>
+        ${dim ? `<span class="badge">${label[c.status] || c.status}</span>` : `<button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem;" onclick="copyResellerCode('${esc(c.code)}', this)">نسخ</button>`}</div>`;
+      el.innerHTML = (idle.length ? `<div style="font-weight:800; font-size:.84rem; margin-bottom:4px;">متاحة غير مباعة (${numAr(idle.length)})</div>${idle.map(c => row(c, false)).join('')}` : '<div class="cell-sub">لا توجد أكواد متاحة حاليًا.</div>')
+        + (used.length ? `<div style="font-weight:800; font-size:.84rem; margin:16px 0 4px;">مباعة أو مستعملة (${numAr(used.length)})</div>${used.map(c => row(c, true)).join('')}` : '');
+    } catch (e) { el.innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الأكواد')}</div>`; }
+  }
+  async function saveResellerSettings(id){
+    const perms = [...document.querySelectorAll('.rsPerm:checked')].map(x => x.value);
+    const q = document.getElementById('rsQuota').value;
+    try {
+      await apiFetch('/api/admin/resellers/' + id, {method: 'PUT', body: JSON.stringify({permissions: perms, code_quota: q === '' ? null : parseInt(q, 10)})});
+      showToast('تم الحفظ'); await loadResellers();
+    } catch (e) { showToast(e.detail || 'تعذّر الحفظ', 'error'); }
+  }
+  async function generateResellerCodes(id){
+    const n = parseInt(document.getElementById('rsCount').value, 10);
+    if (!n || n < 1 || n > 100){ showToast('العدد من 1 إلى 100', 'error'); return; }
+    try {
+      const res = await apiFetch('/api/admin/resellers/' + id + '/codes?count=' + n, {method: 'POST'});
+      showToast(`تم توليد ${res.codes.length} كود`); await loadResellers();
+    } catch (e) { showToast(e.detail || 'تعذّر التوليد', 'error'); }
+  }
+  async function openResellerAccount(id){
+    if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
+    showAccountDetails(id);
   }
   // accountName() reads allAccounts, which the store manager never loads.
   const _accountNameOrig = accountName;
@@ -4557,7 +4629,15 @@
     // ---- role specific
     let role = '';
     if (a.role === 'assistant') role = card('العمل', ed ? row('يعمل مع الدكتور', sel('efParent', [{value: '', label: '—'}].concat((acctOpts.professors || []).filter(o => o.value)), a.parent_user_id)) : row('يعمل مع الدكتور', esc(parent || '—')));
-    if (a.role === 'reseller') role = card('المندوب', ed ? row('حصة الأكواد', inp('efQuota', a.code_quota == null ? '' : a.code_quota, 'number', 'فارغ = بلا حد')) : row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota));
+    if (a.role === 'reseller'){
+      const rp = a.extra_permissions || [];
+      role = card('المندوب', ed
+        ? row('حصة الأكواد', inp('efQuota', a.code_quota == null ? '' : a.code_quota, 'number', 'فارغ = بلا حد')) +
+          row('الصلاحيات', RESELLER_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.84rem; margin:4px 0;"><input type="checkbox" class="efRsPerm" value="${o.value}" ${rp.includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join(''))
+        : row('حصة الأكواد', a.code_quota == null ? 'بلا حد' : a.code_quota) +
+          row('الصلاحيات', rp.length ? rp.map(x => `<span class="badge badge-active" style="margin:2px;">${esc(PERM_LABELS[x] || x)}</span>`).join('') : '<span class="cell-sub">لا صلاحيات</span>') +
+          `<div style="margin-top:12px;"><button class="btn btn-ghost" onclick="resellerOpen='${a.id}'; showSection('resellers')">فتح صفحة المندوب (الأكواد والتوليد)</button></div>`);
+    }
     if (a.role === 'representative') role = card('نطاق الممثل', ed
       ? row('الجامعة / الكلية', sel('efScopeUni', acctOpts.scope.unis, a.scope_university_id)) + row('القسم', sel('efScopeDept', acctOpts.scope.depts, a.scope_department_id)) + row('المرحلة', sel('efScopeStage', acctOpts.scope.stages, a.scope_stage_id))
       : row('يمثّل', nm(a.scope_university_id)) + row('القسم', a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام') + row('المرحلة', a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'));
@@ -4652,7 +4732,8 @@
     if (!name || !email){ showToast('الاسم والبريد الإلكتروني مطلوبان', 'error'); return; }
     const body = {full_name: name, email, username: (v('efUsername') || '').trim(), role, phone: (v('efPhone') || '').trim(), password: v('efPass') || null};
     if (role === 'assistant') body.parent_user_id = v('efParent') || null;
-    if (role === 'reseller') { const q = v('efQuota'); body.code_quota = q === '' || q == null ? null : Number(q); }
+    if (role === 'reseller') { const q = v('efQuota'); body.code_quota = q === '' || q == null ? null : Number(q);
+      if (document.querySelector('.efRsPerm')) body.permissions = [...document.querySelectorAll('.efRsPerm:checked')].map(x => x.value); }
     if (role === 'representative'){
       if (!v('efScopeUni')){ showToast('اختر الجامعة/الكلية التي يمثّلها', 'error'); return; }
       body.scope_university_id = v('efScopeUni'); body.scope_department_id = v('efScopeDept') || null; body.scope_stage_id = v('efScopeStage') || null;
