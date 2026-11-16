@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     # Without a key the AI features report themselves as unavailable and the
     # rest of the platform is unaffected.
     anthropic_api_key: str = ""
+    # Free alternative: a Google AI Studio key (aistudio.google.com/apikey) has a
+    # free tier. Used when set, unless an Anthropic key is also set and
+    # AI_PROVIDER=anthropic.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    ai_provider: str = ""                  # "", "gemini" or "anthropic"
     ai_model: str = "claude-sonnet-5-5"
     ai_timeout_seconds: int = 120
     ai_rate_limit_per_hour: int = 40       # chat messages per user per hour

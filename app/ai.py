@@ -44,8 +44,18 @@ class RateLimited(Exception):
     pass
 
 
+def provider() -> str:
+    """"gemini" (free tier) or "anthropic". Gemini wins unless AI_PROVIDER says otherwise."""
+    want = (settings.ai_provider or "").lower()
+    if want == "anthropic" and settings.anthropic_api_key:
+        return "anthropic"
+    if settings.gemini_api_key and want != "anthropic":
+        return "gemini"
+    return "anthropic"
+
+
 def enabled() -> bool:
-    return bool(settings.anthropic_api_key)
+    return bool(settings.gemini_api_key or settings.anthropic_api_key)
 
 
 # ------------------------------------------------------------ rate limiting
@@ -70,7 +80,7 @@ def check_rate(user_id: str, kind: str, limit: int) -> None:
 def _post(payload: dict) -> dict:
     """The one place that touches the network (tests replace it)."""
     if not enabled():
-        raise AIUnavailable("المساعد الذكي غير مفعّل على هذا الخادم — يلزم ضبط ANTHROPIC_API_KEY")
+        raise AIUnavailable("المساعد الذكي غير مفعّل على هذا الخادم — يلزم ضبط GEMINI_API_KEY (مجاني) أو ANTHROPIC_API_KEY")
     try:
         r = httpx.post(
             API_URL,
@@ -99,7 +109,68 @@ def _text_of(response: dict) -> str:
     return "".join(b.get("text", "") for b in response.get("content", []) if b.get("type") == "text").strip()
 
 
+# ------------------------------------------------------------ Gemini (free)
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+def _gemini_post(body: dict) -> dict:
+    """The one place that talks to Gemini (tests replace it)."""
+    try:
+        r = httpx.post(
+            GEMINI_URL.format(model=settings.gemini_model), json=body,
+            headers={"x-goog-api-key": settings.gemini_api_key, "content-type": "application/json"},
+            timeout=settings.ai_timeout_seconds,
+        )
+    except httpx.TimeoutException:
+        raise AIError("انتهت مهلة الاتصال بالمساعد الذكي — حاول مرة أخرى (أو جرّب ملفًا أصغر)")
+    except httpx.HTTPError:
+        raise AIError("تعذّر الاتصال بخدمة الذكاء الاصطناعي")
+    if r.status_code in (400, 401, 403) and "API key" in r.text:
+        raise AIError("مفتاح الذكاء الاصطناعي على الخادم غير صالح")
+    if r.status_code == 429:
+        raise AIError("وصلنا للحد المجاني لخدمة الذكاء الاصطناعي الآن — حاول بعد دقيقة (أو غدًا إن انتهت حصة اليوم)")
+    if r.status_code >= 400:
+        raise AIError("رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)")
+    return r.json()
+
+
+def _gemini_parts(content) -> list[dict]:
+    """Claude-style content blocks -> Gemini parts."""
+    if isinstance(content, str):
+        return [{"text": content}]
+    parts = []
+    for b in content:
+        t = b.get("type")
+        if t == "text":
+            parts.append({"text": b.get("text", "")})
+        elif t in ("document", "image"):
+            src = b.get("source", {})
+            parts.append({"inline_data": {"mime_type": src.get("media_type", ""), "data": src.get("data", "")}})
+    return parts
+
+
+def _gemini_text(resp: dict) -> str:
+    try:
+        parts = resp["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError):
+        raise AIError("لم يُرجع المساعد نتيجة مفهومة — حاول مرة أخرى")
+    return "".join(p.get("text", "") for p in parts).strip()
+
+
+def _gemini_generate(system: str, messages: list[dict], max_tokens: int, json_mode: bool = False) -> str:
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "model" if m["role"] == "assistant" else "user", "parts": _gemini_parts(m["content"])} for m in messages],
+        "generationConfig": {"maxOutputTokens": max(max_tokens, 2000), "temperature": 0.4,
+                             **({"responseMimeType": "application/json"} if json_mode else {}),
+                             "thinkingConfig": {"thinkingBudget": 0}},
+    }
+    return _gemini_text(_gemini_post(body))
+
+
 def complete(system: str, messages: list[dict], max_tokens: int = 1200) -> str:
+    if provider() == "gemini":
+        return _gemini_generate(system, messages, max_tokens)
     resp = _post({"model": settings.ai_model, "max_tokens": max_tokens, "system": system, "messages": messages})
     return _text_of(resp)
 
@@ -107,6 +178,21 @@ def complete(system: str, messages: list[dict], max_tokens: int = 1200) -> str:
 def call_tool(system: str, content: list[dict], tool: dict, max_tokens: int = 8000) -> dict:
     """Forces the model to answer through `tool`'s JSON schema, which is far
     more reliable than asking for JSON in prose."""
+    if provider() == "gemini":
+        import json as _json
+        schema = _json.dumps(tool["input_schema"], ensure_ascii=False)
+        content = list(content) + [{"type": "text", "text":
+                                    "أجب بكائن JSON واحد فقط (بدون أي نص آخر) يطابق هذا الـ JSON Schema:\n" + schema}]
+        raw = _gemini_generate(system, [{"role": "user", "content": content}], max_tokens, json_mode=True)
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            raw = raw[4:] if raw.lower().startswith("json") else raw
+        try:
+            data = _json.loads(raw)
+        except ValueError:
+            raise AIError("لم يُرجع المساعد نتيجة مفهومة — حاول مرة أخرى")
+        return data if isinstance(data, dict) else {}
     resp = _post({
         "model": settings.ai_model, "max_tokens": max_tokens, "system": system,
         "messages": [{"role": "user", "content": content}],
