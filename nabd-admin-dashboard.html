@@ -884,17 +884,11 @@
 
       <!-- ===== ADMIN: summer training ===== -->
       <section class="dash-section" id="sec-summer">
+        <div class="st-kpis" id="summerKpis"></div>
         <div class="dash-card glass">
-          <div class="dash-card-head">
-            <span class="dash-card-title">التدريب الصيفي</span>
-            <button class="btn" onclick="promptSummer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة فرصة تدريب</button>
-          </div>
-          <div class="table-wrap">
-            <table class="dash-table">
-              <thead><tr><th>العنوان</th><th>القسم</th><th>المكان</th><th>الفترة</th><th>الحالة</th><th></th></tr></thead>
-              <tbody id="summerBody"></tbody>
-            </table>
-          </div>
+          <div class="dash-card-head"><span class="dash-card-title">التدريب الصيفي</span><button class="btn" onclick="promptSummer()">+ إضافة فرصة تدريب</button></div>
+          <div class="ops-filters" id="summerFilters"></div>
+          <div id="summerList"></div>
         </div>
       </section>
 
@@ -933,6 +927,7 @@
 
       <!-- ===== ADMIN: Store ===== -->
       <section class="dash-section" id="sec-store">
+        <div class="st-kpis" id="storeKpis"></div>
         <div class="dash-card glass">
           <div class="tabs">
             <button class="tab-btn active" data-stab="orders" onclick="switchStoreTab('orders')">الطلبات</button>
@@ -940,21 +935,16 @@
             <button class="tab-btn" data-stab="categories" onclick="switchStoreTab('categories')">أقسام المتجر</button>
           </div>
           <div class="tab-panel active" id="stab-orders">
-            <div class="table-wrap">
-              <table class="dash-table">
-                <thead><tr><th>المشتري</th><th>المنتجات</th><th>الإجمالي</th><th>الدفع</th><th>الحالة</th><th>التاريخ</th></tr></thead>
-                <tbody id="storeOrdersBody"></tbody>
-              </table>
-            </div>
+            <div class="ops-filters" id="ordFilters"></div>
+            <div id="ordList"></div>
+            <div class="ops-pager" id="ordPager"></div>
           </div>
           <div class="tab-panel" id="stab-products">
-            <button class="btn" style="margin-bottom:12px;" onclick="promptAddProduct()">+ إضافة منتج</button>
-            <div class="table-wrap">
-              <table class="dash-table">
-                <thead><tr><th>المنتج</th><th>القسم</th><th>النوع</th><th>السعر</th><th></th></tr></thead>
-                <tbody id="storeProductsBody"></tbody>
-              </table>
+            <div class="ops-filters">
+              <input type="text" class="q" id="prodQ" placeholder="ابحث باسم المنتج..." oninput="renderProducts()" />
+              <button class="btn" onclick="promptAddProduct()">+ إضافة منتج</button>
             </div>
+            <div class="media-grid" id="prodGrid"></div>
           </div>
           <div class="tab-panel" id="stab-categories">
             <button class="btn" style="margin-bottom:12px;" onclick="promptCategory()">+ إضافة قسم</button>
@@ -4289,33 +4279,52 @@
     ['orders','products','categories'].forEach(t => document.getElementById('stab-'+t).classList.toggle('active', t === tab));
   }
 
+  const ORDER_STATUS = {pending: 'قيد الانتظار', paid: 'مدفوع', fulfilled: 'مُسلَّم', cancelled: 'ملغي'};
+  const ORDER_BADGE = {pending: 'badge-idle', paid: 'badge-active', fulfilled: 'badge-active', cancelled: 'badge-disabled'};
+  let storeOrders = [], ordStatus = 'all', ordQ = '', ordShown = 25;
   async function loadStore(){
-    if (!liveMode){
-      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً لعرض الطلبات</td></tr>`;
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="5" class="empty-row">سجّل دخول حقيقي أولاً لعرض المنتجات</td></tr>`;
-      return;
-    }
-    try {
-      const orders = await apiFetch('/api/admin/store/orders');
-      const statusLabel = {pending: 'قيد الانتظار', paid: 'مدفوع', fulfilled: 'مكتمل', cancelled: 'ملغي'};
-      document.getElementById('storeOrdersBody').innerHTML = orders.map(o => `
-        <tr>
-          <td><div class="cell-name">${esc(o.buyer_name)}</div><div class="cell-sub mono">${esc(o.buyer_email)}</div></td>
-          <td>${o.items.map(i => `${esc(i.product_name)} ×${i.qty}`).join('، ') || '—'}</td>
-          <td class="mono">${fmtIQD(o.total)}</td>
-          <td>${o.payment_method === 'cod' ? 'عند الاستلام' : 'زين كاش'}</td>
-          <td>
-            <select onchange="updateOrderStatus('${o.id}', this.value)" style="font-size:.72rem; padding:4px 6px;">
-              ${['pending','paid','fulfilled','cancelled'].map(s => `<option value="${s}" ${s===o.status?'selected':''}>${statusLabel[s]}</option>`).join('')}
-            </select>
-          </td>
-          <td>${fmtDate(o.created_at)}</td>
-        </tr>
-      `).join('') || `<tr><td colspan="6" class="empty-row">لا توجد طلبات بعد</td></tr>`;
-    } catch (e) {
-      document.getElementById('storeOrdersBody').innerHTML = `<tr><td colspan="6" class="empty-row">${esc(e.detail || 'تعذّر تحميل الطلبات')}</td></tr>`;
-    }
+    if (!liveMode){ document.getElementById('ordList').innerHTML = '<div class="empty-row">سجّل دخول حقيقي أولاً لعرض الطلبات</div>'; return; }
+    try { storeOrders = await apiFetch('/api/admin/store/orders'); }
+    catch (e) { document.getElementById('ordList').innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل الطلبات')}</div>`; storeOrders = []; }
+    renderOrders();
     await loadStoreProducts();
+  }
+  function renderOrders(){
+    const cnt = k => storeOrders.filter(o => o.status === k).length;
+    const paidSum = storeOrders.filter(o => ['paid', 'fulfilled'].includes(o.status)).reduce((a, o) => a + o.total, 0);
+    const today = storeOrders.filter(o => new Date(o.created_at + 'Z').toDateString() === new Date().toDateString()).length;
+    document.getElementById('storeKpis').innerHTML = kpiRow([['طلبات تنتظر إجراء', numAr(cnt('pending')), cnt('pending') ? 'قيد الانتظار' : ''], ['إيرادات مؤكدة', fmtIQD(paidSum), `${numAr(cnt('paid') + cnt('fulfilled'))} طلب مدفوع`], ['طلبات اليوم', numAr(today)], ['المنتجات', numAr(storeProducts.length)], ['ملغية', numAr(cnt('cancelled'))]]);
+    const chips = [['all', 'الكل', storeOrders.length], ...Object.keys(ORDER_STATUS).map(k => [k, ORDER_STATUS[k], cnt(k)])];
+    document.getElementById('ordFilters').innerHTML = chips.map(([k, l, n]) => `<button class="cat-tab ${k === ordStatus ? 'on' : ''}" onclick="ordStatus='${k}'; ordShown=25; renderOrders()">${l} <b>${n}</b></button>`).join('') +
+      `<input type="text" class="q" placeholder="ابحث باسم المشتري أو بريده أو المنتج..." value="${esc(ordQ)}" oninput="ordQ=this.value; ordShown=25; clearTimeout(window.__ordT); window.__ordT=setTimeout(()=>{renderOrders(); const i=document.querySelector('#ordFilters .q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);}, 250)" />`;
+    const q = ordQ.trim().toLowerCase();
+    const list = storeOrders.filter(o => (ordStatus === 'all' || o.status === ordStatus) && (!q || [o.buyer_name, o.buyer_email, ...o.items.map(i => i.product_name)].some(v => (v || '').toLowerCase().includes(q))));
+    document.getElementById('ordList').innerHTML = list.slice(0, ordShown).map(o => `
+      <div class="notif-card">
+        <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;"><div style="font-weight:800;">${esc(o.buyer_name)} <span class="badge ${ORDER_BADGE[o.status] || ''}">${ORDER_STATUS[o.status] || o.status}</span></div>
+            <div class="cell-sub" dir="ltr" style="text-align:start;">${esc(o.buyer_email)}</div>
+            <div style="margin-top:8px; font-size:.84rem; line-height:1.9;">${o.items.map(i => `${esc(i.product_name)} <span class="cell-sub">×${i.qty}</span>`).join(' · ') || '—'}</div>
+            ${o.delivery_name || o.delivery_address ? `<div class="ban-quote"><b>التوصيل:</b> ${esc(o.delivery_name || '')} ${o.delivery_phone ? ' · <span dir="ltr">' + esc(o.delivery_phone) + '</span>' : ''}<br>${esc(o.delivery_address || '')}</div>` : ''}</div>
+          <div style="text-align:end;"><div class="mono" style="font-weight:800; font-size:1.05rem;">${fmtIQD(o.total)}</div><div class="cell-sub">${o.payment_method === 'cod' ? 'عند الاستلام' : 'زين كاش'} · ${ago(o.created_at)}</div></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          ${o.status === 'pending' ? `<button class="btn" style="padding:6px 14px; font-size:.76rem;" onclick="setOrderStatus('${o.id}','paid')">تأكيد الدفع</button>` : ''}
+          ${o.status === 'paid' ? `<button class="btn" style="padding:6px 14px; font-size:.76rem;" onclick="setOrderStatus('${o.id}','fulfilled')">تم التسليم</button>` : ''}
+          ${['pending', 'paid'].includes(o.status) ? `<button class="btn btn-ghost" style="padding:6px 14px; font-size:.76rem; color:var(--danger);" onclick="setOrderStatus('${o.id}','cancelled')">إلغاء الطلب</button>` : ''}
+          <select onchange="setOrderStatus('${o.id}', this.value)" style="font-size:.74rem; padding:5px 8px; margin-inline-start:auto;">${Object.keys(ORDER_STATUS).map(k => `<option value="${k}" ${k === o.status ? 'selected' : ''}>${ORDER_STATUS[k]}</option>`).join('')}</select>
+        </div></div>`).join('') || '<div class="empty-row">لا توجد طلبات بهذه المواصفات</div>';
+    document.getElementById('ordPager').innerHTML = list.length > ordShown ? `<button class="btn btn-ghost" onclick="ordShown+=25; renderOrders()">عرض المزيد (${numAr(list.length - ordShown)})</button>` : '';
+  }
+  async function setOrderStatus(id, status){
+    const label = {paid: 'تأكيد الدفع (يصدر أكواد التفعيل للمشتري إن كان فيها)', fulfilled: 'تسجيل التسليم', cancelled: 'إلغاء الطلب'}[status];
+    if (label && !await confirmModal(`${label}؟`)) { renderOrders(); return; }
+    try {
+      const r = await apiFetch('/api/admin/store/orders/' + id + '/status?' + new URLSearchParams({status}), {method: 'PUT'});
+      showToast('تم تحديث حالة الطلب' + ((r.granted_activation_codes || []).length ? ` — أُصدر ${r.granted_activation_codes.length} كود` : ''));
+      const o = storeOrders.find(x => x.id === id); if (o) o.status = status;
+      renderOrders();
+    } catch (e) { showToast(e.detail || 'تعذّر تحديث الحالة', 'error'); loadStore(); }
   }
 
   async function loadStoreProducts(){
@@ -4323,23 +4332,28 @@
       storeCategories = await apiFetch('/api/admin/store/categories');
       renderStoreCategories();
       storeProducts = await apiFetch('/api/admin/store/products');
-      document.getElementById('storeProductsBody').innerHTML = storeProducts.map(p => `
-        <tr>
-          <td>${esc(p.name)}</td>
-          <td>${esc(storeCategoryName(p.category_id))}</td>
-          <td>${PRODUCT_TYPE_LABEL[p.type] || p.type}</td>
-          <td class="mono">${fmtIQD(p.price)}</td>
-          <td style="text-align:end;">
-            <div style="display:flex; gap:6px; justify-content:flex-end;">
-              <button class="icon-btn" aria-label="تعديل المنتج" style="width:30px;height:30px;" title="تعديل" onclick="promptEditProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-              <button class="icon-btn" aria-label="حذف المنتج" style="width:30px;height:30px;" title="حذف" onclick="deleteProduct('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
-            </div>
-          </td>
-        </tr>
-      `).join('') || `<tr><td colspan="5" class="empty-row">لا توجد منتجات بعد</td></tr>`;
-    } catch (e) {
-      document.getElementById('storeProductsBody').innerHTML = `<tr><td colspan="5" class="empty-row">${esc(e.detail || 'تعذّر تحميل المنتجات')}</td></tr>`;
-    }
+      renderProducts();
+      if (typeof renderOrders === 'function' && storeOrders.length) renderOrders();
+    } catch (e) { document.getElementById('prodGrid').innerHTML = `<div class="empty-row">${esc(e.detail || 'تعذّر تحميل المنتجات')}</div>`; }
+  }
+  function renderProducts(){
+    const q = (document.getElementById('prodQ')?.value || '').trim().toLowerCase();
+    const sold = {};
+    storeOrders.filter(o => ['paid', 'fulfilled'].includes(o.status)).forEach(o => o.items.forEach(i => { sold[i.product_name] = (sold[i.product_name] || 0) + i.qty; }));
+    const list = storeProducts.filter(p => !q || p.name.toLowerCase().includes(q));
+    document.getElementById('prodGrid').innerHTML = list.map(p => `
+      <div class="media-card" style="cursor:pointer;" onclick="productMenu('${p.id}')">
+        <div class="media-thumb" style="height:84px; font-size:1.3rem; font-weight:800; color:var(--accent);">${fmtIQD(p.price)}</div>
+        <div class="media-info"><div class="n" title="${esc(p.name)}">${esc(p.name)}</div>
+          <div class="m">${PRODUCT_TYPE_LABEL[p.type] || p.type} · ${esc(storeCategoryName(p.category_id))}</div>
+          <div>${p.is_activation_code ? '<span class="badge badge-active">كود تفعيل</span> ' : ''}<span class="cell-sub">بيع ${numAr(sold[p.name] || 0)}</span></div></div></div>`).join('') || '<div class="empty-row">لا توجد منتجات</div>';
+  }
+  function productMenu(id){
+    const p = storeProducts.find(x => x.id === id); if (!p) return;
+    openActionPage('المنتج: ' + p.name, [
+      {label: 'تعديل المنتج', fn: () => promptEditProduct(id)},
+      {label: 'حذف المنتج', danger: true, fn: () => deleteProduct(id)},
+    ]);
   }
 
   async function updateOrderStatus(orderId, status){
@@ -4469,22 +4483,51 @@
 
   // ===== ADMIN: summer training =====
   let allSummer = [];
+  let summerFilter = 'all', summerQ = '';
+  const summerState = t => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (t.ends_on && t.ends_on < today) return 'ended';
+    if (t.starts_on && t.starts_on > today) return 'upcoming';
+    return t.starts_on || t.ends_on ? 'running' : 'open';
+  };
+  const SUMMER_STATE = {ended: ['انتهت', 'badge-disabled'], upcoming: ['قادمة', 'badge-idle'], running: ['جارية', 'badge-active'], open: ['بدون موعد', 'badge-idle']};
   async function loadSummer(){
-    if (!liveMode){ document.getElementById('summerBody').innerHTML = `<tr><td colspan="6" class="empty-row">سجّل دخول حقيقي أولاً</td></tr>`; return; }
+    if (!liveMode){ document.getElementById('summerList').innerHTML = '<div class="empty-row">سجّل دخول حقيقي أولاً</div>'; return; }
     await loadSectionNames();
     allSummer = await liveOrDemo('/api/admin/summer-trainings', [], []);
-    document.getElementById('summerBody').innerHTML = allSummer.map(t => `
-      <tr>
-        <td><div class="cell-name">${esc(t.title)}</div></td>
-        <td>${esc(sectionNameById[t.section_id] || 'كل الأقسام')}</td>
-        <td>${esc(t.location || '—')}</td>
-        <td>${esc([t.starts_on, t.ends_on].filter(Boolean).join(' → ') || '—')}</td>
-        <td>${t.is_active ? '<span class="badge badge-active">ظاهر للطلاب</span>' : '<span class="badge badge-disabled">مخفي</span>'}</td>
-        <td style="text-align:end;"><div style="display:flex; gap:6px; justify-content:flex-end;">
-          <button class="btn btn-ghost" style="padding:6px 10px; font-size:.7rem;" onclick="promptSummer('${t.id}')">تعديل</button>
-          <button class="icon-btn" aria-label="حذف" style="width:30px;height:30px;" onclick="deleteSummer('${t.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
-        </div></td>
-      </tr>`).join('') || `<tr><td colspan="6" class="empty-row">لا توجد فرص تدريب — أضف واحدة وتظهر لطلاب القسم المختار</td></tr>`;
+    renderSummer();
+  }
+  function renderSummer(){
+    const n = f => allSummer.filter(f).length;
+    document.getElementById('summerKpis').innerHTML = kpiRow([['كل الفرص', numAr(allSummer.length)], ['ظاهرة للطلاب', numAr(n(t => t.is_active))], ['مخفية', numAr(n(t => !t.is_active))], ['جارية الآن', numAr(n(t => t.is_active && summerState(t) === 'running'))], ['منتهية', numAr(n(t => summerState(t) === 'ended'))]]);
+    const chips = [['all', 'الكل', allSummer.length], ['visible', 'ظاهرة', n(t => t.is_active)], ['hidden', 'مخفية', n(t => !t.is_active)], ['upcoming', 'قادمة', n(t => summerState(t) === 'upcoming')], ['ended', 'منتهية', n(t => summerState(t) === 'ended')]];
+    document.getElementById('summerFilters').innerHTML = chips.map(([k, l, c]) => `<button class="cat-tab ${k === summerFilter ? 'on' : ''}" onclick="summerFilter='${k}'; renderSummer()">${l} <b>${c}</b></button>`).join('') +
+      `<input type="text" class="q" placeholder="ابحث بالعنوان أو المكان..." value="${esc(summerQ)}" oninput="summerQ=this.value; clearTimeout(window.__sumT); window.__sumT=setTimeout(()=>{renderSummer(); const i=document.querySelector('#summerFilters .q'); i.focus(); i.setSelectionRange(i.value.length,i.value.length);}, 250)" />`;
+    const q = summerQ.trim().toLowerCase();
+    const list = allSummer.filter(t => (summerFilter === 'all' || (summerFilter === 'visible' && t.is_active) || (summerFilter === 'hidden' && !t.is_active) || summerState(t) === summerFilter) && (!q || [t.title, t.location, t.description].some(v => (v || '').toLowerCase().includes(q))));
+    document.getElementById('summerList').innerHTML = list.map(t => {
+      const [sl, sb] = SUMMER_STATE[summerState(t)];
+      return `<div class="notif-card" style="${t.is_active ? '' : 'opacity:.75;'}">
+        <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+          <div style="flex:1; min-width:220px;"><div style="font-weight:800; font-size:1rem;">${esc(t.title)} <span class="badge ${sb}">${sl}</span> ${t.is_active ? '' : '<span class="badge badge-disabled">مخفية</span>'}</div>
+            <div class="cell-sub" style="margin-top:4px;">📍 ${esc(t.location || 'بدون مكان')} · 🎓 ${esc(sectionNameById[t.section_id] || 'كل الأقسام')} · 📅 <bdi dir="ltr">${esc([t.starts_on, t.ends_on].filter(Boolean).join(' → ') || 'بدون موعد')}</bdi></div>
+            ${t.description ? `<div class="ban-quote" style="margin-top:8px;">${esc(t.description)}</div>` : ''}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            ${t.apply_url ? `<button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem;" onclick="window.open('${esc(t.apply_url)}', '_blank', 'noopener')">رابط التقديم</button>` : ''}
+            <button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem;" onclick="toggleSummer('${t.id}')">${t.is_active ? 'إخفاء' : 'إظهار'}</button>
+            <button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem;" onclick="promptSummer('${t.id}')">تعديل</button>
+            <button class="btn btn-ghost" style="padding:5px 12px; font-size:.72rem; color:var(--danger);" onclick="deleteSummer('${t.id}')">حذف</button>
+          </div></div></div>`;
+    }).join('') || '<div class="empty-row">لا توجد فرص بهذه المواصفات — أضف واحدة وتظهر لطلاب القسم المختار</div>';
+  }
+  async function toggleSummer(id){
+    const t = allSummer.find(x => x.id === id); if (!t) return;
+    try {
+      await apiFetch('/api/admin/summer-trainings/' + id, {method: 'PUT', body: JSON.stringify({
+        title: t.title, description: t.description || '', location: t.location || '', starts_on: t.starts_on || '', ends_on: t.ends_on || '',
+        apply_url: t.apply_url || '', section_id: t.section_id || null, is_active: !t.is_active})});
+      showToast(t.is_active ? 'أُخفيت الفرصة عن الطلاب' : 'صارت ظاهرة للطلاب'); loadSummer();
+    } catch (e) { showToast(e.detail || 'تعذّر التنفيذ', 'error'); }
   }
   async function promptSummer(id){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
