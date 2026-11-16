@@ -161,9 +161,9 @@ def _gemini_generate(system: str, messages: list[dict], max_tokens: int, json_mo
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": [{"role": "model" if m["role"] == "assistant" else "user", "parts": _gemini_parts(m["content"])} for m in messages],
-        "generationConfig": {"maxOutputTokens": max(max_tokens, 2000), "temperature": 0.4,
-                             **({"responseMimeType": "application/json"} if json_mode else {}),
-                             "thinkingConfig": {"thinkingBudget": 0}},
+        # thinking models count their reasoning inside the output budget, so leave room
+        "generationConfig": {"maxOutputTokens": max(max_tokens * 2, 8192), "temperature": 0.4,
+                             **({"responseMimeType": "application/json"} if json_mode else {})},
     }
     return _gemini_text(_gemini_post(body))
 

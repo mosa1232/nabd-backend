@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     # free tier. Used when set, unless an Anthropic key is also set and
     # AI_PROVIDER=anthropic.
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-flash-latest"   # always the current Flash model
     ai_provider: str = ""                  # "", "gemini" or "anthropic"
     ai_model: str = "claude-sonnet-5-5"
     ai_timeout_seconds: int = 120
