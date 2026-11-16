@@ -121,6 +121,8 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
         if not parent or parent.role != models.Role.professor or parent.is_banned:
             raise HTTPException(403, "حساب المساعد غير مرتبط بدكتور فعّال")
         owner_id = parent.id
+    elif user.role in (models.Role.owner, models.Role.admin):
+        raise HTTPException(403, "اختر الدكتور من «عرض لوحة دكتور» بأعلى الصفحة أولًا، لأن هذا الإجراء يُحفظ باسم دكتور ومادته")
     else:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
     profiles = db.query(models.ProfessorProfile).filter(
@@ -138,10 +140,20 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
     return profiles[0]
 
 
+def _draft_profile(db: Session, user: models.User, perm: str):
+    """Drafting (AI generation, file import) saves nothing, so the owner/admin may
+    do it without picking a doctor; saving still needs one."""
+    if user.role in (models.Role.owner, models.Role.admin):
+        return None
+    return _get_own_profile(db, user, perm)
+
+
 @router.get("/me/subjects")
 def my_subjects(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Every subject the signed-in doctor (or their assistant's doctor) teaches,
     with the department it belongs to — drives the subject switcher."""
+    if user.role in (models.Role.owner, models.Role.admin):
+        return []   # the owner picks a doctor on the page; nothing to switch here
     owner_id = user.id if user.role == models.Role.professor else user.parent_user_id
     if user.role not in (models.Role.professor, models.Role.assistant) or not owner_id:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
@@ -903,7 +915,7 @@ async def ai_generate_questions(
     """The doctor uploads a lecture/booklet (PDF, Word, text or image) and the
     AI drafts questions from it. Nothing is saved here: the doctor reviews the
     drafts and saves the ones they want through /me/questions/bulk."""
-    profile = _get_own_profile(db, user, "prof.questions")
+    profile = _draft_profile(db, user, "prof.questions")
     if not (1 <= count <= 30):
         raise HTTPException(400, "العدد يجب أن يكون بين 1 و30")
     wanted = [t.strip() for t in types.split(",") if t.strip() in ("mcq", "true_false", "essay")]
@@ -912,13 +924,13 @@ async def ai_generate_questions(
     _ai_guard(user, "generate")
     data = await file.read()
     blocks = _ai_call(ai.file_blocks, file.filename, data)
-    subject_name = profile.subject.name if profile.subject else ""
+    subject_name = profile.subject.name if profile and profile.subject else ""
     questions, skipped = _ai_call(ai.generate_questions, blocks, subject_name, count, wanted, difficulty[:40], notes)
     if not questions:
         raise HTTPException(502, "لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
     # Warn about drafts that are already in the bank (the search model's job).
     for q in questions:
-        q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"])
+        q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"]) if profile else None
     return {"questions": questions, "skipped": skipped}
 
 
@@ -930,7 +942,7 @@ async def ai_generate_pearls(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    profile = _get_own_profile(db, user, "prof.pearls")
+    profile = _draft_profile(db, user, "prof.pearls")
     if not (1 <= count <= 10):
         raise HTTPException(400, "العدد يجب أن يكون بين 1 و10")
     blocks = []
@@ -939,7 +951,7 @@ async def ai_generate_pearls(
     if not blocks and not topic.strip():
         raise HTTPException(400, "ارفع ملفًا أو اكتب موضوعًا")
     _ai_guard(user, "generate")
-    subject_name = profile.subject.name if profile.subject else ""
+    subject_name = profile.subject.name if profile and profile.subject else ""
     pearls = _ai_call(ai.generate_pearls, blocks, subject_name, count, topic)
     if not pearls:
         raise HTTPException(502, "لم يستطع المساعد توليد لمحات — جرّب موضوعًا أوضح")
@@ -958,13 +970,13 @@ def _download(data: bytes, media: str, ascii_name: str, filename: str) -> Respon
 
 @router.get("/me/questions/template/excel")
 def questions_template_excel(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    _get_own_profile(db, user, "prof.questions")
+    _draft_profile(db, user, "prof.questions")
     return _download(qimport.build_excel_template(), _XLSX, "questions.xlsx", "قالب الأسئلة.xlsx")
 
 
 @router.get("/me/questions/template/word")
 def questions_template_word(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    _get_own_profile(db, user, "prof.questions")
+    _draft_profile(db, user, "prof.questions")
     return _download(qimport.build_docx_template(), _DOCX, "questions.docx", "قالب الأسئلة.docx")
 
 
@@ -976,7 +988,7 @@ async def import_questions_file(
 ):
     """Reads an Excel/Word file into question drafts. Nothing is saved: the
     doctor reviews the preview and saves what they want via /me/questions/bulk."""
-    profile = _get_own_profile(db, user, "prof.questions")
+    profile = _draft_profile(db, user, "prof.questions")
     data = await file.read(qimport.MAX_BYTES + 1)
     name = (file.filename or "").lower()
     try:
@@ -991,5 +1003,5 @@ async def import_questions_file(
     except qimport.ImportFileError as e:
         raise HTTPException(400, str(e))
     for d in drafts:
-        d["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, d["text"])
+        d["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, d["text"]) if profile else None
     return {"questions": drafts, "errors": errors, "filename": (file.filename or "")[:120]}
