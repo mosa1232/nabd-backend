@@ -227,6 +227,23 @@
   .ai-draft input[type=checkbox]{width:18px; height:18px; margin-top:3px; flex:none; padding:0;}
   /* curriculum page */
   .cat-search{width:100%; max-width:340px;}
+  .cat-crumbs{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px; font-size:.82rem; font-weight:700;}
+  .cat-crumbs button{color:var(--accent); background:none; font:inherit; cursor:pointer; padding:2px 4px;}
+  .cat-crumbs .sep{color:var(--ink-faint);}
+  .cat-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center;}
+  .cat-tab{padding:7px 14px; border-radius:999px; border:1.5px solid var(--glass-border); background:var(--glass-bg); font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; color:var(--ink);}
+  .cat-tab.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .cat-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; margin-bottom:14px;}
+  .cat-card{border:1px solid var(--glass-border); border-radius:18px; background:var(--glass-bg-strong); padding:16px 14px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; position:relative; transition:transform .12s, border-color .12s;}
+  .cat-card:hover{transform:translateY(-2px); border-color:var(--accent);}
+  .cat-avatar{width:56px; height:56px; border-radius:50%; display:grid; place-items:center; font-size:1.3rem; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--accent),#7c5cff);}
+  .cat-card-name{font-weight:800; font-size:.92rem;}
+  .cat-card-sub{font-size:.74rem; color:var(--ink-faint);}
+  .cat-card-acts{position:absolute; top:8px; inset-inline-start:8px; display:flex; gap:2px;}
+  .cat-card.addnew{border-style:dashed; justify-content:center; color:var(--accent); font-weight:800; min-height:130px;}
+  .cat-presets{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px;}
+  .cat-presets button{padding:6px 12px; border-radius:999px; border:1.5px dashed var(--glass-border); background:transparent; font:inherit; font-size:.76rem; font-weight:700; cursor:pointer; color:var(--ink);}
+  .cat-presets button:hover{border-color:var(--accent); color:var(--accent);}
   .cat-add-root{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
   .cat-add-root input{flex:1; min-width:200px;}
   .cat-sec{border:1px solid var(--glass-border); border-radius:var(--radius-md,18px); padding:14px 16px; margin-bottom:14px; background:var(--glass-bg-strong);}
@@ -2317,6 +2334,24 @@
       <button class="btn btn-ghost" onclick="catalogInlineAdd('${parentType}','${parentId}')">أضف</button>
     </div>`;
 
+﻿  // ---- profile-style navigation: university cards -> department cards -> stages
+  const catNav = {sec: null, uni: null, dept: null};
+  const STAGE_PRESETS = ['المرحلة الأولى', 'المرحلة الثانية', 'المرحلة الثالثة', 'المرحلة الرابعة', 'المرحلة الخامسة', 'المرحلة السادسة'];
+  const catGo = (k, id) => {
+    if (k === 'sec') { catNav.sec = id; catNav.uni = catNav.dept = null; }
+    else if (k === 'uni') { catNav.uni = id; catNav.dept = null; }
+    else if (k === 'dept') catNav.dept = id;
+    else if (k === 'up') { if (id === 'sec') catNav.uni = catNav.dept = null; else if (id === 'uni') catNav.dept = null; }
+    renderCatalogTree();
+  };
+  const catCard = (type, row, sub, onclick) => `
+    <div class="cat-card" onclick="${onclick}">
+      <div class="cat-card-acts">${actions(type, row.id, true)}</div>
+      <div class="cat-avatar">${esc((row.name || '?').replace(/^(جامعة|قسم|كلية)\s+/, '').trim().charAt(0))}</div>
+      <div class="cat-card-name">${esc(row.name)}</div>
+      <div class="cat-card-sub">${sub}</div>
+    </div>`;
+
   function renderCatalogTree(){
     const el = document.getElementById('catalogTree');
     if (!catalogNested.length){
@@ -2325,54 +2360,108 @@
     }
     const q = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
     const has = t => t.toLowerCase().includes(q);
-    const html = catalogNested.map(sec => {
-      const secHit = !q || has(sec.name);
-      const unis = sec.universities.map(uni => {
-        const uniHit = secHit || has(uni.name);
-        const deptHtml = uni.departments.map(dept => {
-          const deptHit = uniHit || has(dept.name);
-          const stages = dept.stages.filter(st => deptHit || has(st.name) || st.subjects.some(sb => has(sb.name)));
-          if (q && !deptHit && !stages.length) return '';
-          const stageHtml = stages.map(st => `
-            <div class="cat-stage">
-              <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
-              <div class="cat-chips">${st.subjects.map(sb => `
-                <span class="cat-chip">${esc(sb.name)}
-                  <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
-                  <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
-                </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
-              ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
-            </div>`).join('');
-          return `
-            <div class="cat-dept" style="margin:8px 0; padding:8px 10px; border:1px dashed var(--glass-border); border-radius:var(--radius-sm);">
-              <div class="cat-stage-name" style="font-weight:800;">قسم: ${esc(dept.name)} <span class="cat-count">· ${dept.stages.length} مراحل</span> ${actions('department', dept.id, true)}</div>
-              ${stageHtml}
-              <div style="margin-top:8px;">${addBox('department', dept.id, '+ مرحلة (أو عدة مراحل مفصولة بفاصلة)')}</div>
-            </div>`;
-        }).join('');
-        if (q && !uniHit && !deptHtml) return '';
-        const open = q || catalogOpen.has(uni.id) ? 'open' : '';
-        return `
-          <details class="cat-uni" ${open} ontoggle="this.open ? catalogOpen.add('${uni.id}') : catalogOpen.delete('${uni.id}')">
-            <summary><span style="flex:1;">${esc(uni.name)} <span class="cat-count">· ${uni.departments.length} أقسام</span></span> ${actions('university', uni.id, true)}</summary>
-            <div class="cat-body">${deptHtml}
-              <div style="margin-top:8px;">${addBox('university', uni.id, '+ قسم (أو عدة أقسام مفصولة بفاصلة)')}</div>
-            </div>
-          </details>`;
-      }).join('');
-      if (q && !secHit && !unis) return '';
-      return `
-        <div class="cat-sec">
-          <div class="cat-head">
-            <span class="cat-title">${esc(sec.name)}</span>
-            <span class="cat-count">${sec.universities.length} جامعات</span>
-            ${actions('section', sec.id, true)}
-          </div>
-          ${unis}
-          <div style="margin-top:10px;">${addBox('section', sec.id, '+ جامعة (أو عدة جامعات مفصولة بفاصلة)')}</div>
-        </div>`;
-    }).join('');
-    el.innerHTML = html || `<div class="empty-row">لا توجد نتائج لهذا البحث</div>`;
+    // keep the position valid after reloads / deletions
+    let sec = catalogNested.find(x => x.id === catNav.sec) || catalogNested[0];
+    catNav.sec = sec.id;
+    let uni = sec.universities.find(x => x.id === catNav.uni) || null;
+    catNav.uni = uni ? uni.id : null;
+    let dept = uni ? (uni.departments.find(x => x.id === catNav.dept) || null) : null;
+    catNav.dept = dept ? dept.id : null;
+
+    const tabs = `<div class="cat-tabs">${catalogNested.map(x => `<button class="cat-tab ${x.id === sec.id ? 'on' : ''}" onclick="catGo('sec','${x.id}')">${esc(x.name)}</button>`).join('')}
+      <span style="margin-inline-start:auto; display:flex; gap:2px;">${actions('section', sec.id, true)}</span></div>`;
+    const crumbs = `<div class="cat-crumbs"><button onclick="catGo('up','sec')">${esc(sec.name)}</button>${
+      uni ? `<span class="sep">›</span><button onclick="catGo('up','uni')">${esc(uni.name)}</button>` : ''}${
+      dept ? `<span class="sep">›</span><span>${esc(dept.name)}</span>` : ''}</div>`;
+    let body = '';
+
+    if (!uni) {
+      const list = sec.universities.filter(u => !q || has(u.name));
+      body = `<div class="cat-grid">${list.map(u => catCard('university', u, `${u.departments.length} أقسام`, `catGo('uni','${u.id}')`)).join('')}</div>
+        ${list.length ? '' : '<div class="empty-row">لا توجد جامعات</div>'}
+        ${addBox('section', sec.id, '+ جامعة (أو عدة جامعات مفصولة بفاصلة)')}`;
+      el.innerHTML = tabs + body;
+      return;
+    }
+    if (!dept) {
+      const list = uni.departments.filter(d => !q || has(d.name));
+      body = `<div class="cat-grid">${list.map(d => catCard('department', d, `${d.stages.length} مراحل`, `catGo('dept','${d.id}')`)).join('')}
+        <div class="cat-card addnew" onclick="openAddDepartment('${uni.id}')">+ إضافة قسم</div></div>`;
+      el.innerHTML = tabs + crumbs + body;
+      return;
+    }
+    // department profile: its stages, each with its subjects
+    const have = new Set(dept.stages.map(s => s.name));
+    const missing = STAGE_PRESETS.filter(n => !have.has(n));
+    const stageHtml = dept.stages.filter(st => !q || has(st.name) || st.subjects.some(sb => has(sb.name))).map(st => `
+      <div class="cat-stage">
+        <div class="cat-stage-name">${esc(st.name)} ${actions('stage', st.id, false)}</div>
+        <div class="cat-chips">${st.subjects.map(sb => `
+          <span class="cat-chip">${esc(sb.name)}
+            <button title="تعديل" onclick="promptRenameCatalog('subject','${sb.id}')">✎</button>
+            <button class="danger" title="حذف" onclick="deleteCatalogNode('subject','${sb.id}')">✕</button>
+          </span>`).join('') || '<span class="cat-count">لا توجد مواد بعد</span>'}</div>
+        ${addBox('stage', st.id, '+ مادة (أو عدة مواد مفصولة بفاصلة)')}
+      </div>`).join('');
+    body = `
+      <div style="font-weight:800; margin-bottom:6px;">المراحل ${missing.length ? '<span class="cat-count">· اضغط لإضافة مرحلة</span>' : ''}</div>
+      ${missing.length ? `<div class="cat-presets">${missing.map(n => `<button onclick="catAddStagePreset('${dept.id}','${n}')">+ ${n}</button>`).join('')}</div>` : ''}
+      ${stageHtml || '<div class="empty-row">ما أُضيفت مراحل بعد — اختر من الأزرار أعلاه</div>'}
+      <div style="margin-top:10px;">${addBox('department', dept.id, '+ مرحلة بإسم آخر (أو عدة مراحل مفصولة بفاصلة)')}</div>`;
+    el.innerHTML = tabs + crumbs + body;
+  }
+
+  async function catAddStagePreset(deptId, name){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    try {
+      await apiFetch('/api/admin/catalog/bulk', {method: 'POST', body: JSON.stringify({parent_type: 'department', parent_id: deptId, names: [name]})});
+      await loadCatalog();
+    } catch (e) { showToast(e.detail || 'تعذّرت الإضافة', 'error'); }
+  }
+
+  // Add department(s) to a university and tick which stages it has.
+  function openAddDepartment(uniId){
+    if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    document.getElementById('addDeptOverlay')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'addDeptOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+    ov.innerHTML = `<div style="background:var(--glass-bg-strong,#fff);color:var(--ink);border-radius:18px;padding:20px;max-width:440px;width:100%;max-height:90vh;overflow:auto;">
+      <div style="font-weight:800;font-size:1rem;margin-bottom:12px;">إضافة قسم</div>
+      <label style="font-size:.78rem;font-weight:700;">اسم القسم (أو عدة أقسام، كل واحد بسطر)</label>
+      <textarea id="adNames" rows="3" style="width:100%;margin:6px 0 12px;padding:10px;border-radius:12px;border:1.5px solid var(--glass-border);background:transparent;color:var(--ink);font-family:inherit;" placeholder="التشريح&#10;الفسلجة"></textarea>
+      <div style="font-size:.78rem;font-weight:700;margin-bottom:6px;">اختر المراحل</div>
+      <div id="adStages" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+        ${STAGE_PRESETS.map(n => `<label style="display:flex;gap:6px;align-items:center;font-size:.8rem;"><input type="checkbox" value="${n}" checked /> ${n}</label>`).join('')}
+      </div>
+      <input id="adExtra" placeholder="مراحل أخرى (اختياري، مفصولة بفاصلة)" style="width:100%;padding:9px 12px;border-radius:999px;border:1.5px dashed var(--glass-border);background:transparent;color:var(--ink);font-family:inherit;margin-bottom:14px;" />
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="document.getElementById('addDeptOverlay').remove()">إلغاء</button>
+        <button class="btn" id="adGo" onclick="submitAddDepartment('${uniId}')">إضافة</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    setTimeout(() => document.getElementById('adNames').focus(), 30);
+  }
+
+  async function submitAddDepartment(uniId){
+    const names = document.getElementById('adNames').value.split(/[\n,،]+/).map(x => x.trim()).filter(Boolean);
+    if (!names.length){ showToast('اكتب اسم القسم', 'error'); return; }
+    const stages = [...document.querySelectorAll('#adStages input:checked')].map(i => i.value)
+      .concat(document.getElementById('adExtra').value.split(/[\n,،]+/).map(x => x.trim()).filter(Boolean));
+    const btn = document.getElementById('adGo'); btn.disabled = true;
+    try {
+      await apiFetch('/api/admin/catalog/bulk', {method: 'POST', body: JSON.stringify({parent_type: 'university', parent_id: uniId, names})});
+      await loadCatalog();
+      const uni = catalogNested.flatMap(s => s.universities).find(u => u.id === uniId);
+      if (stages.length && uni) {
+        for (const d of uni.departments.filter(d => names.includes(d.name))) {
+          await apiFetch('/api/admin/catalog/bulk', {method: 'POST', body: JSON.stringify({parent_type: 'department', parent_id: d.id, names: stages})});
+        }
+        await loadCatalog();
+      }
+      document.getElementById('addDeptOverlay')?.remove();
+      showToast(`أُضيف ${names.length} قسم مع ${stages.length} مراحل`);
+    } catch (e) { showToast(e.detail || 'تعذّرت الإضافة', 'error'); btn.disabled = false; }
   }
 
   // One box adds one name or many ("بغداد، البصرة، الموصل"). The tree keeps
