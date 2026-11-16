@@ -11,7 +11,7 @@
 <title>Kiur — معاينة الواجهة</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400..700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&family=Lexend:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
 <style>
   :root{
     --bg-1:#EAF0FF; --bg-2:#F7ECFF; --bg-3:#FFF8F0;
@@ -1446,6 +1446,53 @@
   .sp-closed{padding:10px 16px; font-size:.8rem; color:var(--ink-faint); text-align:center; border-top:1px solid var(--glass-border);}
   .sp-input{display:flex; gap:8px; padding:12px; border-top:1px solid var(--glass-border); align-items:flex-end;}
   .sp-input textarea{flex:1; resize:none; max-height:120px; padding:11px 14px; border-radius:14px; border:1.5px solid var(--glass-border); background:var(--glass-bg-strong, transparent); color:inherit; font:inherit;}
+
+  /* =================== Clean theme: flat, calm, fast =================== */
+  :root{
+    --page-bg:#F5F7FB; --surface:#FFFFFF; --line:rgba(22,33,58,.09);
+    --glass-bg:#FFFFFF; --glass-bg-strong:#FFFFFF; --glass-border:rgba(22,33,58,.09); --glass-shadow:rgba(22,33,58,.08);
+    --shadow-soft:0 1px 2px rgba(22,33,58,.05); --shadow-lift:0 6px 18px -10px rgba(22,33,58,.2);
+    --track:rgba(76,95,224,.10); --track-strong:rgba(76,95,224,.22);
+  }
+  html.dark{
+    --page-bg:#0E1220; --surface:#171C30; --line:rgba(255,255,255,.08);
+    --glass-bg:#171C30; --glass-bg-strong:#171C30; --glass-border:rgba(255,255,255,.08); --glass-shadow:rgba(0,0,0,.4);
+    --shadow-soft:none; --shadow-lift:0 6px 18px -10px rgba(0,0,0,.6);
+    --track:rgba(255,255,255,.07); --track-strong:rgba(139,154,255,.3);
+  }
+  html{font-size:16.5px;}
+  body{background:var(--page-bg) !important; background-attachment:scroll !important;}
+  *,*::before,*::after{backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
+  .glass{border-radius:20px; box-shadow:var(--shadow-soft);}
+  .hero::after, .daily-card::before{display:none !important;}
+  .daily-card::after{background:var(--surface) !important; border:1px solid var(--line); inset:0 !important; border-radius:inherit !important;}
+  .daily-card:hover, .tile:hover{transform:none !important; box-shadow:var(--shadow-soft) !important;}
+  .btn{background:var(--accent) !important; box-shadow:none !important; padding:12px 24px; font-size:.92rem;}
+  .btn:hover{filter:none !important; transform:none !important; background:color-mix(in srgb, var(--accent) 88%, #000) !important;}
+  .btn-ghost{background:var(--surface) !important; color:var(--ink) !important;}
+  .btn-ghost:hover{background:var(--track) !important;}
+  .tile-icon, .daily-icon, .sb-item.active{background:var(--accent) !important;}
+  .sb-item.active{color:#fff;}
+  .bn-item.active{background:var(--track); color:var(--accent);}
+  .bottom-nav{background:var(--surface) !important; box-shadow:none !important; border-top:1px solid var(--line);}
+  .bn-item{font-size:.68rem;}
+  .stat-ring::before{background:var(--surface);}
+  .page-title{font-size:1.4rem;} .page-sub, .item-meta{font-size:.88rem;}
+  /* home */
+  .hero{padding:22px;}
+  .hero-greeting{font-size:1.6rem;}
+  .home-sec{font-size:.82rem; font-weight:800; color:var(--ink-faint); letter-spacing:.04em; margin:22px 4px 10px;}
+  .tiles-main{grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:6px;}
+  .tile-card{background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:20px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:12px; color:inherit;}
+  .tile-card .tile-icon{width:50px; height:50px; border-radius:16px;} .tile-card .tile-label{font-size:.9rem; font-weight:700;}
+  .tile-card:hover{border-color:var(--accent) !important;}
+  .more-list{background:var(--surface); border:1px solid var(--line); border-radius:20px; overflow:hidden; margin-bottom:12px;}
+  .more-row{display:flex; align-items:center; gap:14px; width:100%; padding:15px 18px; text-align:start; border-bottom:1px solid var(--line); font-size:.95rem; font-weight:600; color:inherit;}
+  .more-row:last-child{border-bottom:none;} .more-row:hover{background:var(--track);}
+  .more-ic{width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:var(--track); color:var(--accent); flex:none;} .more-ic svg{width:19px; height:19px;}
+  .more-label{flex:1;} .more-chev{width:16px; height:16px; opacity:.4;}
+  .soon-line{text-align:center; font-size:.8rem; color:var(--ink-faint); margin:4px 0 22px;}
+  @media (max-width:720px){ .tiles-main{grid-template-columns:repeat(2,1fr);} .hero-actions .btn{flex:1 1 100%; justify-content:center;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -1485,10 +1532,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg>
       <span data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</span>
     </button>
-    <button class="sb-item is-soon" data-nav="view-academy" onclick="comingSoon()" aria-disabled="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
-      <span data-i18n="tileVideo">أكاديمية الفيديو</span><span class="soon-badge">Soon</span>
-    </button>
     <button class="sb-item" data-nav="view-professors" onclick="goToProfessors()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>
       <span data-i18n="tileProf">قسم الدكاترة</span>
@@ -1496,10 +1539,6 @@
     <button class="sb-item" data-nav="view-store" onclick="goToStore()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>
       <span data-i18n="tileStore">المتجر</span>
-    </button>
-    <button class="sb-item is-soon" data-nav="view-summer" onclick="comingSoon()" aria-disabled="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      <span data-i18n="summerTitle">التدريب الصيفي</span><span class="soon-badge">Soon</span>
     </button>
     <div class="sb-group" data-i18n="navGroupRecord">سجلّك وتقدّمك</div>
     <button class="sb-item" data-nav="view-review" onclick="goToReview()">
@@ -1517,6 +1556,15 @@
     <button class="sb-item" data-nav="view-account" onclick="goToAccount()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
       <span data-i18n="accountTitle">حسابي</span>
+    </button>
+    <div class="sb-group" data-i18n="navGroupSoon">قريبًا</div>
+    <button class="sb-item is-soon" data-nav="view-academy" onclick="comingSoon()" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
+      <span data-i18n="tileVideo">أكاديمية الفيديو</span><span class="soon-badge">Soon</span>
+    </button>
+    <button class="sb-item is-soon" data-nav="view-summer" onclick="comingSoon()" aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <span data-i18n="summerTitle">التدريب الصيفي</span><span class="soon-badge">Soon</span>
     </button>
     <div style="flex:1;"></div>
     <div class="sb-foot">
@@ -1617,44 +1665,46 @@
       <div id="homePathTags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
     </button>
 
-    <div class="tiles">
-      <button class="tile glass" onclick="goToBankSelect()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/><circle cx="11" cy="14.3" r=".1" fill="#fff"/></svg></span>
+    <div class="home-sec" data-i18n="homeStart">ابدأ من هنا</div>
+    <div class="tiles tiles-main">
+      <button class="tile tile-card" onclick="goToBankSelect()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/><path d="M9.5 8.5a1.8 1.8 0 1 1 2.6 1.6c-.7.4-1.1.9-1.1 1.7"/></svg></span>
         <span class="tile-label" data-i18n="tileBank">بنك الأسئلة</span>
       </button>
-      <button class="tile glass" onclick="goToAnatomy()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg></span>
-        <span class="tile-label" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</span>
-      </button>
-      <button class="tile glass is-soon" onclick="comingSoon()" aria-disabled="true">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" stroke="none"/></svg></span>
-        <span class="tile-label" data-i18n="tileVideo">أكاديمية الفيديو</span><span class="soon-badge">Soon</span>
-      </button>
-      <button class="tile glass" onclick="goToProfessors()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
-        <span class="tile-label" data-i18n="tileProf">قسم الدكاترة</span>
-      </button>
-      <button class="tile glass" onclick="goToStore()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg></span>
-        <span class="tile-label" data-i18n="tileStore">المتجر</span>
-      </button>
-      <button class="tile glass" onclick="goToReview()">
+      <button class="tile tile-card" onclick="goToReview()">
         <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg></span>
         <span class="tile-label" data-i18n="tileReview">المراجعة</span>
       </button>
-      <button class="tile glass" onclick="goToPearls()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S4 15.8 4 10.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 8 2.2c0 5.6-8 10.3-8 10.3Z"/></svg></span>
-        <span class="tile-label" data-i18n="pearlsTitle">لمحات سريرية</span>
+      <button class="tile tile-card" onclick="goToAnatomy()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg></span>
+        <span class="tile-label" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</span>
       </button>
-      <button class="tile glass is-soon" onclick="comingSoon()" aria-disabled="true">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
-        <span class="tile-label" data-i18n="summerTitle">التدريب الصيفي</span><span class="soon-badge">Soon</span>
-      </button>
-      <button class="tile glass" onclick="goToLeaderboard()">
-        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg></span>
-        <span class="tile-label" data-i18n="tileLeaderboard">المتصدرين</span>
+      <button class="tile tile-card" onclick="goToProfessors()">
+        <span class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 5 2 9l10 4 10-4Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg></span>
+        <span class="tile-label" data-i18n="tileProf">قسم الدكاترة</span>
       </button>
     </div>
+
+    <div class="home-sec" data-i18n="homeMore">المزيد</div>
+    <div class="more-list">
+      <button class="more-row" onclick="goToPearls()">
+        <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S4 15.8 4 10.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 8 2.2c0 5.6-8 10.3-8 10.3Z"/></svg></span>
+        <span class="more-label" data-i18n="pearlsTitle">لمحات سريرية</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="more-row" onclick="goToStore()">
+        <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg></span>
+        <span class="more-label" data-i18n="tileStore">المتجر</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="more-row" onclick="goToLeaderboard()">
+        <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg></span>
+        <span class="more-label" data-i18n="tileLeaderboard">المتصدرين</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="more-row" onclick="goToSupport()">
+        <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="more-label" data-i18n="moreHelp">المساعدة والدعم</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+    </div>
+    <div class="soon-line" data-i18n="homeSoonLine">قريبًا: أكاديمية الفيديو والتدريب الصيفي</div>
 
     <button class="continue-card glass" id="continueCourseCard" style="width:100%; cursor:pointer; display:none; margin-bottom:12px;">
       <div class="continue-ring" id="continueCourseRing" style="--p:0;"></div>
@@ -2908,10 +2958,6 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v6M7 9.5l5 1.2 5-1.2M12 13.5l-3.5 7M12 13.5l3.5 7"/></svg>
     <span data-i18n="anatomyShort">التشريح</span>
   </button>
-  <button class="bn-item is-soon" data-nav="view-academy" onclick="comingSoon()" aria-disabled="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>
-    <span data-i18n="tileVideo">الأكاديمية</span><span class="soon-badge">Soon</span>
-  </button>
   <button class="bn-item" data-nav="view-store" onclick="goToStore()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4 -4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg>
     <span data-i18n="tileStore">المتجر</span>
@@ -3134,6 +3180,7 @@
       unameTitle:'اسم المستخدم', unameNone:'لم تحدد بعد — تدخل به بدل البريد', unameSave:'حفظ اسم المستخدم', unamePlaceholder:'اسم المستخدم (أحرف إنجليزية وأرقام)', unameSaved:'تم حفظ اسم المستخدم', ipLabel:'العنوان',
       ordersTitle:'طلباتي', ordersSub:'تابع حالة طلباتك وأكواد التفعيل.', orderPending:'بانتظار تأكيد الدفع', orderPaid:'مدفوع — قيد التجهيز', orderFulfilled:'تم التسليم', orderCancelled:'ملغي', orderNone:'لا توجد طلبات بعد. تصفّح المتجر وأضف ما يناسبك.', orderCodes:'أكواد التفعيل', orderCopy:'نسخ', orderCopied:'تم النسخ ✓', orderWaiting:'ننتظر تأكيد الدفع من الإدارة، وتصلك الأكواد هنا بمجرد التأكيد.', orderDelivery:'التوصيل', orderZain:'زين كاش', orderCod:'عند الاستلام', orderRedeem:'فعّل الكود من «حسابي ← التعلّم».',
       lpAnatomyDesc:'جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.', lpHowEyebrow:'البداية', lpHowTitle:'ثلاث خطوات وتبدأ', lpHowSub:'من التسجيل إلى أول سؤال بدقائق.', lpStep1T:'أنشئ حسابك', lpStep1B:'بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.', lpStep2T:'اختر جامعتك ومرحلتك', lpStep2B:'تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.', lpStep3T:'ابدأ الدراسة', lpStep3B:'أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.', lpFaqEyebrow:'أسئلة شائعة', lpFaqTitle:'قبل ما تبدأ', lpFaq1Q:'هل التسجيل مجاني؟', lpFaq1A:'إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.', lpFaq2Q:'هل أقدر أستخدم حسابي على أكثر من جهاز؟', lpFaq2A:'الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.', lpFaq3Q:'كيف أدخل إذا سجّلت بـ Google؟', lpFaq3A:'تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.', lpFaq4Q:'كيف أتواصل مع الدعم؟', lpFaq4A:'من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.', lpFinalTitle:'جاهز تبدأ؟', lpFinalSub:'سجّل الآن وابدأ بأول جلسة أسئلة.', lpSupportLine:'للدعم:',
+      navGroupSoon:'قريبًا', homeStart:'ابدأ من هنا', homeMore:'المزيد', homeSoonLine:'قريبًا: أكاديمية الفيديو والتدريب الصيفي', moreHelp:'المساعدة والدعم',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
       studentOrGraduate:'هل أنت طالب أم متخرج؟', stillStudent:'ما زلت طالباً', graduated:'متخرج',
@@ -3271,6 +3318,7 @@
       unameTitle:'Username', unameNone:'Not set yet — sign in with it instead of your email', unameSave:'Save username', unamePlaceholder:'Username (English letters and numbers)', unameSaved:'Username saved', ipLabel:'Address',
       ordersTitle:'My orders', ordersSub:'Follow your orders and activation codes.', orderPending:'Awaiting payment confirmation', orderPaid:'Paid — being prepared', orderFulfilled:'Delivered', orderCancelled:'Cancelled', orderNone:'No orders yet. Browse the store and add what you need.', orderCodes:'Activation codes', orderCopy:'Copy', orderCopied:'Copied ✓', orderWaiting:'We are waiting for the team to confirm the payment; your codes will appear here once confirmed.', orderDelivery:'Delivery', orderZain:'ZainCash', orderCod:'Cash on delivery', orderRedeem:'Activate the code from My account → Learning.',
       lpAnatomyDesc:'The human body in detail: muscles, bones, nerves, vessels and organs — rotate, zoom and tap any part to learn its name.', lpHowEyebrow:'Getting started', lpHowTitle:'Three steps and you are in', lpHowSub:'From sign-up to your first question in minutes.', lpStep1T:'Create your account', lpStep1B:'With email and a password, or with Google in one tap.', lpStep2T:'Pick your university and year', lpStep2B:'Your subjects and doctors appear automatically; change your year any time.', lpStep3T:'Start studying', lpStep3B:'Questions with explanations, clinical pearls and a 3D anatomy atlas.', lpFaqEyebrow:'FAQ', lpFaqTitle:'Before you start', lpFaq1Q:'Is sign-up free?', lpFaq1A:'Creating an account is free. Some content (booklets and courses) is unlocked with a code from the store or your representative.', lpFaq2Q:'Can I use my account on more than one device?', lpFaq2A:'An account works on one device at a time to protect the content. Signing in on a new device signs out the old one.', lpFaq3Q:'How do I sign in if I joined with Google?', lpFaq3A:'You set a username and a password once after the first sign-up, then sign in whichever way you prefer.', lpFaq4Q:'How do I reach support?', lpFaq4A:'From inside the app use the Help button to message the team directly, or write to support@kiur.online.', lpFinalTitle:'Ready to start?', lpFinalSub:'Sign up now and begin your first question session.', lpSupportLine:'Support:',
+      navGroupSoon:'Coming soon', homeStart:'Start here', homeMore:'More', homeSoonLine:'Coming soon: Video Academy and Summer Training', moreHelp:'Help and support',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
       studentOrGraduate:'Are you a student or a graduate?', stillStudent:'Still a student', graduated:'Graduated',
@@ -3406,6 +3454,7 @@
       unameTitle:'ناوی بەکارهێنەر', unameNone:'هێشتا دیاری نەکراوە — پێی بچۆ ژوورەوە لەبری ئیمەیڵ', unameSave:'پاشەکەوتکردنی ناوی بەکارهێنەر', unamePlaceholder:'ناوی بەکارهێنەر (پیتی ئینگلیزی و ژمارە)', unameSaved:'ناوی بەکارهێنەر پاشەکەوت کرا', ipLabel:'ناونیشان',
       ordersTitle:'داواکارییەکانم', ordersSub:'دۆخی داواکارییەکان و کۆدەکانی چالاککردن بەدواداچوون بکە.', orderPending:'چاوەڕێی پشتڕاستکردنەوەی پارەدان', orderPaid:'پارەدراوە — ئامادە دەکرێت', orderFulfilled:'گەیەنرا', orderCancelled:'هەڵوەشێنرایەوە', orderNone:'هێشتا داواکاری نییە. بچۆ فرۆشگا.', orderCodes:'کۆدەکانی چالاککردن', orderCopy:'کۆپی', orderCopied:'کۆپی کرا ✓', orderWaiting:'چاوەڕێی پشتڕاستکردنەوەی بەڕێوەبەرایەتین؛ کۆدەکانت لێرە دەردەکەون.', orderDelivery:'گەیاندن', orderZain:'زەین کاش', orderCod:'پارەدان لە کاتی وەرگرتن', orderRedeem:'کۆدەکە لە «هەژمارەکەم ← فێربوون» چالاک بکە.',
       lpAnatomyDesc:'جەستەی مرۆڤ بە وردی: ماسولکە و ئێسک و دەمار و خوێنبەر و ئەندامەکان — بیسوڕێنە و نزیک بکەرەوە و دەست بخەرە سەر هەر بەشێک بۆ ناسینی ناوەکەی.', lpHowEyebrow:'دەستپێکردن', lpHowTitle:'سێ هەنگاو و دەست پێدەکەیت', lpHowSub:'لە تۆمارکردنەوە بۆ یەکەم پرسیار بە چەند خولەکێک.', lpStep1T:'هەژمارەکەت دروست بکە', lpStep1B:'بە ئیمەیڵ و وشەی نهێنی، یان بە Google بە یەک کلیک.', lpStep2T:'زانکۆ و قۆناغەکەت هەڵبژێرە', lpStep2B:'بابەت و مامۆستاکانت خۆکارانە دەردەکەون.', lpStep3T:'دەست بکە بە خوێندن', lpStep3B:'پرسیار لەگەڵ ڕوونکردنەوە و تێبینی کلینیکی و ئەناتۆمی سێ ڕەهەند.', lpFaqEyebrow:'پرسیاری باو', lpFaqTitle:'پێش دەستپێکردن', lpFaq1Q:'ئایا تۆمارکردن بێبەرامبەرە؟', lpFaq1A:'دروستکردنی هەژمار بێبەرامبەرە. هەندێک ناوەڕۆک بە کۆد چالاک دەکرێت کە لە فرۆشگا یان نوێنەرەکەتەوە وەریدەگریت.', lpFaq2Q:'دەتوانم هەژمارەکەم لەسەر چەند ئامێرێک بەکاربهێنم؟', lpFaq2A:'هەژمارەکە لە یەک کاتدا لەسەر یەک ئامێر کار دەکات بۆ پاراستنی ناوەڕۆک.', lpFaq3Q:'ئەگەر بە Google تۆمار بووم چۆن دەچمە ژوورەوە؟', lpFaq3A:'جارێک ناوی بەکارهێنەر و وشەی نهێنی دیاری دەکەیت و دواتر بە هەر ڕێگایەک دەچیتە ژوورەوە.', lpFaq4Q:'چۆن پەیوەندی بە پشتگیرییەوە بکەم؟', lpFaq4A:'لە ناو ئەپەکەوە دوگمەی «یارمەتی»، یان بنووسە بۆ support@kiur.online.', lpFinalTitle:'ئامادەیت دەست پێ بکەیت؟', lpFinalSub:'ئێستا تۆمار بکە و یەکەم دانیشتنی پرسیار دەست پێ بکە.', lpSupportLine:'پشتگیری:',
+      navGroupSoon:'بەزوویی', homeStart:'لێرەوە دەست پێ بکە', homeMore:'زیاتر', homeSoonLine:'بەزوویی: ئەکادیمیای ڤیدیۆ و ڕاهێنانی هاوین', moreHelp:'یارمەتی و پشتگیری',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
       studentOrGraduate:'تۆ قوتابیت یان دەرچووی؟', stillStudent:'هێشتا قوتابیم', graduated:'دەرچووم',
