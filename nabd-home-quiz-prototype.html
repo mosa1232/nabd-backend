@@ -1579,6 +1579,49 @@
     .tiles-main .tile-card{flex-direction:row; justify-content:flex-start; text-align:start; padding:16px 18px;}
   }
   @media (min-width:1500px){ .app{max-width:1360px !important;} }
+
+  /* ---- livelier identity: gradient hero + a colour per section ---- */
+  .hero{background:linear-gradient(135deg,#4457D8 0%,#6A5AE0 60%,#8B5CF6 100%) !important; border:none !important; color:#fff; box-shadow:0 18px 40px -22px rgba(76,95,224,.7) !important;}
+  html.dark .hero{background:linear-gradient(135deg,#2B3794 0%,#4B3DB0 100%) !important;}
+  .hero .hero-greeting, .hero b, .hero .hero-sub, .hero .item-meta{color:#fff !important;}
+  .hero .hero-sub, .hero .item-meta{opacity:.82;}
+  .hero .stat-chip{background:rgba(255,255,255,.14) !important; border:1px solid rgba(255,255,255,.2) !important; color:#fff;}
+  .hero .stat-chip svg{stroke:#fff !important;} .hero .stat-chip span{color:rgba(255,255,255,.85) !important;}
+  .hero .stat-ring::before{background:#5558DD !important;} .hero .stat-ring{color:#fff; background:conic-gradient(#fff calc(var(--p)*1%), rgba(255,255,255,.25) 0) !important;}
+  .hero .btn:not(.btn-ghost){background:#fff !important; color:#3C4DC9 !important; font-weight:800;}
+  .hero .btn-ghost{background:rgba(255,255,255,.14) !important; border:1px solid rgba(255,255,255,.3) !important; color:#fff !important;}
+  .tiles-main .tile-card:nth-child(1) .tile-icon{background:linear-gradient(145deg,#5B6CF0,#4457D8) !important;}
+  .tiles-main .tile-card:nth-child(2) .tile-icon{background:linear-gradient(145deg,#FBBF24,#F59E0B) !important;}
+  .tiles-main .tile-card:nth-child(3) .tile-icon{background:linear-gradient(145deg,#2DD4BF,#0D9488) !important;}
+  .tiles-main .tile-card:nth-child(4) .tile-icon{background:linear-gradient(145deg,#FB7185,#E11D48) !important;}
+  .tile-card{box-shadow:0 8px 22px -16px rgba(22,33,58,.35) !important;}
+  .tile-card:hover{transform:translateY(-3px) !important;}
+  .more-row:nth-child(1) .more-ic{background:rgba(139,92,246,.14); color:#8B5CF6;}
+  .more-row:nth-child(2) .more-ic{background:rgba(244,63,94,.12); color:#F43F5E;}
+  .more-row:nth-child(3) .more-ic{background:rgba(14,165,233,.14); color:#0EA5E9;}
+  .more-row:nth-child(4) .more-ic{background:rgba(245,158,11,.16); color:#D97706;}
+  .more-row:nth-child(5) .more-ic{background:rgba(20,184,166,.14); color:#0D9488;}
+  :root{--page-bg:#F2F4FB;} html.dark{--page-bg:#0D1120;}
+  .bn-item.active, .sb-item.active{font-weight:800;}
+
+  /* ---- shapes: crisp, squarer geometry ---- */
+  :root{--radius-lg:14px; --radius-md:10px; --radius-sm:8px;}
+  .glass, .hero, .panel, .kpi-card, .item-card, .tile-card, .more-list, .bs-card, .aic-card, .aic-chat, .ord-card, .det-row, .daily-card, .continue-card, .lp-feature, .lp-step, .lp-summer, .sp-chat, .sd-cell, .mastery-row{border-radius:12px !important;}
+  .tile-card .tile-icon, .more-ic, .aic-av, .aic-big, .item-icon, .kpi-icon, .tile-icon{border-radius:8px !important;}
+  .btn, .btn-ghost, .aic-act, .more-row, .page-chip, .tab-btn, .aic-btns button, .icon-btn, .prof-tag, .aic-send, .bn-item, .sb-item{border-radius:8px !important;}
+  .icon-btn, .aic-send{border-radius:10px !important;}
+  .tabs{border-radius:10px !important;} .tab-btn{border-radius:7px !important;}
+  input, select, textarea, .form-field input, .aic-input textarea{border-radius:8px !important;}
+  .aic-msg.user{border-radius:12px !important; border-end-start-radius:2px !important;} .aic-msg.bot{border-radius:12px !important; border-end-end-radius:2px !important;}
+  .tile-card{align-items:flex-start !important; text-align:start !important; padding:18px !important; gap:34px !important;}
+  .tile-card .tile-icon{width:42px !important; height:42px !important;}
+  .tile-card .tile-label{font-size:.95rem !important;}
+  .hero{border-radius:14px !important;} .hero .stat-chip{border-radius:10px !important;}
+  .bottom-nav{border-radius:0 !important;}
+  .more-list{border-radius:12px !important;} .more-row{border-radius:0 !important;}
+  .stat-ring, .stat-ring::before{border-radius:50%;}
+  .mastery-track, .mastery-fill, .prof-track{border-radius:3px !important;}
+  @media (min-width:1100px){ .tiles-main .tile-card{align-items:center !important; gap:14px !important; flex-direction:row !important;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
