@@ -489,18 +489,10 @@ LANG_RULES = {
 }
 
 
-def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "", language: str = "ar") -> tuple[list[dict], int]:
-    """language: "ar", "en", or "both" — both returns `count` Arabic questions
-    followed by `count` English ones (each tagged in `lang`)."""
-    if language == "both":
-        out, skipped = [], 0
-        for lg in ("ar", "en"):
-            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg)
-            out += qs
-            skipped += sk
-        return out, skipped
-    allowed = {t for t in types if t in TYPE_NAMES} or {"mcq"}
+QUESTION_BATCH = 20      # per model call: keeps each answer inside the output limit
+
+
+def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts):
     wanted = "، ".join(TYPE_NAMES[t] for t in sorted(allowed))
     instruction = (
         f"المادة: {subject_name or 'غير محددة'}.\n"
@@ -509,6 +501,10 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         "لأسئلة الاختيارات: أربعة خيارات، واحد صحيح فقط، ومموّهات معقولة. لكل سؤال شرح موجز للإجابة الصحيحة.\n"
         + LANG_RULES.get(language, LANG_RULES["ar"])
     )
+    if parts > 1:
+        instruction += f"\nهذه الدفعة {part} من {parts}: غطِّ أجزاء مختلفة من المحتوى ولا تكتفِ ببدايته."
+    if avoid:
+        instruction += "\nلا تكرر هذه الأسئلة (سبق توليدها):\n- " + "\n- ".join(avoid)
     if notes.strip():
         instruction += "\nتعليمات إضافية من الدكتور: " + notes.strip()[:500]
     content = list(blocks) + [{"type": "text", "text": instruction}]
@@ -517,6 +513,42 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
     for q in qs:
         q["lang"] = language if language in ("ar", "en") else "ar"
     return qs, skipped
+
+
+def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
+                       difficulty: str, notes: str = "", language: str = "ar") -> tuple[list[dict], int]:
+    """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
+    model answer stays within its output limit, and later batches are told what
+    was already written. language: "ar", "en", or "both" (`count` Arabic then
+    `count` English, each tagged in `lang`). If a later batch fails, what was
+    already generated is returned instead of throwing it away."""
+    if language == "both":
+        out, skipped = [], 0
+        for lg in ("ar", "en"):
+            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg)
+            out += qs
+            skipped += sk
+        return out, skipped
+    allowed = {t for t in types if t in TYPE_NAMES} or {"mcq"}
+    parts = (count + QUESTION_BATCH - 1) // QUESTION_BATCH
+    out, skipped, part = [], 0, 0
+    while len(out) < count and part < parts + 2:      # a couple of spare rounds for duplicates / rejects
+        part += 1
+        n = min(QUESTION_BATCH, count - len(out))
+        avoid = [q["text"][:80] for q in out][-50:]
+        try:
+            qs, sk = _generate_batch(blocks, subject_name, n, allowed, difficulty, notes, language, avoid, part, parts)
+        except (AIError, AIUnavailable):
+            if not out:
+                raise
+            break
+        skipped += sk
+        seen = {x["text"].strip().lower() for x in out}
+        fresh = [q for q in qs if q["text"].strip().lower() not in seen]
+        out += fresh[:count - len(out)]
+        if not qs:
+            break
+    return out, skipped
 
 
 def generate_pearls(blocks: list[dict], subject_name: str, count: int, topic: str = "") -> list[dict]:

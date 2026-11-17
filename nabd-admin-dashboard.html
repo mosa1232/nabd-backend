@@ -5447,7 +5447,7 @@
       <div class="item-meta" style="margin-bottom:10px;">ارفع المحاضرة أو الملزمة (PDF أو Word أو نص أو صورة) وسيصيغ الذكاء الاصطناعي الأسئلة منها. <b>تراجعها أنت قبل الحفظ</b> — لا يُحفظ شيء تلقائياً.</div>
       <div class="form-field"><input type="file" id="aiFile" accept="${AI_FILE_ACCEPT}" style="${field}" /></div>
       <div style="display:flex; gap:10px;">
-        <div class="form-field" style="flex:1;"><label style="font-size:.75rem; color:var(--ink-faint);">عدد الأسئلة</label><input type="number" id="aiCount" value="10" min="1" max="30" style="${field}" /></div>
+        <div class="form-field" style="flex:1;"><label style="font-size:.75rem; color:var(--ink-faint);">عدد الأسئلة (حتى 100 — الكثير يأخذ دقائق)</label><input type="number" id="aiCount" value="10" min="1" max="100" style="${field}" /></div>
         <div class="form-field" style="flex:1;"><label style="font-size:.75rem; color:var(--ink-faint);">الصعوبة</label><select id="aiDifficulty" style="${field}"><option>سهل</option><option selected>متوسط</option><option>صعب</option></select></div>
       </div>
       <div class="form-field"><label style="font-size:.75rem; color:var(--ink-faint);">أنواع الأسئلة</label>

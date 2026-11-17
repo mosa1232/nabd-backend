@@ -959,8 +959,8 @@ async def ai_generate_questions(
     AI drafts questions from it. Nothing is saved here: the doctor reviews the
     drafts and saves the ones they want through /me/questions/bulk."""
     profile = _draft_profile(db, user, "prof.questions")
-    if not (1 <= count <= 30):
-        raise HTTPException(400, "العدد يجب أن يكون بين 1 و30")
+    if not (1 <= count <= 100):
+        raise HTTPException(400, "العدد يجب أن يكون بين 1 و100")
     if language not in ("ar", "en", "both"):
         raise HTTPException(400, "اللغة غير صالحة")
     wanted = [t.strip() for t in types.split(",") if t.strip() in ("mcq", "true_false", "essay")]
