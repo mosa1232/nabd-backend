@@ -1644,6 +1644,44 @@
   .sb-item.active{border-radius:8px 0 0 8px !important;}
   .stat-chip{clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);}
   @media (min-width:1100px){ .tiles-main .tile-card{flex-direction:column !important; align-items:flex-start !important; gap:0 !important;} }
+
+  /* ---- every section: coloured banner header + section accent ---- */
+  .view{--sec:#4457D8;}
+  #view-bank-select{--sec:#3F51D2; --sec1:#5B6CF0; --sec2:#3F51D2;}
+  #view-quiz-summary{--sec:#3F51D2; --sec1:#5B6CF0; --sec2:#3F51D2;}
+  #view-review{--sec:#E58E0A; --sec1:#FBBF24; --sec2:#E58E0A;}
+  #view-leaderboard{--sec:#D97706; --sec1:#F59E0B; --sec2:#D97706;}
+  #view-professors{--sec:#D61F4B; --sec1:#FB7185; --sec2:#D61F4B;}
+  #view-store{--sec:#6D3FE0; --sec1:#8B5CF6; --sec2:#6D3FE0;}
+  #view-my-orders{--sec:#6D3FE0; --sec1:#8B5CF6; --sec2:#6D3FE0;}
+  #view-academy{--sec:#0369A1; --sec1:#0EA5E9; --sec2:#0369A1;}
+  #view-pearls{--sec:#D61F4B; --sec1:#FB7185; --sec2:#D61F4B;}
+  #view-anatomy{--sec:#0B8C80; --sec1:#2DD4BF; --sec2:#0B8C80;}
+  #view-summer{--sec:#D97706; --sec1:#F59E0B; --sec2:#D97706;}
+  #view-account{--sec:#6A5AE0; --sec1:#4457D8; --sec2:#6A5AE0;}
+  #view-support{--sec:#0369A1; --sec1:#0EA5E9; --sec2:#0369A1;}
+  #view-notifications{--sec:#0369A1; --sec1:#0EA5E9; --sec2:#0369A1;}
+  #view-ai-list{--sec:#5B3FD6; --sec1:#8B5CF6; --sec2:#5B3FD6;}
+  #view-ai-chat{--sec:#5B3FD6; --sec1:#8B5CF6; --sec2:#5B3FD6;}
+  .view .page-head{background:linear-gradient(135deg,var(--sec1,#5B6CF0),var(--sec2,#3F51D2)); color:#fff; padding:18px 18px 20px; border-radius:14px; margin-bottom:18px; position:relative; overflow:hidden; align-items:center;}
+  .view .page-head::before{content:''; position:absolute; width:190px; height:190px; border-radius:50%; background:rgba(255,255,255,.1); inset-inline-end:-60px; top:-90px; pointer-events:none;}
+  .view .page-head::after{content:''; position:absolute; width:90px; height:90px; border-radius:20px; transform:rotate(25deg); background:rgba(255,255,255,.08); inset-inline-end:70px; bottom:-48px; pointer-events:none;}
+  .view .page-head > *{position:relative; z-index:1;}
+  .view .page-title{color:#fff !important;} .view .page-sub{color:rgba(255,255,255,.85) !important;}
+  .view .page-head .icon-btn{background:rgba(255,255,255,.2) !important; border:1px solid rgba(255,255,255,.35) !important; color:#fff !important;}
+  .view .page-head .btn:not(.btn-ghost){background:#fff !important; color:var(--sec) !important; font-weight:800;}
+  .view .page-head .btn-ghost{background:rgba(255,255,255,.18) !important; border:1px solid rgba(255,255,255,.4) !important; color:#fff !important;}
+  .view .page-head .page-chip{background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.35); color:#fff;}
+  .view:not(#view-landing) .btn:not(.btn-ghost):not(.btn-danger){background:var(--sec) !important; color:#fff;}
+  .view .page-head .btn:not(.btn-ghost), .view .hero .btn:not(.btn-ghost){background:#fff !important; color:var(--sec) !important;}
+  .view .tab-btn.active{background:var(--sec) !important; color:#fff !important;}
+  .view .mastery-fill, .view .prof-fill, .view .bs-fill{background:var(--sec) !important;}
+  .view .section-title{display:flex; align-items:center; gap:9px;} .view .section-title::before{content:''; width:5px; height:16px; border-radius:2px; background:var(--sec); flex:none;}
+  .view .panel-title::before{content:''; display:inline-block; width:5px; height:14px; border-radius:2px; background:var(--sec); margin-inline-end:8px; vertical-align:-2px;}
+  .view .bs-card{border-inline-start:5px solid var(--sec) !important;}
+  .view .kpi-icon{background:color-mix(in srgb, var(--sec) 14%, transparent) !important; color:var(--sec) !important;}
+  .view .item-card:hover, .view .bs-card:hover{border-color:var(--sec) !important;}
+  @media (min-width:1024px){ .view .page-head{padding:22px 26px 24px;} .view .page-title{font-size:1.7rem;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
