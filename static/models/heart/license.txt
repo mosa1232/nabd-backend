@@ -1,0 +1,11 @@
+Model Information:
+* title:	Human Heart
+* source:	https://sketchfab.com/3d-models/human-heart-f5fa1e719f3d4f28a7c31728a86a9b42
+* author:	3D EduTex (https://sketchfab.com/Yasama)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Human Heart" (https://sketchfab.com/3d-models/human-heart-f5fa1e719f3d4f28a7c31728a86a9b42) by 3D EduTex (https://sketchfab.com/Yasama) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

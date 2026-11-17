@@ -1,0 +1,11 @@
+Model Information:
+* title:	Human Pancreas Cross section
+* source:	https://sketchfab.com/3d-models/human-pancreas-cross-section-f7b30e11b5df445fbdfe0e262e777c85
+* author:	arloopa (https://sketchfab.com/arloopa)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Human Pancreas Cross section" (https://sketchfab.com/3d-models/human-pancreas-cross-section-f7b30e11b5df445fbdfe0e262e777c85) by arloopa (https://sketchfab.com/arloopa) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

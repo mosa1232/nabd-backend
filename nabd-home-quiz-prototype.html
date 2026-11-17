@@ -1716,6 +1716,8 @@
   @media (min-width:900px){ .anat-stage{aspect-ratio:16/9; min-height:460px;} }
   #anatModels .anat-chips{padding:2px 0 10px;} #anatModels .anat-stage{margin:0; touch-action:none;} #anatModels .anat-info{margin:12px 0 0;}
   .anat-stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
+  #anatModels .anat-stage{aspect-ratio:auto; width:100%; height:min(88vw, 420px); min-height:260px;}
+  @media (min-width:900px){ #anatModels .anat-stage{height:520px;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}

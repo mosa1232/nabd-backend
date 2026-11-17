@@ -1,0 +1,11 @@
+Model Information:
+* title:	Small and large intestine
+* source:	https://sketchfab.com/3d-models/small-and-large-intestine-8a1ca8e3ca224cdeb9264674416bde38
+* author:	antonia.sundberg (https://sketchfab.com/antonia.sundberg)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Small and large intestine" (https://sketchfab.com/3d-models/small-and-large-intestine-8a1ca8e3ca224cdeb9264674416bde38) by antonia.sundberg (https://sketchfab.com/antonia.sundberg) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

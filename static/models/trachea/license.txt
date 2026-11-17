@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tracheobronchial tree
+* source:	https://sketchfab.com/3d-models/tracheobronchial-tree-d3cbd7d5adb74ba7b54c1df151900b96
+* author:	CVEC (https://sketchfab.com/CVEC)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tracheobronchial tree" (https://sketchfab.com/3d-models/tracheobronchial-tree-d3cbd7d5adb74ba7b54c1df151900b96) by CVEC (https://sketchfab.com/CVEC) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

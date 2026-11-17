@@ -1,0 +1,11 @@
+Model Information:
+* title:	My model of eye
+* source:	https://sketchfab.com/3d-models/my-model-of-eye-72eda5e87fe1493195ba85fe2f23e3af
+* author:	evgenartist (https://sketchfab.com/evgenartist)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "My model of eye" (https://sketchfab.com/3d-models/my-model-of-eye-72eda5e87fe1493195ba85fe2f23e3af) by evgenartist (https://sketchfab.com/evgenartist) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
