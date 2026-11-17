@@ -1703,19 +1703,6 @@
   html.is-phone .prof-list, html.is-phone .course-grid{grid-template-columns:1fr !important;}
   html.is-phone .section-block{margin-bottom:16px;}
   html.is-phone .lp-dock-wrap{top:calc(8px + env(safe-area-inset-top));}
-  /* ---- anatomy: Sketchfab models ---- */
-  .anat-chips{display:flex; gap:8px; overflow-x:auto; padding:2px 16px 10px; scrollbar-width:none;}
-  .anat-chips::-webkit-scrollbar{display:none;}
-  .anat-chip{flex:none; padding:9px 16px; border-radius:99px; border:1.5px solid var(--glass-border, #0002); background:var(--glass-bg-strong, #fff8); color:var(--ink); font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap;}
-  .anat-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
-  .anat-stage{position:relative; margin:0 16px; border-radius:18px; overflow:hidden; background:#10131c; aspect-ratio:4/3; min-height:300px;}
-  .anat-stage iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
-  .anat-loading{position:absolute; inset:0; display:grid; place-items:center; color:#cfd3e6; font-size:.85rem; pointer-events:none; text-align:center; padding:20px;}
-  .anat-info{margin:12px 16px 0; display:grid; gap:6px;}
-  .anat-credit{font-size:.7rem; color:var(--ink-faint);}
-  .anat-credit a{color:var(--accent);}
-  @media (min-width:900px){ .anat-stage{aspect-ratio:16/9; min-height:460px;} }
-  #anatSketch .anat-chips{padding:2px 0 10px;} #anatSketch .anat-stage{margin:0;} #anatSketch .anat-info{margin:12px 0 0;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2631,22 +2618,7 @@
         </div>
       </div>
     </div>
-    <div class="tabs anat-tabs" style="margin:0 0 12px;">
-      <button class="tab-btn active" id="anatTabBody" onclick="setAnatomyMode('body')" data-i18n="anatTabBody">المجسّم الكامل</button>
-      <button class="tab-btn" id="anatTabSketch" onclick="setAnatomyMode('sketch')" data-i18n="anatTabSketch">نماذج تفصيلية</button>
-    </div>
     <div id="anatRoot"></div>
-    <div id="anatSketch" style="display:none;">
-      <div class="anat-chips" id="anatChips" role="tablist"></div>
-      <div class="anat-stage" id="anatStage">
-        <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoadingSketch">جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.</div>
-      </div>
-      <div class="anat-info">
-        <div style="font-weight:800;" id="anatName"></div>
-        <div class="item-meta" id="anatDesc"></div>
-        <div class="anat-credit" id="anatCredit"></div>
-      </div>
-    </div>
   </div>
 
   <!-- ============ SUMMER TRAINING (signed in, scoped to the student's college) ============ -->
@@ -3553,7 +3525,6 @@
       bsecSub:'اختر ملزمة أو محاضرة: تقرأ أسئلتها أولًا، ثم تمتحن نفسك عليها.', bsecAll:'كل أسئلة المادة', bsecTried:'جرّبت', bsecRead:'قرأتها', bsecOpen:'افتح', bstStep1:'١) اقرأ الأسئلة وإجاباتها', bstStep2:'٢) ثم ابدأ الامتحان — الأسئلة تُخلط عشوائيًا', bstStartExam:'ابدأ الامتحان', bstModel:'الإجابة النموذجية', bstWhy:'التوضيح:',
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
       selectDept:'اختر القسم',
-      anatTabBody:'المجسّم الكامل', anatTabSketch:'نماذج تفصيلية', anatomyLoadingSketch:'جارٍ تحميل النموذج… قد يستغرق لحظات حسب سرعة الإنترنت.', anatomyCreditPrefix:'النموذج:',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3701,7 +3672,6 @@
       bsecSub:'Pick a booklet or lecture: read its questions first, then test yourself on them.', bsecAll:'All questions of the subject', bsecTried:'Tried', bsecRead:'Read', bsecOpen:'Open', bstStep1:'1) Read the questions and answers', bstStep2:'2) Then start the exam — questions are shuffled', bstStartExam:'Start the exam', bstModel:'Model answer', bstWhy:'Explanation:',
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
       selectDept:'Select department',
-      anatTabBody:'Full body', anatTabSketch:'Detailed models', anatomyLoadingSketch:'Loading the model… this may take a moment on a slow connection.', anatomyCreditPrefix:'Model:',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3847,7 +3817,6 @@
       bsecSub:'بەرگ یان وانە هەڵبژێرە: یەکەم پرسیارەکان بخوێنەرەوە، پاشان خۆت تاقی بکەرەوە.', bsecAll:'هەموو پرسیارەکانی بابەت', bsecTried:'هەوڵت داوە', bsecRead:'خوێندوتەوە', bsecOpen:'بیکەرەوە', bstStep1:'١) پرسیار و وەڵامەکان بخوێنەرەوە', bstStep2:'٢) پاشان تاقیکردنەوە دەستپێبکە — پرسیارەکان تێکەڵ دەکرێن', bstStartExam:'دەستپێکردنی تاقیکردنەوە', bstModel:'وەڵامی نموونەیی', bstWhy:'ڕوونکردنەوە:',
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
       selectDept:'بەش هەڵبژێرە',
-      anatTabBody:'جەستەی تەواو', anatTabSketch:'مۆدێلی ورد', anatomyLoadingSketch:'مۆدێلەکە بار دەکرێت… لەوانەیە کەمێک بخایەنێت.', anatomyCreditPrefix:'مۆدێل:',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -7100,78 +7069,9 @@
       await ensureAnatomyLib();
       KiurAnatomy.mount(root, {lang: currentLang});
       KiurAnatomy.setLang(currentLang);
-      if (anatomyMode === 'sketch') KiurAnatomy.pause();
     } catch (e) {
       root.innerHTML = `<div class="empty-row">${t('anatomyFailed')}</div>`;
     }
-  }
-
-  // ---------- Anatomy: detailed Sketchfab models (CC BY 4.0) ----------
-  const SKETCH_MODELS = [
-    {id:'ecorche', uid:'ab11ebff89224f03bd75efede1164cf6', ar:'الجسم كاملًا (العضلات)', en:'Whole body (muscles)', ku:'تەواوی جەستە (ماسولکە)',
-     author:'diegoluga', title:'Male Full Body Ecorche',
-     d_ar:'جسم إنسان كامل مع الطبقة العضلية السطحية والعميقة بتفاصيل عالية.', d_en:'A complete human body with its superficial and deep muscle layers, in high detail.', d_ku:'جەستەی مرۆڤی تەواو لەگەڵ چینی ماسولکەی ڕووکەش و قووڵ.'},
-    {id:'skeleton', uid:'4de7b96a351a4a35b1b6e5415277ff07', ar:'الهيكل العظمي', en:'Skeleton', ku:'ئێسکەپەیکەر',
-     author:'diegoluga', title:'Skeleton',
-     d_ar:'الهيكل العظمي الكامل: الجمجمة، العمود الفقري، القفص الصدري، الحوض والأطراف.', d_en:'The complete skeleton: skull, spine, rib cage, pelvis and limbs.', d_ku:'ئێسکەپەیکەری تەواو: کاسەی سەر، بڕبڕەی پشت، قەفەزی سنگ، ڕان و ئەندامەکان.'},
-    {id:'muscleM', uid:'991eb96938be4d0d8fadee241a1063d3', ar:'الجهاز العضلي (ذكر)', en:'Muscular system (male)', ku:'سیستەمی ماسولکە (نێر)',
-     author:'ruslangadzhiev', title:'Male Body Muscular System - Anatomy Study',
-     d_ar:'دراسة تشريحية لعضلات الجسم الذكري.', d_en:'An anatomical study of the male body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی نێر.'},
-    {id:'muscleF', uid:'9a596b6c24b344bfbe6bb5246290df0e', ar:'الجهاز العضلي (أنثى)', en:'Muscular system (female)', ku:'سیستەمی ماسولکە (مێ)',
-     author:'ruslangadzhiev', title:'Female Body Muscular System - Anatomy Study',
-     d_ar:'دراسة تشريحية لعضلات الجسم الأنثوي.', d_en:'An anatomical study of the female body\'s muscles.', d_ku:'خوێندنەوەیەکی تەشریحی بۆ ماسولکەکانی جەستەی مێ.'},
-    {id:'skull', uid:'a47ef69ff3a4402783cff0f841bc5e0a', ar:'الجمجمة والرقبة', en:'Skull and neck', ku:'کاسەی سەر و ملی',
-     author:'thesidekick', title:'Human skull and neck',
-     d_ar:'الجمجمة والفك وفقرات الرقبة بدقة عالية جدًا.', d_en:'Skull, jaw and cervical vertebrae in very high detail.', d_ku:'کاسەی سەر و ڕوومەت و بڕبڕەکانی ملی بە وردی زۆر.'},
-    {id:'brain', uid:'c9c9d4d671b94345952d012cc2ea7a24', ar:'الدماغ', en:'Brain', ku:'مێشک',
-     author:'agher', title:'Human Brain',
-     d_ar:'الدماغ البشري: التلافيف والفصوص والمخيخ.', d_en:'The human brain: gyri, lobes and cerebellum.', d_ku:'مێشکی مرۆڤ: ڕیزەکان، پارچەکان و مێشکۆڵە.'},
-    {id:'heart', uid:'f5fa1e719f3d4f28a7c31728a86a9b42', ar:'القلب', en:'Heart', ku:'دڵ',
-     author:'Yasama', title:'Human Heart',
-     d_ar:'القلب البشري مع الأوعية الكبرى.', d_en:'The human heart with its great vessels.', d_ku:'دڵی مرۆڤ لەگەڵ خوێنهێنەرە گەورەکان.'},
-    {id:'intestine', uid:'8a1ca8e3ca224cdeb9264674416bde38', ar:'الأمعاء الدقيقة والغليظة', en:'Small and large intestine', ku:'ڕیخۆڵەی باریک و ئەستوور',
-     author:'antonia.sundberg', title:'Small and large intestine',
-     d_ar:'الجهاز الهضمي السفلي: الأمعاء الدقيقة والغليظة.', d_en:'The lower digestive tract: small and large intestine.', d_ku:'ڕێڕەوی هەرسی خوارەوە: ڕیخۆڵەی باریک و ئەستوور.'},
-    {id:'kidney', uid:'686992c2a7fb456eaa8997b0366f4062', ar:'الكلية', en:'Kidney', ku:'گورچیلە',
-     author:'cgmac', title:'Kidney',
-     d_ar:'الكلية وتركيبها الداخلي.', d_en:'The kidney and its internal structure.', d_ku:'گورچیلە و پێکهاتەی ناوەوەی.'},
-  ];
-  let anatomyCurrent = null, anatomyMode = 'body';
-  function setAnatomyMode(mode){
-    anatomyMode = mode;
-    document.getElementById('anatTabBody').classList.toggle('active', mode === 'body');
-    document.getElementById('anatTabSketch').classList.toggle('active', mode === 'sketch');
-    document.getElementById('anatRoot').style.display = mode === 'body' ? '' : 'none';
-    document.getElementById('anatSketch').style.display = mode === 'sketch' ? '' : 'none';
-    if (mode === 'body'){ document.querySelectorAll('#anatStage iframe').forEach(f => f.remove()); anatomyCurrent = null; if (window.KiurAnatomy) KiurAnatomy.mount(document.getElementById('anatRoot'), {lang: currentLang}); }
-    else { if (window.KiurAnatomy) KiurAnatomy.pause(); renderAnatomyChips(); selectAnatomy(anatomyCurrent || SKETCH_MODELS[0].id); }
-  }
-  function renderAnatomyChips(){
-    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
-    document.getElementById('anatChips').innerHTML = SKETCH_MODELS.map(m =>
-      `<button type="button" class="anat-chip ${m.id === anatomyCurrent ? 'active' : ''}" role="tab" onclick="selectAnatomy('${m.id}')">${esc(m[lang])}</button>`).join('');
-  }
-  function selectAnatomy(id){
-    const m = SKETCH_MODELS.find(x => x.id === id);
-    if (!m) return;
-    anatomyCurrent = id;
-    renderAnatomyChips();
-    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
-    const stage = document.getElementById('anatStage');
-    stage.querySelectorAll('iframe').forEach(f => f.remove());
-    document.getElementById('anatLoading').style.display = 'grid';
-    const f = document.createElement('iframe');
-    f.title = m[lang];
-    f.allow = 'autoplay; fullscreen; xr-spatial-tracking';
-    f.setAttribute('allowfullscreen', '');
-    f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    f.addEventListener('load', () => { setTimeout(() => { if (anatomyCurrent === id) document.getElementById('anatLoading').style.display = 'none'; }, 9000); });
-    f.src = `https://sketchfab.com/models/${m.uid}/embed?autostart=1&preload=1&dnt=1&ui_infos=0&ui_hint=2&ui_watermark_link=0`;
-    stage.appendChild(f);
-    document.getElementById('anatName').textContent = m[lang];
-    document.getElementById('anatDesc').textContent = m['d_' + lang];
-    // credit as plain text: the licence asks for the author's name, and nothing sends the student away
-    document.getElementById('anatCredit').textContent = `${t('anatomyCreditPrefix')} «${m.title}» — @${m.author} · CC BY 4.0 · Sketchfab`;
   }
 
   // ---------- Summer training ----------
