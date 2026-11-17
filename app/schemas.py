@@ -309,6 +309,8 @@ class QuestionProfIn(BaseModel):
     qtype: QuestionType = "mcq"
     model_answer: str = ""
     choices: list["ChoiceIn"] = []
+    booklet_id: Optional[str] = None
+    lecture_id: Optional[str] = None
 
 
 class QuestionOut(BaseModel):
@@ -443,6 +445,8 @@ class QuestionAdminOut(BaseModel):
     image_url: Optional[str] = None
     qtype: str = "mcq"
     model_answer: str = ""
+    booklet_id: Optional[str] = None
+    lecture_id: Optional[str] = None
     choices: list[ChoiceWithAnswerOut]
 
 

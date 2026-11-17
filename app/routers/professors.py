@@ -622,7 +622,38 @@ def my_questions(db: Session = Depends(get_db), user: models.User = Depends(get_
 
 
 def _prof_question_input(profile: models.ProfessorProfile, body: schemas.QuestionProfIn) -> schemas.QuestionAdminIn:
-    return schemas.QuestionAdminIn(subject_id=profile.subject_id, **body.model_dump())
+    return schemas.QuestionAdminIn(subject_id=profile.subject_id, **body.model_dump(exclude={"booklet_id", "lecture_id"}))
+
+
+def _section_ids(db: Session, profile: models.ProfessorProfile, body) -> tuple[str | None, str | None]:
+    """The booklet / lecture a question is filed under — only the doctor's own."""
+    bid = getattr(body, "booklet_id", None) or None
+    lid = getattr(body, "lecture_id", None) or None
+    if bid and lid:
+        raise HTTPException(400, "اختر ملزمة أو محاضرة — ليس الاثنين معًا")
+    if bid:
+        b = db.get(models.Booklet, bid)
+        if not b or b.professor_id != profile.id:
+            raise HTTPException(400, "الملزمة غير موجودة")
+    if lid:
+        lec = db.get(models.Lecture, lid)
+        course = db.get(models.Course, lec.course_id) if lec else None
+        if not lec or not course or course.professor_id != profile.id:
+            raise HTTPException(400, "المحاضرة غير موجودة")
+    return bid, lid
+
+
+@router.get("/me/question-sections")
+def my_question_sections(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The booklets and lectures a question can be filed under."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    out = [{"key": "", "label": "عام (بدون ملزمة أو محاضرة)"}]
+    for b in db.query(models.Booklet).filter(models.Booklet.professor_id == profile.id).order_by(models.Booklet.created_at).all():
+        out.append({"key": "booklet:" + b.id, "label": "ملزمة — " + b.title})
+    for c in db.query(models.Course).filter(models.Course.professor_id == profile.id).all():
+        for lec in sorted(c.lectures, key=lambda x: x.order_index or 0):
+            out.append({"key": "lecture:" + lec.id, "label": f"محاضرة — {c.title} / {lec.title}"})
+    return out
 
 
 @router.post("/me/questions")
@@ -630,10 +661,11 @@ def create_my_question(body: schemas.QuestionProfIn, db: Session = Depends(get_d
     profile = _get_own_profile(db, user, "prof.questions")
     full = _prof_question_input(profile, body)
     choices = normalize_question_input(full)
+    bid, lid = _section_ids(db, profile, body)
     q = models.Question(
         subject_id=profile.subject_id, professor_id=profile.id, text=body.text, eyebrow=body.eyebrow,
         rationale=body.rationale, image_url=body.image_url, qtype=body.qtype,
-        model_answer=body.model_answer.strip(),
+        model_answer=body.model_answer.strip(), booklet_id=bid, lecture_id=lid,
     )
     db.add(q)
     db.flush()
@@ -680,6 +712,7 @@ def update_my_question(question_id: str, body: schemas.QuestionProfIn, db: Sessi
     choices = normalize_question_input(_prof_question_input(profile, body))
     q.text, q.eyebrow, q.rationale, q.image_url = body.text, body.eyebrow, body.rationale, body.image_url
     q.qtype, q.model_answer = body.qtype, body.model_answer.strip()
+    q.booklet_id, q.lecture_id = _section_ids(db, profile, body)
     replace_choices(db, q, choices)
     db.commit()
     knowledge.invalidate()
@@ -792,9 +825,11 @@ def bulk_create_questions(body: schemas.QuestionBulkIn, db: Session = Depends(ge
         except HTTPException as e:
             raise HTTPException(400, f"السؤال رقم {i}: {e.detail}")
     for qin, choices in prepared:
+        bid, lid = _section_ids(db, profile, qin)
         q = models.Question(
             subject_id=profile.subject_id, professor_id=profile.id, text=qin.text, eyebrow=qin.eyebrow,
             rationale=qin.rationale, image_url=qin.image_url, qtype=qin.qtype, model_answer=qin.model_answer.strip(),
+            booklet_id=bid, lecture_id=lid,
         )
         db.add(q)
         db.flush()

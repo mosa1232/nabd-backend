@@ -1020,6 +1020,10 @@
     </div>
     <div class="form-field" style="margin-top:12px;"><textarea id="qeRationale" rows="2" placeholder="الشرح (اختياري)" style="width:100%; resize:vertical; font:inherit; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink);"></textarea></div>
     <div class="form-field"><input id="qeEyebrow" type="text" placeholder="التصنيف الفرعي (اختياري) — مثال: علم الأنسجة" /></div>
+    <div class="form-field" id="qeSectionWrap" style="display:none;">
+      <label style="font-size:.78rem; font-weight:700; display:block; margin-bottom:6px;">تابع لأي ملزمة أو محاضرة؟ <span style="font-weight:400; opacity:.7;">(الطالب يقرأ أسئلتها ثم يمتحن عليها)</span></label>
+      <select id="qeSection"></select>
+    </div>
     <div id="qeMsg" style="display:none; font-size:.8rem; margin-top:4px;"></div>
     <div style="display:flex; gap:8px; margin-top:14px;">
       <button class="btn" style="flex:1; justify-content:center;" onclick="qeSave()">حفظ</button>
@@ -3605,6 +3609,16 @@
       const correct = (q.choices.find(c => c.is_correct) || {}).text === 'خطأ' ? 'خطأ' : 'صح';
       document.querySelector(`input[name="qeTf"][value="${correct}"]`).checked = true;
     }
+    // doctors file each question under one of their booklets / lectures
+    const secWrap = document.getElementById('qeSectionWrap'), secSel = document.getElementById('qeSection');
+    secWrap.style.display = 'none';
+    if (ctx.sectionsUrl){
+      const cur = q ? (q.booklet_id ? 'booklet:' + q.booklet_id : q.lecture_id ? 'lecture:' + q.lecture_id : '') : '';
+      apiFetch(ctx.sectionsUrl).then(opts => {
+        secSel.innerHTML = opts.map(o => `<option value="${esc(o.key)}" ${o.key === cur ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+        secWrap.style.display = opts.length > 1 ? 'block' : 'none';
+      }).catch(() => {});
+    }
     document.getElementById('qEditorOverlay').style.display = 'flex';
     setTimeout(() => document.getElementById('qeText').focus(), 50);
   }
@@ -3623,6 +3637,11 @@
       eyebrow: document.getElementById('qeEyebrow').value.trim(),
       model_answer: '', choices: [],
     };
+    if (qeCtx.sectionsUrl && document.getElementById('qeSectionWrap').style.display !== 'none'){
+      const sec = document.getElementById('qeSection').value || '';
+      body.booklet_id = sec.startsWith('booklet:') ? sec.slice(8) : null;
+      body.lecture_id = sec.startsWith('lecture:') ? sec.slice(8) : null;
+    }
     if (qeType === 'mcq'){
       const rows = [...document.getElementById('qeChoices').children];
       const correctIdx = document.querySelector('input[name="qeCorrect"]:checked')?.value;
@@ -3672,6 +3691,7 @@
     openQuestionEditor({
       createUrl: '/api/professors/me/questions',
       updateUrl: id => '/api/professors/me/questions/' + id,
+      sectionsUrl: '/api/professors/me/question-sections',
       onSaved: loadProfessorQuestions,
     }, q);
   }

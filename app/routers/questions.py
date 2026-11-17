@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, ranking, schemas
@@ -8,23 +9,126 @@ from ..deps import get_current_user
 router = APIRouter(prefix="/api", tags=["questions"])
 
 
+def _section_filter(q, booklet_id: str | None, lecture_id: str | None, general: bool):
+    if booklet_id:
+        return q.filter(models.Question.booklet_id == booklet_id)
+    if lecture_id:
+        return q.filter(models.Question.lecture_id == lecture_id)
+    if general:
+        return q.filter(models.Question.booklet_id.is_(None), models.Question.lecture_id.is_(None))
+    return q
+
+
 @router.get("/subjects/{subject_id}/questions", response_model=list[schemas.QuestionOut])
 def list_questions(
     subject_id: str,
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=200),
     offset: int = 0,
+    booklet_id: str | None = None,
+    lecture_id: str | None = None,
+    general: bool = False,
+    shuffle: bool = False,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    questions = (
+    """The questions of a subject, optionally only those of one booklet /
+    lecture (or the general ones). `shuffle` gives a fresh random order — the
+    exam run. The correct answers are not included."""
+    query = (
         db.query(models.Question)
         .options(joinedload(models.Question.choices))
         .filter(models.Question.subject_id == subject_id)
-        .offset(offset)
-        .limit(limit)
-        .all()
     )
-    return questions
+    query = _section_filter(query, booklet_id, lecture_id, general)
+    if shuffle:
+        query = query.order_by(func.random())
+    return query.offset(offset).limit(limit).all()
+
+
+@router.get("/subjects/{subject_id}/bank-sections")
+def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The question bank of a subject split into its booklets and lectures,
+    each with how many questions it holds and how many the student has tried."""
+    qs = db.query(models.Question.id, models.Question.booklet_id, models.Question.lecture_id).filter(models.Question.subject_id == subject_id).all()
+    if not qs:
+        return {"total": 0, "sections": []}
+    qids = [r[0] for r in qs]
+    tried = set()
+    mastered = set()
+    latest: dict[str, bool] = {}
+    for qid, ok in (db.query(models.StudentAnswer.question_id, models.StudentAnswer.is_correct)
+                    .filter(models.StudentAnswer.user_id == user.id, models.StudentAnswer.question_id.in_(qids))
+                    .order_by(models.StudentAnswer.answered_at.asc()).all()):
+        latest[qid] = bool(ok)
+    tried = set(latest)
+    mastered = {k for k, v in latest.items() if v}
+    groups: dict[str, list[str]] = {}
+    for qid, bid, lid in qs:
+        key = ("booklet:" + bid) if bid else ("lecture:" + lid) if lid else "general"
+        groups.setdefault(key, []).append(qid)
+    booklets = {b.id: b for b in db.query(models.Booklet).filter(models.Booklet.id.in_([k[8:] for k in groups if k.startswith("booklet:")])).all()}
+    lectures = {l.id: l for l in db.query(models.Lecture).filter(models.Lecture.id.in_([k[8:] for k in groups if k.startswith("lecture:")])).all()}
+    courses = {c.id: c for c in db.query(models.Course).filter(models.Course.id.in_({l.course_id for l in lectures.values()})).all()} if lectures else {}
+    out = []
+    for key, ids in groups.items():
+        kind, _, ident = key.partition(":")
+        if kind == "booklet":
+            b = booklets.get(ident)
+            title, kind_l = (b.title if b else None), "booklet"
+            order = (0, b.created_at.timestamp() if b and b.created_at else 0)
+        elif kind == "lecture":
+            l = lectures.get(ident)
+            c = courses.get(l.course_id) if l else None
+            title, kind_l = ((f"{l.title}" if l else None), "lecture")
+            order = (1, (c.title if c else ""), (l.order_index or 0) if l else 0)
+            sub = c.title if c else ""
+        else:
+            title, kind_l, order = "أسئلة عامة", "general", (2,)
+        if kind in ("booklet", "lecture") and not title:
+            key, title, kind_l, order = "general", "أسئلة عامة", "general", (2,)   # parent was deleted
+        out.append({"key": key, "kind": kind_l, "title": title, "course": sub if kind == "lecture" else "",
+                    "count": len(ids), "tried": len([i for i in ids if i in tried]), "mastered": len([i for i in ids if i in mastered]), "_o": order})
+    # a deleted parent can leave several "general" entries — merge them
+    merged: dict[str, dict] = {}
+    for r in out:
+        if r["key"] in merged and r["key"] == "general":
+            m = merged["general"]
+            for f in ("count", "tried", "mastered"):
+                m[f] += r[f]
+        else:
+            merged[r["key"]] = r
+    rows = sorted(merged.values(), key=lambda r: tuple(str(x) if isinstance(x, str) else x for x in r["_o"]))
+    for r in rows:
+        r.pop("_o", None)
+    return {"total": len(qids), "sections": rows}
+
+
+@router.get("/subjects/{subject_id}/study")
+def study_questions(
+    subject_id: str,
+    booklet_id: str | None = None,
+    lecture_id: str | None = None,
+    general: bool = False,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Study mode: the questions of one section WITH their answers and
+    explanations, in their original order — what a student reads through
+    before sitting the exam on them."""
+    query = (
+        db.query(models.Question)
+        .options(joinedload(models.Question.choices))
+        .filter(models.Question.subject_id == subject_id)
+    )
+    rows = _section_filter(query, booklet_id, lecture_id, general).limit(300).all()
+    out = []
+    for q in rows:
+        out.append({
+            "id": q.id, "text": q.text, "eyebrow": q.eyebrow or "", "image_url": q.image_url, "qtype": q.qtype or "mcq",
+            "rationale": q.rationale or "", "model_answer": q.model_answer or "",
+            "choices": [{"id": c.id, "text": c.text, "is_correct": bool(c.is_correct)} for c in sorted(q.choices, key=lambda c: c.order_index or 0)],
+        })
+    return out
 
 
 @router.post("/questions/{question_id}/answer", response_model=schemas.AnswerResult)

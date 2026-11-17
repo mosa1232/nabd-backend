@@ -1597,6 +1597,29 @@
   .bk-sub{font-size:.78rem; color:var(--ink-soft);} .bk-pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
   .bk-go{position:absolute; inset-block-start:12px; inset-inline-end:14px; font-size:.72rem; font-weight:800; color:var(--c);}
   @media (max-width:520px){ .bk-sum{grid-template-columns:repeat(2,1fr);} }
+
+  /* ---- bank: sections + study ---- */
+  .bsec-list{display:grid; gap:12px; padding-bottom:100px;}
+  .bsec-card{display:flex; align-items:center; gap:14px; text-align:start; width:100%; padding:16px; border-radius:18px; background:var(--glass-bg-strong); border:1px solid var(--glass-border); color:inherit; font:inherit; cursor:pointer; transition:transform .2s ease, border-color .2s ease;}
+  .bsec-card:hover{transform:translateY(-2px); border-color:var(--accent);}
+  .bsec-ic{flex:none; width:46px; height:46px; border-radius:14px; display:grid; place-items:center; color:#fff; background:linear-gradient(145deg,var(--accent),var(--accent-2));} .bsec-ic svg{width:22px; height:22px;}
+  .bsec-card.lecture .bsec-ic{background:linear-gradient(145deg,#FB7185,#E11D48);} .bsec-card.general .bsec-ic{background:linear-gradient(145deg,#2DD4BF,#0D9488);} .bsec-card.all .bsec-ic{background:linear-gradient(145deg,#FBBF24,#E58E0A);}
+  .bsec-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;} .bsec-main b{font-size:1rem; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;} .bsec-main small{font-size:.76rem; opacity:.65;}
+  .bsec-meta{font-size:.76rem; opacity:.75;} .bsec-meta em{font-style:normal; color:var(--success); font-weight:700;}
+  .bsec-bar{height:6px; border-radius:99px; background:var(--track); overflow:hidden; margin-top:4px;} .bsec-bar i{display:block; height:100%; border-radius:99px; background:var(--accent);}
+  .bsec-go{flex:none; font-size:.76rem; font-weight:800; color:var(--accent);}
+  .bst-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; margin-bottom:16px; position:sticky; top:8px; z-index:5;}
+  .bst-bar div{display:flex; flex-direction:column; gap:3px; font-size:.82rem;} .bst-bar b{font-weight:800;} .bst-bar span{opacity:.7;}
+  .bst-list{display:grid; gap:14px; padding-bottom:20px;}
+  .bst-q{background:var(--glass-bg-strong); border:1px solid var(--glass-border); border-radius:18px; padding:16px 18px;}
+  .bst-qh{display:flex; align-items:center; gap:8px; margin-bottom:10px;} .bst-n{width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:.78rem; font-weight:800;}
+  .bst-tag{font-size:.7rem; font-weight:700; padding:3px 10px; border-radius:99px; background:var(--track); color:var(--accent);}
+  .bst-text{font-weight:700; line-height:1.9; margin-bottom:12px;} .bst-img{width:100%; max-height:240px; object-fit:contain; border-radius:12px; margin-bottom:12px;}
+  .bst-choices{display:grid; gap:8px;} .bst-ch{display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:12px; border:1.5px solid var(--glass-border); font-size:.9rem; line-height:1.7;}
+  .bst-ch i{flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid var(--glass-border); display:grid; place-items:center; font-style:normal; font-size:.72rem; font-weight:800;}
+  .bst-ch.ok{border-color:var(--success); background:var(--success-soft);} .bst-ch.ok i{background:var(--success); border-color:var(--success); color:#fff;}
+  .bst-ans, .bst-why{margin-top:12px; padding:12px 14px; border-radius:12px; background:var(--track); font-size:.86rem; line-height:1.9;} .bst-ans p{margin-top:4px;}
+  .bst-end{width:100%; justify-content:center; margin:6px 0 100px; padding:14px;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2004,6 +2027,39 @@
     </div>
     <div id="bsSubjectList" class="bk-grid"></div>
     <div id="bsEmpty" class="empty-row" style="display:none;"></div>
+  </div>
+
+  <!-- ============ BANK: SECTIONS OF A SUBJECT ============ -->
+  <div class="view" id="view-bank-sections">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goToBankSelect()" aria-label="رجوع" data-i18n-aria="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div>
+          <div class="page-title" id="bsecTitle">—</div>
+          <div class="page-sub" data-i18n="bsecSub">اختر ملزمة أو محاضرة: تقرأ أسئلتها أولًا، ثم تمتحن نفسك عليها.</div>
+        </div>
+      </div>
+    </div>
+    <div id="bsecList" class="bsec-list"></div>
+  </div>
+
+  <!-- ============ BANK: STUDY ONE SECTION ============ -->
+  <div class="view" id="view-bank-study">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goToBankSections(bsecSubject.id, bsecSubject.name)" aria-label="رجوع" data-i18n-aria="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div>
+          <div class="page-title" id="bstTitle">—</div>
+          <div class="page-sub" id="bstSub"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bst-bar glass">
+      <div><b data-i18n="bstStep1">١) اقرأ الأسئلة وإجاباتها</b><span data-i18n="bstStep2">٢) ثم ابدأ الامتحان — الأسئلة تُخلط عشوائيًا</span></div>
+      <button class="btn" onclick="startSectionExam()" data-i18n="bstStartExam">ابدأ الامتحان</button>
+    </div>
+    <div id="bstList" class="bst-list"></div>
+    <button class="btn bst-end" onclick="startSectionExam()" data-i18n="bstStartExam">ابدأ الامتحان</button>
   </div>
 
   <!-- ============ REAL EXAM VIEW ============ -->
@@ -3371,6 +3427,7 @@
       navGroupSoon:'قريبًا',
       wkTitle:'أسبوعك', wkGoal:'هدف اليوم',
       bkTotal:'أسئلة متاحة', bkTried:'جرّبت منها', bkAccAll:'الدقة العامة', bkStart:'ابدأ', bkContinue:'تابع', bkReviewMistakes:'راجع أخطائي',
+      bsecSub:'اختر ملزمة أو محاضرة: تقرأ أسئلتها أولًا، ثم تمتحن نفسك عليها.', bsecAll:'كل أسئلة المادة', bsecTried:'جرّبت', bsecRead:'قرأتها', bsecOpen:'افتح', bstStep1:'١) اقرأ الأسئلة وإجاباتها', bstStep2:'٢) ثم ابدأ الامتحان — الأسئلة تُخلط عشوائيًا', bstStartExam:'ابدأ الامتحان', bstModel:'الإجابة النموذجية', bstWhy:'التوضيح:',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3515,6 +3572,7 @@
       navGroupSoon:'Coming soon',
       wkTitle:'Your week', wkGoal:'Today\'s goal',
       bkTotal:'Questions', bkTried:'Attempted', bkAccAll:'Overall accuracy', bkStart:'Start', bkContinue:'Continue', bkReviewMistakes:'Review my mistakes',
+      bsecSub:'Pick a booklet or lecture: read its questions first, then test yourself on them.', bsecAll:'All questions of the subject', bsecTried:'Tried', bsecRead:'Read', bsecOpen:'Open', bstStep1:'1) Read the questions and answers', bstStep2:'2) Then start the exam — questions are shuffled', bstStartExam:'Start the exam', bstModel:'Model answer', bstWhy:'Explanation:',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3657,6 +3715,7 @@
       navGroupSoon:'بەزوویی',
       wkTitle:'هەفتەکەت', wkGoal:'ئامانجی ئەمڕۆ',
       bkTotal:'پرسیارەکان', bkTried:'هەوڵت داوە', bkAccAll:'ڕێژەی گشتی', bkStart:'دەستپێبکە', bkContinue:'بەردەوامبە', bkReviewMistakes:'هەڵەکانم پێداچوونەوە',
+      bsecSub:'بەرگ یان وانە هەڵبژێرە: یەکەم پرسیارەکان بخوێنەرەوە، پاشان خۆت تاقی بکەرەوە.', bsecAll:'هەموو پرسیارەکانی بابەت', bsecTried:'هەوڵت داوە', bsecRead:'خوێندوتەوە', bsecOpen:'بیکەرەوە', bstStep1:'١) پرسیار و وەڵامەکان بخوێنەرەوە', bstStep2:'٢) پاشان تاقیکردنەوە دەستپێبکە — پرسیارەکان تێکەڵ دەکرێن', bstStartExam:'دەستپێکردنی تاقیکردنەوە', bstModel:'وەڵامی نموونەیی', bstWhy:'ڕوونکردنەوە:',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -3842,14 +3901,14 @@
     apiFetch('/auth/me/recent-view', {method: 'POST', body: JSON.stringify({content_type: contentType, content_id: contentId})}).catch(() => {});
   }
   let quizSubject = null, quizLog = [], quizStart = 0;
-  async function goToQuiz(subjectId, subjectLabel){
+  async function goToQuiz(subjectId, subjectLabel, opts){
     stopPlayerVideo();
-    quizSubject = {id: subjectId, name: subjectLabel}; quizLog = []; quizStart = Date.now();
+    quizSubject = {id: subjectId, name: subjectLabel, opts: opts || null}; quizLog = []; quizStart = Date.now();
     showView('view-quiz');
     document.getElementById('qText').textContent = 'جارٍ التحميل...';
     document.getElementById('qOptions').innerHTML = '';
     qi = 0;
-    await loadApiQuestions(subjectId);
+    await loadApiQuestions(subjectId, opts);
     renderQuestion();
     startTimer();
   }
@@ -4203,15 +4262,100 @@
     return apiSubjectId;
   }
 
-  async function loadApiQuestions(subjectId){
+  async function loadApiQuestions(subjectId, opts){
     apiQuestions = [];
     if (!authToken) return;
     try {
       const subjId = subjectId || await resolveApiSubjectId();
       if (!subjId) return;
-      const data = await apiFetch('/api/subjects/' + subjId + '/questions?limit=10');
-      if (Array.isArray(data)) apiQuestions = data;
+      let qs = 'limit=10';
+      if (opts){
+        qs = 'limit=100&shuffle=true';
+        if (opts.booklet_id) qs += '&booklet_id=' + encodeURIComponent(opts.booklet_id);
+        if (opts.lecture_id) qs += '&lecture_id=' + encodeURIComponent(opts.lecture_id);
+        if (opts.general) qs += '&general=true';
+      }
+      const data = await apiFetch('/api/subjects/' + subjId + '/questions?' + qs);
+      if (Array.isArray(data)){
+        apiQuestions = data;
+        // an exam shuffles the options too (true/false keeps صح before خطأ)
+        if (opts) apiQuestions.forEach(q => { if (q.qtype === 'mcq' && q.choices) q.choices = q.choices.map(c => [Math.random(), c]).sort((a, b) => a[0] - b[0]).map(x => x[1]); });
+      }
     } catch (e) { apiQuestions = []; }
+  }
+
+  // ---------- Question bank: booklets / lectures, study first, then the exam ----------
+  let bsecSubject = null, bstCur = null;
+  const studiedKey = k => 'kiur_studied_' + (currentUser ? currentUser.id : '') + '_' + k;
+  const isStudied = k => { try { return localStorage.getItem(studiedKey(k)) === '1'; } catch (e) { return false; } };
+  const markStudied = k => { try { localStorage.setItem(studiedKey(k), '1'); } catch (e) {} };
+  function secOpts(key){
+    if (key.startsWith('booklet:')) return {booklet_id: key.slice(8)};
+    if (key.startsWith('lecture:')) return {lecture_id: key.slice(8)};
+    if (key === 'general') return {general: true};
+    return {};
+  }
+  const SEC_ICON = {
+    booklet: '<path d="M4 19.5V6a2 2 0 0 1 2-2h13v15"/><path d="M6 22a2 2 0 0 1 0-4h14"/>',
+    lecture: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5-6-3.5Z"/>',
+    general: '<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/>',
+    all: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  };
+  async function goToBankSections(subjectId, name){
+    bsecSubject = {id: subjectId, name};
+    showView('view-bank-sections');
+    document.getElementById('bsecTitle').textContent = name;
+    const box = document.getElementById('bsecList');
+    box.innerHTML = `<div class="empty-row">${esc(t('loading'))}</div>`;
+    try {
+      const d = await apiFetch('/api/subjects/' + subjectId + '/bank-sections');
+      const card = (key, kind, title, sub, count, tried, mastered) => {
+        const pct = count ? Math.round(100 * tried / count) : 0;
+        return `<button class="bsec-card ${kind}" onclick="openBankStudy('${key}', ${esc(JSON.stringify(title))})">
+          <span class="bsec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SEC_ICON[kind]}</svg></span>
+          <span class="bsec-main"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}
+            <span class="bsec-meta">${count} ${esc(t('questionsCount'))} · ${esc(t('bsecTried'))} ${tried}${isStudied(key) ? ` · <em>✓ ${esc(t('bsecRead'))}</em>` : ''}</span>
+            <span class="bsec-bar"><i style="width:${pct}%"></i></span></span>
+          <span class="bsec-go">${esc(t('bsecOpen'))}</span></button>`;
+      };
+      const rows = d.sections || [];
+      box.innerHTML = d.total
+        ? card('all', 'all', t('bsecAll'), '', d.total, rows.reduce((a, r) => a + r.tried, 0), 0) +
+          rows.map(r => card(r.key, r.kind, r.title, r.course, r.count, r.tried, r.mastered)).join('')
+        : `<div class="empty-row">${esc(t('bankNoQ'))}</div>`;
+    } catch (e) { box.innerHTML = `<div class="empty-row">${esc(e.detail || t('pearlsLoadFailed'))}</div>`; }
+  }
+  async function openBankStudy(key, title){
+    bstCur = {key, title};
+    showView('view-bank-study');
+    document.getElementById('bstTitle').textContent = title;
+    document.getElementById('bstSub').textContent = bsecSubject ? bsecSubject.name : '';
+    const box = document.getElementById('bstList');
+    box.innerHTML = `<div class="empty-row">${esc(t('loading'))}</div>`;
+    try {
+      const o = secOpts(key);
+      const qs = new URLSearchParams(Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])));
+      const rows = await apiFetch('/api/subjects/' + bsecSubject.id + '/study?' + qs.toString());
+      document.getElementById('bstSub').textContent = (bsecSubject ? bsecSubject.name + ' · ' : '') + rows.length + ' ' + t('questionsCount');
+      box.innerHTML = rows.map((q, i) => {
+        const body = q.qtype === 'essay'
+          ? `<div class="bst-ans"><b>${esc(t('bstModel'))}</b><p>${esc(q.model_answer)}</p></div>`
+          : `<div class="bst-choices">${q.choices.map(c => `<div class="bst-ch ${c.is_correct ? 'ok' : ''}"><i>${c.is_correct ? '✓' : ''}</i><span>${esc(c.text)}</span></div>`).join('')}</div>`;
+        return `<article class="bst-q">
+          <div class="bst-qh"><span class="bst-n">${i + 1}</span>${q.eyebrow ? `<span class="bst-tag">${esc(q.eyebrow)}</span>` : ''}</div>
+          <div class="bst-text">${esc(q.text)}</div>
+          ${q.image_url ? `<img src="${API_BASE_URL}${esc(q.image_url)}" alt="" class="bst-img" />` : ''}
+          ${body}
+          ${q.rationale ? `<div class="bst-why"><b>${esc(t('bstWhy'))}</b> ${esc(q.rationale)}</div>` : ''}
+        </article>`;
+      }).join('') || `<div class="empty-row">${esc(t('bankNoQ'))}</div>`;
+      window.scrollTo(0, 0);
+    } catch (e) { box.innerHTML = `<div class="empty-row">${esc(e.detail || t('pearlsLoadFailed'))}</div>`; }
+  }
+  function startSectionExam(){
+    if (!bstCur || !bsecSubject) return;
+    markStudied(bstCur.key);
+    goToQuiz(bsecSubject.id, bsecSubject.name + ' — ' + bstCur.title, {...secOpts(bstCur.key), shuffle: true});
   }
 
   // ---------- Question bank (automatic) ----------
@@ -4265,7 +4409,7 @@
       const pct = g.total ? Math.round(100 * g.answered / g.total) : 0;
       const col = PAL[i % PAL.length];
       const acc = g.accuracy == null ? '' : `<span class="bs-pill ${g.accuracy >= 70 ? 'hi' : g.accuracy >= 50 ? 'mid' : 'lo'}">${esc(t('bankAcc'))} ${g.accuracy}%</span>`;
-      return `<button class="bk-card" style="--c:${col}" onclick="goToQuiz('${s.id}', ${esc(JSON.stringify(s.name))})">
+      return `<button class="bk-card" style="--c:${col}" onclick="goToBankSections('${s.id}', ${esc(JSON.stringify(s.name))})">
         <div class="bk-ring" style="--p:${pct}"><span>${pct}%</span></div>
         <div class="bk-body">
           <div class="bk-name">${esc(s.name)}</div>
@@ -4398,7 +4542,7 @@
     document.getElementById('sumMistakes').innerHTML = wrong.map(x => `<div class="sum-miss">${esc(x.text)}<div class="cell-sub" style="font-size:.76rem; opacity:.75;">✗ ${esc(x.picked || '')} &nbsp; ✓ ${esc(x.right || '')}</div></div>`).join('');
     if (quizLog.length) showToast(pct >= 80 ? t('sumGreat') : pct >= 55 ? t('sumGood') : t('sumKeep'));
   }
-  function startNewQuizSession(){ if (quizSubject) goToQuiz(quizSubject.id, quizSubject.name); else goToBankSelect(); }
+  function startNewQuizSession(){ if (quizSubject) goToQuiz(quizSubject.id, quizSubject.name, quizSubject.opts); else goToBankSelect(); }
 
   // ---------- Lightbox ----------
   function openZoom(){ document.getElementById('lightbox').classList.add('show'); }

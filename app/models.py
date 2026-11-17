@@ -234,6 +234,11 @@ class Question(Base):
     # essay has no choices — just a model answer the student reveals.
     qtype = Column(String, default="mcq")
     model_answer = Column(Text, default="")
+    # Which booklet / lecture the question belongs to (both empty = a general
+    # question of the subject). Plain ids, no FK: deleting a booklet or a
+    # lecture must never be blocked by — or delete — its questions.
+    booklet_id = Column(String, nullable=True, index=True)
+    lecture_id = Column(String, nullable=True, index=True)
 
     subject = relationship("Subject")
     choices = relationship("Choice", back_populates="question", cascade="all, delete-orphan")
