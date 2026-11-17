@@ -1576,6 +1576,27 @@
   .wk-stats b{font-size:1.4rem; font-weight:800;} .wk-stats span{font-size:.74rem; color:var(--ink-soft);}
   .wk-stats em{font-style:normal; font-size:.72rem; font-weight:700;} .wk-stats em.up{color:var(--success);} .wk-stats em.down{color:var(--danger);}
   .wk-more{display:flex; align-items:center; gap:6px; margin:14px 0 0 auto; margin-inline-start:auto; font-size:.8rem; font-weight:700; color:var(--accent);} .wk-more svg{width:14px; height:14px;}
+
+  /* ---- question bank: new layout ---- */
+  .bk-context{font-size:.9rem; color:var(--ink-soft); font-weight:600; margin:-4px 2px 12px;}
+  .bk-stages{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;} .bk-stages:empty{display:none;}
+  .bk-stages button{padding:8px 16px; border-radius:999px; border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); font-weight:700; font-size:.84rem; color:var(--ink-soft);}
+  .bk-stages button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .bk-sum{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px;}
+  .bk-sum > div{background:var(--glass-bg-strong); border:1px solid var(--glass-border); border-radius:16px; padding:14px 8px; text-align:center;}
+  .bk-sum b{display:block; font-size:1.35rem; font-weight:800; color:var(--accent);} .bk-sum span{display:block; font-size:.72rem; color:var(--ink-soft); margin-top:3px;}
+  .bk-actions{display:flex; gap:10px; margin-bottom:16px;} .bk-actions .btn{padding:9px 18px; font-size:.82rem;}
+  .bk-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px; padding-bottom:20px;}
+  .bk-card{position:relative; display:flex; align-items:center; gap:14px; text-align:start; padding:18px 16px 18px; border-radius:20px; background:var(--glass-bg-strong); border:1px solid var(--glass-border); color:inherit; font:inherit; cursor:pointer; overflow:hidden; transition:transform .2s ease, border-color .2s ease;}
+  .bk-card::before{content:''; position:absolute; inset-block:0; inset-inline-start:0; width:5px; background:var(--c);}
+  .bk-card:hover{transform:translateY(-3px); border-color:var(--c);}
+  .bk-ring{flex:none; width:64px; height:64px; border-radius:50%; position:relative; display:grid; place-items:center; background:conic-gradient(var(--c) calc(var(--p)*1%), color-mix(in srgb, var(--c) 16%, transparent) 0);}
+  .bk-ring::before{content:''; position:absolute; inset:7px; border-radius:50%; background:var(--glass-bg-strong);}
+  .bk-ring span{position:relative; font-size:.78rem; font-weight:800; color:var(--c);}
+  .bk-body{flex:1; min-width:0;} .bk-name{font-size:1.05rem; font-weight:800; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .bk-sub{font-size:.78rem; color:var(--ink-soft);} .bk-pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+  .bk-go{position:absolute; inset-block-start:12px; inset-inline-end:14px; font-size:.72rem; font-weight:800; color:var(--c);}
+  @media (max-width:520px){ .bk-sum{grid-template-columns:repeat(2,1fr);} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -1974,12 +1995,15 @@
     </div>
     <!-- كل شيء يُحسب تلقائياً من بيانات الطالب المحفوظة: لا اختيار للقسم أو الجامعة،
          والمرحلة تُغيَّر بضغطة واحدة، والمواد تظهر مباشرة. -->
-    <div class="glass" style="padding:18px 20px;">
-      <div class="item-meta" id="bsContext" style="margin-bottom:10px;"></div>
-      <div class="form-field" id="bsStageField" style="display:none;"><select id="bsStageSwitch" onchange="onBsStageSwitch()" aria-label="المرحلة"></select></div>
-      <div id="bsSubjectList" style="display:grid; gap:10px;"></div>
-      <div id="bsEmpty" class="empty-row" style="display:none;"></div>
+    <div class="bk-context"><span id="bsContext"></span></div>
+    <div class="bk-stages" id="bsStageChips"></div>
+    <div class="form-field" id="bsStageField" style="display:none;"><select id="bsStageSwitch" onchange="onBsStageSwitch()" aria-label="المرحلة"></select></div>
+    <div class="bk-sum" id="bsSummary"></div>
+    <div class="bk-actions">
+      <button class="btn btn-ghost" onclick="goToReview()" data-i18n="bkReviewMistakes">راجع أخطائي</button>
     </div>
+    <div id="bsSubjectList" class="bk-grid"></div>
+    <div id="bsEmpty" class="empty-row" style="display:none;"></div>
   </div>
 
   <!-- ============ REAL EXAM VIEW ============ -->
@@ -3346,6 +3370,7 @@
       aiNavTitle:'المساعد الذكي', aiListSub:'محادثاتك المحفوظة مع المساعد — افتح أي محادثة أو ابدأ جديدة.', aiNew:'محادثة جديدة', aiEmptyList:'ما عندك محادثات بعد. ابدأ محادثة واسأل عن أي مفهوم أو سؤال.', aiOpenTab:'فتح بنافذة جديدة', aiCopyAll:'نسخ المحادثة', aiShare:'إرسال', aiDup:'نسخ كمحادثة جديدة', aiDel:'حذف', aiDelConfirm:'تحذف هذه المحادثة نهائيًا؟', aiRenameBtn:'تغيير الاسم', aiRenamePrompt:'اسم المحادثة', aiCopyMsg:'نسخ', aiCopiedToast:'تم النسخ ✓', aiDupToast:'تم إنشاء نسخة من المحادثة', aiDelToast:'تم حذف المحادثة', aiMsgsN:'رسالة', aiYouLbl:'أنا', aiBotLbl:'المساعد', aiBack:'كل المحادثات', aiMore:'خيارات',
       navGroupSoon:'قريبًا',
       wkTitle:'أسبوعك', wkGoal:'هدف اليوم',
+      bkTotal:'أسئلة متاحة', bkTried:'جرّبت منها', bkAccAll:'الدقة العامة', bkStart:'ابدأ', bkContinue:'تابع', bkReviewMistakes:'راجع أخطائي',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3489,6 +3514,7 @@
       aiNavTitle:'AI assistant', aiListSub:'Your saved chats with the assistant — open one or start a new one.', aiNew:'New chat', aiEmptyList:'No chats yet. Start one and ask about any concept or question.', aiOpenTab:'Open in a new window', aiCopyAll:'Copy chat', aiShare:'Send', aiDup:'Copy as a new chat', aiDel:'Delete', aiDelConfirm:'Delete this chat permanently?', aiRenameBtn:'Rename', aiRenamePrompt:'Chat name', aiCopyMsg:'Copy', aiCopiedToast:'Copied ✓', aiDupToast:'A copy of the chat was created', aiDelToast:'Chat deleted', aiMsgsN:'messages', aiYouLbl:'Me', aiBotLbl:'Assistant', aiBack:'All chats', aiMore:'Options',
       navGroupSoon:'Coming soon',
       wkTitle:'Your week', wkGoal:'Today\'s goal',
+      bkTotal:'Questions', bkTried:'Attempted', bkAccAll:'Overall accuracy', bkStart:'Start', bkContinue:'Continue', bkReviewMistakes:'Review my mistakes',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3630,6 +3656,7 @@
       aiNavTitle:'یاریدەدەری زیرەک', aiListSub:'گفتوگۆ پاشەکەوتکراوەکانت لەگەڵ یاریدەدەر — یەکێک بکەرەوە یان نوێ دەستپێبکە.', aiNew:'گفتوگۆی نوێ', aiEmptyList:'هێشتا گفتوگۆت نییە. دەستپێبکە و پرسیار بکە.', aiOpenTab:'کردنەوە لە پەنجەرەی نوێ', aiCopyAll:'کۆپی گفتوگۆ', aiShare:'ناردن', aiDup:'کۆپی وەک گفتوگۆی نوێ', aiDel:'سڕینەوە', aiDelConfirm:'ئەم گفتوگۆیە بە یەکجاری دەسڕدرێتەوە؟', aiRenameBtn:'گۆڕینی ناو', aiRenamePrompt:'ناوی گفتوگۆ', aiCopyMsg:'کۆپی', aiCopiedToast:'کۆپی کرا ✓', aiDupToast:'کۆپییەک دروستکرا', aiDelToast:'گفتوگۆ سڕایەوە', aiMsgsN:'نامە', aiYouLbl:'من', aiBotLbl:'یاریدەدەر', aiBack:'هەموو گفتوگۆکان', aiMore:'هەڵبژاردنەکان',
       navGroupSoon:'بەزوویی',
       wkTitle:'هەفتەکەت', wkGoal:'ئامانجی ئەمڕۆ',
+      bkTotal:'پرسیارەکان', bkTried:'هەوڵت داوە', bkAccAll:'ڕێژەی گشتی', bkStart:'دەستپێبکە', bkContinue:'بەردەوامبە', bkReviewMistakes:'هەڵەکانم پێداچوونەوە',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -4216,18 +4243,37 @@
     const sel = document.getElementById('bsStageSwitch');
     sel.innerHTML = mine.stages.map(st =>
       `<option value="${st.id}" ${st.id === mine.stage?.id ? 'selected' : ''}>${esc(st.name)}</option>`).join('');
-    stageField.style.display = mine.stages.length > 1 ? 'block' : 'none';
     let prog = {};
     try { (await apiFetch('/api/me/progress')).forEach(x => { prog[x.subject_id] = x; }); } catch (e) { /* cards still work without numbers */ }
-    list.innerHTML = mine.subjects.map(s => {
+    // overall numbers across the stage's subjects
+    const all = Object.values(prog);
+    const tot = all.reduce((x, g) => x + (g.total || 0), 0), tried = all.reduce((x, g) => x + (g.answered || 0), 0);
+    const mastered = all.reduce((x, g) => x + (g.mastered || 0), 0);
+    const accs = all.filter(g => g.accuracy != null);
+    const accAll = accs.length ? Math.round(accs.reduce((x, g) => x + g.accuracy, 0) / accs.length) : null;
+    const nf = n => Number(n).toLocaleString(currentLang === 'en' ? 'en-US' : 'ar-IQ');
+    document.getElementById('bsSummary').innerHTML = [
+      [nf(tot), 'bkTotal'], [nf(tried), 'bkTried'], [nf(mastered), 'stMastered'], [accAll == null ? '—' : accAll + '%', 'bkAccAll'],
+    ].map(([v, k]) => `<div><b>${v}</b><span>${esc(t(k))}</span></div>`).join('');
+    const chips = document.getElementById('bsStageChips');
+    chips.innerHTML = mine.stages.length > 1 ? mine.stages.map(st =>
+      `<button class="${st.id === mine.stage?.id ? 'on' : ''}" onclick="document.getElementById('bsStageSwitch').value='${st.id}'; onBsStageSwitch();">${esc(st.name)}</button>`).join('') : '';
+    stageField.style.display = 'none';
+    const PAL = ['#5B6CF0', '#F59E0B', '#14B8A6', '#E11D48', '#8B5CF6', '#0EA5E9'];
+    list.innerHTML = mine.subjects.map((s, i) => {
       const g = prog[s.id] || {total: 0, answered: 0, to_review: 0, accuracy: null};
       const pct = g.total ? Math.round(100 * g.answered / g.total) : 0;
+      const col = PAL[i % PAL.length];
       const acc = g.accuracy == null ? '' : `<span class="bs-pill ${g.accuracy >= 70 ? 'hi' : g.accuracy >= 50 ? 'mid' : 'lo'}">${esc(t('bankAcc'))} ${g.accuracy}%</span>`;
-      return `<button class="bs-card" onclick="goToQuiz('${s.id}', ${esc(JSON.stringify(s.name))})">
-        <div class="bs-top"><span>${esc(s.name)}</span>${chevronIcon}</div>
-        ${g.total ? `<div class="bs-bar"><i style="width:${pct}%"></i></div>
-          <div class="bs-meta"><span>${esc(t('bankProgress').replace('{a}', g.answered).replace('{b}', g.total))}</span>${acc}${g.to_review ? `<span class="bs-pill lo">${g.to_review} ${esc(t('bankReview'))}</span>` : ''}</div>`
-          : `<div class="bs-meta" style="margin-top:8px;">${esc(t('bankNoQ'))}</div>`}</button>`;
+      return `<button class="bk-card" style="--c:${col}" onclick="goToQuiz('${s.id}', ${esc(JSON.stringify(s.name))})">
+        <div class="bk-ring" style="--p:${pct}"><span>${pct}%</span></div>
+        <div class="bk-body">
+          <div class="bk-name">${esc(s.name)}</div>
+          ${g.total ? `<div class="bk-sub">${esc(t('bankProgress').replace('{a}', g.answered).replace('{b}', g.total))}</div>
+            <div class="bk-pills">${acc}${g.to_review ? `<span class="bs-pill lo">${g.to_review} ${esc(t('bankReview'))}</span>` : ''}</div>`
+            : `<div class="bk-sub">${esc(t('bankNoQ'))}</div>`}
+        </div>
+        <span class="bk-go">${esc(t(g.answered ? 'bkContinue' : 'bkStart'))}</span></button>`;
     }).join('');
     if (!mine.subjects.length){
       empty.textContent = t('noSubjectsForStage');
