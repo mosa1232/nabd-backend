@@ -516,7 +516,7 @@ def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, lan
 
 
 def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "", language: str = "ar") -> tuple[list[dict], int]:
+                       difficulty: str, notes: str = "", language: str = "ar", progress=None) -> tuple[list[dict], int]:
     """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
     model answer stays within its output limit, and later batches are told what
     was already written. language: "ar", "en", or "both" (`count` Arabic then
@@ -525,7 +525,9 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
     if language == "both":
         out, skipped = [], 0
         for lg in ("ar", "en"):
-            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg)
+            base = len(out)
+            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg,
+                                        (lambda d, base=base: progress(base + d)) if progress else None)
             out += qs
             skipped += sk
         return out, skipped
@@ -546,6 +548,8 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         seen = {x["text"].strip().lower() for x in out}
         fresh = [q for q in qs if q["text"].strip().lower() not in seen]
         out += fresh[:count - len(out)]
+        if progress:
+            progress(len(out))
         if not qs:
             break
     return out, skipped

@@ -1,5 +1,9 @@
 from urllib.parse import quote
 
+import threading
+import time
+import uuid
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
@@ -944,6 +948,51 @@ def _ai_call(fn, *args, **kwargs):
         raise HTTPException(502, str(e))
 
 
+# Generating many questions takes minutes, so it runs as a background job the
+# page polls for progress (one server process, so an in-memory table is enough).
+_AI_JOBS: dict[str, dict] = {}
+_AI_JOBS_LOCK = threading.Lock()
+
+
+def _purge_jobs() -> None:
+    cutoff = time.time() - 1800
+    with _AI_JOBS_LOCK:
+        for k in [k for k, j in _AI_JOBS.items() if j["created"] < cutoff]:
+            _AI_JOBS.pop(k, None)
+
+
+def _run_question_job(job: dict, blocks, subject_name, count, wanted, difficulty, notes, language) -> None:
+    try:
+        qs, skipped = ai.generate_questions(blocks, subject_name, count, wanted, difficulty, notes, language,
+                                            progress=lambda d: job.__setitem__("done", d))
+        if not qs:
+            job.update(status="error", error="لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
+        else:
+            job.update(status="done", done=len(qs), questions=qs, skipped=skipped)
+    except (ai.AIUnavailable, ai.AIError) as e:
+        job.update(status="error", error=str(e))
+    except Exception:
+        job.update(status="error", error="حدث خطأ غير متوقع أثناء التوليد — حاول مرة أخرى")
+
+
+@router.get("/me/ai/jobs/{job_id}")
+def ai_job_status(job_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Progress of a running generation; when finished it carries the drafts."""
+    job = _AI_JOBS.get(job_id)
+    if not job or job["user_id"] != user.id:
+        raise HTTPException(404, "انتهت صلاحية هذه العملية — ابدأ التوليد من جديد")
+    out = {"status": job["status"], "done": job["done"], "total": job["total"]}
+    if job["status"] == "error":
+        out["error"] = job.get("error", "")
+    if job["status"] == "done":
+        profile = _draft_profile(db, user, "prof.questions")
+        qs = job["questions"]
+        for q in qs:
+            q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"]) if profile else None
+        out.update(questions=qs, skipped=job.get("skipped", 0))
+    return out
+
+
 @router.post("/me/ai/generate-questions")
 async def ai_generate_questions(
     file: UploadFile = File(...),
@@ -970,13 +1019,14 @@ async def ai_generate_questions(
     data = await file.read()
     blocks = _ai_call(ai.file_blocks, file.filename, data)
     subject_name = profile.subject.name if profile and profile.subject else ""
-    questions, skipped = _ai_call(ai.generate_questions, blocks, subject_name, count, wanted, difficulty[:40], notes, language)
-    if not questions:
-        raise HTTPException(502, "لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
-    # Warn about drafts that are already in the bank (the search model's job).
-    for q in questions:
-        q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"]) if profile else None
-    return {"questions": questions, "skipped": skipped}
+    _purge_jobs()
+    job_id = uuid.uuid4().hex
+    total = count * (2 if language == "both" else 1)
+    job = {"user_id": user.id, "status": "running", "done": 0, "total": total, "created": time.time()}
+    with _AI_JOBS_LOCK:
+        _AI_JOBS[job_id] = job
+    threading.Thread(target=_run_question_job, args=(job, blocks, subject_name, count, wanted, difficulty[:40], notes, language), daemon=True).start()
+    return {"job_id": job_id, "total": total}
 
 
 @router.post("/me/ai/generate-pearls")

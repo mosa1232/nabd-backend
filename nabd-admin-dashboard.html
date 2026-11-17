@@ -5514,12 +5514,37 @@
     msg.style.display = 'block'; msg.style.color = 'var(--ink-faint)'; msg.textContent = aiGenMode === 'import' ? 'نقرأ الملف…' : 'يقرأ المساعد الملف ويصوغ المحتوى…';
     try {
       const path = aiGenMode === 'import' ? '/api/professors/me/questions/import' : (aiGenMode === 'questions' ? '/api/professors/me/ai/generate-questions' : '/api/professors/me/ai/generate-pearls');
-      const res = await apiForm(path, fd);
+      let res = await apiForm(path, fd);
+      if (res && res.job_id) res = await aiWaitForJob(res.job_id, res.total, msg, btn);   // long runs report their progress
       aiGenDrafts = aiGenMode === 'pearls' ? res.pearls : res.questions;
       renderAiDrafts(res.skipped || 0, res.errors || []);
     } catch (e) {
       btn.disabled = false; btn.textContent = aiGenMode === 'import' ? 'اقرأ الملف' : 'ولّد';
       msg.style.color = 'var(--danger)'; msg.textContent = e.detail || e.message || 'تعذّر التوليد';
+    }
+  }
+
+  // Polls a background generation and draws a real progress bar (questions written so far).
+  async function aiWaitForJob(jobId, total, msg, btn){
+    const started = Date.now();
+    msg.style.display = 'block'; msg.style.color = 'var(--ink)';
+    const draw = (done, t) => {
+      const pct = t ? Math.min(100, Math.round(100 * done / t)) : 0;
+      const secs = Math.round((Date.now() - started) / 1000);
+      msg.innerHTML = `<div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;"><span>جارٍ كتابة الأسئلة…</span><span>${done} / ${t} · ${pct}%</span></div>
+        <div style="height:12px; border-radius:99px; background:var(--track); overflow:hidden;"><div style="height:100%; width:${Math.max(pct, 3)}%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .6s ease;"></div></div>
+        <div class="item-meta" style="margin-top:6px; font-size:.74rem;">مضى ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} — لا تغلق هذه النافذة</div>`;
+      if (btn) btn.textContent = pct + '% …';
+    };
+    draw(0, total);
+    for (;;){
+      await new Promise(r => setTimeout(r, 1500));
+      let st;
+      try { st = await apiFetch('/api/professors/me/ai/jobs/' + jobId); }
+      catch (e){ if (e.status === 404) throw e; continue; }   // a dropped poll is not a failure
+      if (st.status === 'error'){ const err = new Error(st.error || 'تعذّر التوليد'); err.detail = st.error; throw err; }
+      draw(st.done, st.total);
+      if (st.status === 'done') return st;
     }
   }
 
