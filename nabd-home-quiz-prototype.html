@@ -1718,6 +1718,19 @@
   .anat-stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
   #anatModels .anat-stage{aspect-ratio:auto; width:100%; height:min(88vw, 420px); min-height:260px;}
   @media (min-width:900px){ #anatModels .anat-stage{height:520px;} }
+
+  /* ---- anatomy viewer controls ---- */
+  .anat-tools{position:absolute; top:10px; inset-inline-end:10px; z-index:6; display:flex; flex-direction:column; gap:8px;}
+  .anat-tools button, .anat-nav{width:42px; height:42px; border-radius:50%; border:1px solid rgba(255,255,255,.22); background:rgba(20,24,38,.62); color:#fff; display:grid; place-items:center; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .anat-tools button:active, .anat-nav:active{transform:scale(.92);} .anat-tools button.on{background:var(--accent); border-color:var(--accent);}
+  .anat-tools svg, .anat-nav svg{width:20px; height:20px;}
+  .anat-nav{position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:38px; height:38px; opacity:.8;} .anat-nav.nextx{left:8px;} .anat-nav.prevx{right:8px;}
+  .anat-name-tag{position:absolute; top:12px; inset-inline-start:12px; z-index:5; max-width:55%; padding:6px 12px; border-radius:99px; background:rgba(20,24,38,.62); color:#fff; font-size:.8rem; font-weight:700; pointer-events:none;}
+  .anat-hint{position:absolute; bottom:10px; left:50%; transform:translateX(-50%); z-index:5; padding:6px 14px; border-radius:99px; background:rgba(20,24,38,.62); color:#dfe3f2; font-size:.72rem; white-space:nowrap; pointer-events:none; transition:opacity .5s;} .anat-hint.gone{opacity:0;}
+  #anatModels .anat-stage.anat-full, .anat-stage.anat-full{position:fixed !important; inset:0 !important; z-index:2000; width:100vw !important; height:100vh !important; height:100dvh !important; margin:0 !important; border-radius:0 !important; min-height:0 !important;}
+  .anat-stage.anat-full .anat-tools{top:calc(12px + env(safe-area-inset-top));} .anat-stage.anat-full .anat-hint{bottom:calc(14px + env(safe-area-inset-bottom));}
+  body.anat-fullscreen{overflow:hidden;} body.anat-fullscreen .bottom-nav, body.anat-fullscreen .topbar, body.anat-fullscreen .ai-fab{display:none !important;}
+  @media (max-width:520px){ .anat-hint{font-size:.66rem; max-width:90%; white-space:normal; text-align:center;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2637,6 +2650,17 @@
       <div class="anat-chips" id="anatChips" role="tablist"></div>
       <div class="anat-stage" id="anatStage">
         <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoadingModel">جارٍ تحميل النموذج…</div>
+        <div class="anat-name-tag" id="anatNameTag"></div>
+        <div class="anat-tools" id="anatTools">
+          <button type="button" onclick="mvZoom(0.78)" aria-label="تكبير" data-i18n-aria="anatZoomIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button>
+          <button type="button" onclick="mvZoom(1.28)" aria-label="تصغير" data-i18n-aria="anatZoomOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg></button>
+          <button type="button" onclick="mvReset()" aria-label="إعادة" data-i18n-aria="anatReset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          <button type="button" id="anatAutoBtn" onclick="mvAuto()" aria-label="دوران تلقائي" data-i18n-aria="anatAuto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M18.5 2v4h-4M5.5 22v-4h4"/></svg></button>
+          <button type="button" id="anatFullBtn" onclick="mvFull()" aria-label="ملء الشاشة" data-i18n-aria="anatFull"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        </div>
+        <button type="button" class="anat-nav prevx" onclick="mvStep(-1)" aria-label="السابق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        <button type="button" class="anat-nav nextx" onclick="mvStep(1)" aria-label="التالي"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="anat-hint" id="anatHint" data-i18n="anatHint">اسحب للتدوير · اقرص أو استخدم + − للتكبير · إصبعان للتحريك</div>
       </div>
       <div class="anat-info">
         <div style="font-weight:800;" id="anatName"></div>
@@ -3551,6 +3575,7 @@
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
       selectDept:'اختر القسم',
       anatTabBody:'المجسّم الكامل', anatTabSketch:'نماذج تفصيلية', anatomyLoadingModel:'جارٍ تحميل النموذج…', anatomyCreditPrefix:'النموذج:',
+      anatHint:'اسحب للتدوير · اقرص أو استخدم + − للتكبير · إصبعان للتحريك', anatZoomIn:'تكبير', anatZoomOut:'تصغير', anatReset:'إعادة العرض', anatAuto:'دوران تلقائي', anatFull:'ملء الشاشة',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3699,6 +3724,7 @@
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
       selectDept:'Select department',
       anatTabBody:'Full body', anatTabSketch:'Detailed models', anatomyLoadingModel:'Loading the model…', anatomyCreditPrefix:'Model:',
+      anatHint:'Drag to rotate · pinch or use + − to zoom · two fingers to move', anatZoomIn:'Zoom in', anatZoomOut:'Zoom out', anatReset:'Reset view', anatAuto:'Auto-rotate', anatFull:'Full screen',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3845,6 +3871,7 @@
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
       selectDept:'بەش هەڵبژێرە',
       anatTabBody:'جەستەی تەواو', anatTabSketch:'مۆدێلی ورد', anatomyLoadingModel:'مۆدێلەکە بار دەکرێت…', anatomyCreditPrefix:'مۆدێل:',
+      anatHint:'بکێشە بۆ سوڕاندن · بچووککردنەوە/گەورەکردن بە + − · بە دوو پەنجە بجوڵێنە', anatZoomIn:'گەورەکردن', anatZoomOut:'بچووککردنەوە', anatReset:'گەڕانەوە', anatAuto:'سوڕانەوەی خۆکار', anatFull:'پڕ بە شاشە',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -7118,10 +7145,17 @@
     const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(2, 4, 3); scene.add(dl);
     const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    mv = {renderer, scene, camera, controls, obj: null, running: false};
+    controls.enableDamping = true; controls.dampingFactor = 0.09;
+    controls.rotateSpeed = 0.8; controls.zoomSpeed = 0.9; controls.panSpeed = 0.7; controls.screenSpacePanning = true;
+    controls.autoRotateSpeed = 1.6;
+    mv = {renderer, scene, camera, controls, obj: null, running: false, home: null, dist: 1, zoomTo: null};
     const resize = () => { const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     window.addEventListener('resize', resize); mv.resize = resize;
+    // the first touch hides the hint; a double tap/click resets the view
+    renderer.domElement.addEventListener('pointerdown', () => { const h = document.getElementById('anatHint'); if (h) h.classList.add('gone'); });
+    renderer.domElement.addEventListener('dblclick', () => mvReset());
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && stage.classList.contains('anat-full')) mvFull(false); });
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && stage.classList.contains('anat-full')) mvFull(false); });
   }
   function mvStop(){ if (mv) mv.running = false; }
   function mvStart(){
@@ -7129,9 +7163,47 @@
     mv.running = true;
     const loop = () => {
       if (!mv.running || currentViewId !== 'view-anatomy' || anatomyMode !== 'models'){ mv.running = false; return; }
+      if (mv.zoomTo){   // eased zoom / reset instead of a jump
+        const c = mv.controls, tgt = c.target, v = mv.camera.position.clone().sub(tgt);
+        const k = 0.16, want = mv.zoomTo;
+        if (want.pos){ mv.camera.position.lerp(want.pos, k); c.target.lerp(new THREE.Vector3(), k); if (mv.camera.position.distanceTo(want.pos) < want.dist * 0.004){ mv.camera.position.copy(want.pos); c.target.set(0, 0, 0); mv.zoomTo = null; } }
+        else { const d = v.length(), nd = d + (want.d - d) * k; v.setLength(nd); mv.camera.position.copy(tgt).add(v); if (Math.abs(want.d - d) < want.d * 0.004) mv.zoomTo = null; }
+      }
       mv.controls.update(); mv.renderer.render(mv.scene, mv.camera); requestAnimationFrame(loop);
     };
     mv.resize(); loop();
+  }
+
+  // viewer buttons: zoom, reset, auto-rotate, full screen, previous/next model
+  function mvZoom(f){
+    if (!mv || !mv.home) return;
+    const c = mv.controls, d = mv.camera.position.distanceTo(c.target);
+    mv.zoomTo = {d: Math.min(c.maxDistance, Math.max(c.minDistance, d * f))};
+  }
+  function mvReset(){ if (mv && mv.home) mv.zoomTo = {pos: mv.home.pos.clone(), dist: mv.home.dist}; }
+  function mvAuto(){
+    if (!mv) return;
+    mv.controls.autoRotate = !mv.controls.autoRotate;
+    document.getElementById('anatAutoBtn').classList.toggle('on', mv.controls.autoRotate);
+  }
+  function mvStep(dir){
+    const i = anatomyModels.findIndex(m => m.id === anatomyCurrent);
+    if (i < 0 || !anatomyModels.length) return;
+    selectAnatomy(anatomyModels[(i + dir + anatomyModels.length) % anatomyModels.length].id);
+  }
+  function mvFull(force){
+    const stage = document.getElementById('anatStage');
+    const on = typeof force === 'boolean' ? force : !stage.classList.contains('anat-full');
+    stage.classList.toggle('anat-full', on);
+    document.body.classList.toggle('anat-fullscreen', on);
+    const b = document.getElementById('anatFullBtn');
+    b.innerHTML = on ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>'
+                     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+    try {
+      if (on && stage.requestFullscreen && !document.fullscreenElement) stage.requestFullscreen().catch(() => {});
+      if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    } catch (e) { /* the CSS full-screen layout works without the browser API */ }
+    setTimeout(() => mv && mv.resize && mv.resize(), 60); setTimeout(() => mv && mv.resize && mv.resize(), 350);
   }
   async function selectAnatomy(id){
     const m = anatomyModels.find(x => x.id === id);
@@ -7154,7 +7226,9 @@
       const dim = Math.max(size.x, size.y, size.z) || 1;
       obj.position.sub(center);
       mv.camera.position.set(0, 0, dim * 1.9); mv.camera.near = dim / 100; mv.camera.far = dim * 100; mv.camera.updateProjectionMatrix();
-      mv.controls.target.set(0, 0, 0); mv.controls.update();
+      mv.controls.target.set(0, 0, 0); mv.controls.minDistance = dim * 0.25; mv.controls.maxDistance = dim * 6; mv.controls.update();
+      mv.home = {pos: mv.camera.position.clone(), dist: dim * 1.9}; mv.zoomTo = null;
+      document.getElementById('anatNameTag').textContent = m[lang] || m.en;
       loading.style.display = 'none';
       mvStart();
     } catch (e) { loading.textContent = t('anatomyFailed'); }
