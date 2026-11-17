@@ -1502,6 +1502,11 @@
   .stat-chip b{white-space:nowrap;}
   .page-head{margin-bottom:14px;}
 
+
+  /* ---- account polish ---- */
+  .kpi-value{white-space:nowrap;} .kpi-of{font-size:.55em; font-weight:600; opacity:.6;}
+  .prof-header{flex-wrap:wrap; gap:14px;} .prof-header .btn{width:100%; justify-content:center;}
+  @media (min-width:640px){ .prof-header .btn{width:auto;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2766,6 +2771,18 @@
           <div class="item-list" id="myHistoryList"></div>
         </div>
       </div>
+
+
+      <div class="more-list" style="margin-top:16px;">
+        <button class="more-row" onclick="goToMyOrders()">
+          <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg></span>
+          <span class="more-label" data-i18n="ordersTitle">طلباتي</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="more-row" onclick="goToSupport()">
+          <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="more-label" data-i18n="moreHelp">المساعدة والدعم</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- ---------- التعلّم ---------- -->
@@ -3191,6 +3208,7 @@
       ordersTitle:'طلباتي', ordersSub:'تابع حالة طلباتك وأكواد التفعيل.', orderPending:'بانتظار تأكيد الدفع', orderPaid:'مدفوع — قيد التجهيز', orderFulfilled:'تم التسليم', orderCancelled:'ملغي', orderNone:'لا توجد طلبات بعد. تصفّح المتجر وأضف ما يناسبك.', orderCodes:'أكواد التفعيل', orderCopy:'نسخ', orderCopied:'تم النسخ ✓', orderWaiting:'ننتظر تأكيد الدفع من الإدارة، وتصلك الأكواد هنا بمجرد التأكيد.', orderDelivery:'التوصيل', orderZain:'زين كاش', orderCod:'عند الاستلام', orderRedeem:'فعّل الكود من «حسابي ← التعلّم».',
       lpAnatomyDesc:'جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.', lpHowEyebrow:'البداية', lpHowTitle:'ثلاث خطوات وتبدأ', lpHowSub:'من التسجيل إلى أول سؤال بدقائق.', lpStep1T:'أنشئ حسابك', lpStep1B:'بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.', lpStep2T:'اختر جامعتك ومرحلتك', lpStep2B:'تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.', lpStep3T:'ابدأ الدراسة', lpStep3B:'أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.', lpFaqEyebrow:'أسئلة شائعة', lpFaqTitle:'قبل ما تبدأ', lpFaq1Q:'هل التسجيل مجاني؟', lpFaq1A:'إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.', lpFaq2Q:'هل أقدر أستخدم حسابي على أكثر من جهاز؟', lpFaq2A:'الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.', lpFaq3Q:'كيف أدخل إذا سجّلت بـ Google؟', lpFaq3A:'تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.', lpFaq4Q:'كيف أتواصل مع الدعم؟', lpFaq4A:'من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.', lpFinalTitle:'جاهز تبدأ؟', lpFinalSub:'سجّل الآن وابدأ بأول جلسة أسئلة.', lpSupportLine:'للدعم:',
       navGroupSoon:'قريبًا', homeStart:'ابدأ من هنا', homeMore:'المزيد', homeSoonLine:'قريبًا: أكاديمية الفيديو والتدريب الصيفي', moreHelp:'المساعدة والدعم',
+      rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
       studentOrGraduate:'هل أنت طالب أم متخرج؟', stillStudent:'ما زلت طالباً', graduated:'متخرج',
@@ -3329,6 +3347,7 @@
       ordersTitle:'My orders', ordersSub:'Follow your orders and activation codes.', orderPending:'Awaiting payment confirmation', orderPaid:'Paid — being prepared', orderFulfilled:'Delivered', orderCancelled:'Cancelled', orderNone:'No orders yet. Browse the store and add what you need.', orderCodes:'Activation codes', orderCopy:'Copy', orderCopied:'Copied ✓', orderWaiting:'We are waiting for the team to confirm the payment; your codes will appear here once confirmed.', orderDelivery:'Delivery', orderZain:'ZainCash', orderCod:'Cash on delivery', orderRedeem:'Activate the code from My account → Learning.',
       lpAnatomyDesc:'The human body in detail: muscles, bones, nerves, vessels and organs — rotate, zoom and tap any part to learn its name.', lpHowEyebrow:'Getting started', lpHowTitle:'Three steps and you are in', lpHowSub:'From sign-up to your first question in minutes.', lpStep1T:'Create your account', lpStep1B:'With email and a password, or with Google in one tap.', lpStep2T:'Pick your university and year', lpStep2B:'Your subjects and doctors appear automatically; change your year any time.', lpStep3T:'Start studying', lpStep3B:'Questions with explanations, clinical pearls and a 3D anatomy atlas.', lpFaqEyebrow:'FAQ', lpFaqTitle:'Before you start', lpFaq1Q:'Is sign-up free?', lpFaq1A:'Creating an account is free. Some content (booklets and courses) is unlocked with a code from the store or your representative.', lpFaq2Q:'Can I use my account on more than one device?', lpFaq2A:'An account works on one device at a time to protect the content. Signing in on a new device signs out the old one.', lpFaq3Q:'How do I sign in if I joined with Google?', lpFaq3A:'You set a username and a password once after the first sign-up, then sign in whichever way you prefer.', lpFaq4Q:'How do I reach support?', lpFaq4A:'From inside the app use the Help button to message the team directly, or write to support@kiur.online.', lpFinalTitle:'Ready to start?', lpFinalSub:'Sign up now and begin your first question session.', lpSupportLine:'Support:',
       navGroupSoon:'Coming soon', homeStart:'Start here', homeMore:'More', homeSoonLine:'Coming soon: Video Academy and Summer Training', moreHelp:'Help and support',
+      rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
       studentOrGraduate:'Are you a student or a graduate?', stillStudent:'Still a student', graduated:'Graduated',
@@ -3465,6 +3484,7 @@
       ordersTitle:'داواکارییەکانم', ordersSub:'دۆخی داواکارییەکان و کۆدەکانی چالاککردن بەدواداچوون بکە.', orderPending:'چاوەڕێی پشتڕاستکردنەوەی پارەدان', orderPaid:'پارەدراوە — ئامادە دەکرێت', orderFulfilled:'گەیەنرا', orderCancelled:'هەڵوەشێنرایەوە', orderNone:'هێشتا داواکاری نییە. بچۆ فرۆشگا.', orderCodes:'کۆدەکانی چالاککردن', orderCopy:'کۆپی', orderCopied:'کۆپی کرا ✓', orderWaiting:'چاوەڕێی پشتڕاستکردنەوەی بەڕێوەبەرایەتین؛ کۆدەکانت لێرە دەردەکەون.', orderDelivery:'گەیاندن', orderZain:'زەین کاش', orderCod:'پارەدان لە کاتی وەرگرتن', orderRedeem:'کۆدەکە لە «هەژمارەکەم ← فێربوون» چالاک بکە.',
       lpAnatomyDesc:'جەستەی مرۆڤ بە وردی: ماسولکە و ئێسک و دەمار و خوێنبەر و ئەندامەکان — بیسوڕێنە و نزیک بکەرەوە و دەست بخەرە سەر هەر بەشێک بۆ ناسینی ناوەکەی.', lpHowEyebrow:'دەستپێکردن', lpHowTitle:'سێ هەنگاو و دەست پێدەکەیت', lpHowSub:'لە تۆمارکردنەوە بۆ یەکەم پرسیار بە چەند خولەکێک.', lpStep1T:'هەژمارەکەت دروست بکە', lpStep1B:'بە ئیمەیڵ و وشەی نهێنی، یان بە Google بە یەک کلیک.', lpStep2T:'زانکۆ و قۆناغەکەت هەڵبژێرە', lpStep2B:'بابەت و مامۆستاکانت خۆکارانە دەردەکەون.', lpStep3T:'دەست بکە بە خوێندن', lpStep3B:'پرسیار لەگەڵ ڕوونکردنەوە و تێبینی کلینیکی و ئەناتۆمی سێ ڕەهەند.', lpFaqEyebrow:'پرسیاری باو', lpFaqTitle:'پێش دەستپێکردن', lpFaq1Q:'ئایا تۆمارکردن بێبەرامبەرە؟', lpFaq1A:'دروستکردنی هەژمار بێبەرامبەرە. هەندێک ناوەڕۆک بە کۆد چالاک دەکرێت کە لە فرۆشگا یان نوێنەرەکەتەوە وەریدەگریت.', lpFaq2Q:'دەتوانم هەژمارەکەم لەسەر چەند ئامێرێک بەکاربهێنم؟', lpFaq2A:'هەژمارەکە لە یەک کاتدا لەسەر یەک ئامێر کار دەکات بۆ پاراستنی ناوەڕۆک.', lpFaq3Q:'ئەگەر بە Google تۆمار بووم چۆن دەچمە ژوورەوە؟', lpFaq3A:'جارێک ناوی بەکارهێنەر و وشەی نهێنی دیاری دەکەیت و دواتر بە هەر ڕێگایەک دەچیتە ژوورەوە.', lpFaq4Q:'چۆن پەیوەندی بە پشتگیرییەوە بکەم؟', lpFaq4A:'لە ناو ئەپەکەوە دوگمەی «یارمەتی»، یان بنووسە بۆ support@kiur.online.', lpFinalTitle:'ئامادەیت دەست پێ بکەیت؟', lpFinalSub:'ئێستا تۆمار بکە و یەکەم دانیشتنی پرسیار دەست پێ بکە.', lpSupportLine:'پشتگیری:',
       navGroupSoon:'بەزوویی', homeStart:'لێرەوە دەست پێ بکە', homeMore:'زیاتر', homeSoonLine:'بەزوویی: ئەکادیمیای ڤیدیۆ و ڕاهێنانی هاوین', moreHelp:'یارمەتی و پشتگیری',
+      rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
       studentOrGraduate:'تۆ قوتابیت یان دەرچووی؟', stillStudent:'هێشتا قوتابیم', graduated:'دەرچووم',
@@ -5061,8 +5081,8 @@
       document.getElementById('accKpiToday').textContent = st.answered_today ?? '—';
       document.getElementById('accKpiStreak').textContent = st.streak_days ?? '—';
       // A rank only means something next to the size of the group it ranks in.
-      document.getElementById('accKpiRank').textContent =
-        st.rank ? `#${st.rank} / ${st.total_ranked}` : '—';
+      document.getElementById('accKpiRank').innerHTML =
+        st.rank ? `#${st.rank} <small class="kpi-of">${t('rankOf') || 'of'} ${st.total_ranked}</small>` : '—';
     } catch (e) { /* leave the dashes — an unreachable backend isn't a score */ }
   }
 
