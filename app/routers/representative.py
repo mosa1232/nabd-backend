@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/rep", tags=["representative"])
 
 def _rep(user: models.User = Depends(get_current_user)) -> models.User:
     if user.role != models.Role.representative or "rep.codes" not in user_permissions(user):
-        raise HTTPException(403, "اختر الممثل من «عرض لوحة ممثل» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin) else "هذه الواجهة مخصصة للممثل العام فقط")
+        raise HTTPException(403, "اختر الممثل من «عرض لوحة ممثل» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor) else "هذه الواجهة مخصصة للممثل العام فقط")
     if not user.scope_university_id:
         raise HTTPException(400, "حسابك غير مرتبط بجامعة/كلية بعد — اطلب من المشرف تحديد نطاقك")
     return user

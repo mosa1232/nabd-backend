@@ -541,7 +541,7 @@
         <div class="dash-card-head"><span class="dash-card-title">الأدمنية</span>
           <span style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="btn" onclick="promptAddUser('admin')">+ أدمن</button>
-            <button class="btn btn-ghost" onclick="promptAddUser('supervisor')">+ سوبر فايزر</button>
+            <button class="btn btn-ghost" onclick="promptAddUser('supervisor')">+ مشرف</button>
             <button class="btn btn-ghost" onclick="promptAddUser('store_manager')">+ مدير متجر</button></span></div>
         <input class="search-input" id="adminsSearch" placeholder="ابحث بالاسم أو البريد..." oninput="renderAdmins()" style="margin-bottom:14px;" />
         <div id="adminsBody"></div></div></section>
@@ -1233,7 +1233,7 @@
   function viewAsHeader(path){
     if (path.startsWith('/api/admin/') || path.startsWith('/auth/')) return {};
     let admin = false;
-    try { admin = currentRole === 'admin' || currentRole === 'owner'; } catch (e) { /* not signed in yet */ }
+    try { admin = currentRole === 'admin' || currentRole === 'owner' || currentRole === 'supervisor'; } catch (e) { /* not signed in yet */ }
     const g = admin ? viewAsGroupOf(viewAsSection) : null;
     return g && viewAsPick[g] ? {'X-View-As': viewAsPick[g]} : {};
   }
@@ -1767,7 +1767,7 @@
     const p = myPerms();
     if (item.perm === 'any') return PROF_PERM_LIST.some(x => p.has(x));
     if (item.perm === 'owner') return currentRole === 'professor';
-    if (item.perm === 'viewas') return currentRole === 'owner' || (currentRole === 'admin' && p.has('users.manage'));
+    if (item.perm === 'viewas') return currentRole === 'owner' || ((currentRole === 'admin' || currentRole === 'supervisor') && p.has('users.manage'));
     if (item.perm === 'codes.any') return p.has('codes.view') || p.has('codes.generate');
     return p.has(item.perm);
   }
@@ -1830,7 +1830,7 @@
     professor: PROF_NAV, assistant: PROF_NAV, reseller: RES_NAV, representative: REP_NAV,
   };
   const ROLE_LABELS = {
-    owner:'المالك', admin:'المشرف (أدمن)', supervisor:'سوبر فايزر', store_manager:'مدير المتجر',
+    owner:'المالك', admin:'أدمن', supervisor:'مشرف', store_manager:'مدير المتجر',
     professor:'لوحة الدكتور', assistant:'مساعد الدكتور', reseller:'لوحة المندوب', representative:'الممثل العام',
   };
   // `roles[x]` stays the lookup the rest of this file already uses (existence
@@ -1937,26 +1937,53 @@
     document.getElementById('dashTitle').textContent = item ? item.label : '';
     closeSidebarMobile();
     viewAsSection = id;
-    if ((currentRole === 'admin' || currentRole === 'owner') && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
+    if ((currentRole === 'admin' || currentRole === 'owner' || currentRole === 'supervisor') && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
     document.getElementById('viewAsBar').style.display = 'none';
     loadSection(id);
   }
 
   const VIEWAS_ROLE = {doctor: 'professor', reseller: 'reseller', rep: 'representative'};
   const VIEWAS_WORD = {doctor: 'دكتور', reseller: 'مندوب', rep: 'ممثل'};
+  // "المنصة": content saved under the platform's own name (a built-in teaching account).
+  let platformInfo = null, platformSubject = '';
   async function renderViewAsBar(sectionId){
     const g = viewAsGroupOf(sectionId), bar = document.getElementById('viewAsBar');
     bar.style.display = 'block';
     if (!allAccounts.length && liveMode){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
-    const list = allAccounts.filter(a => a.role === VIEWAS_ROLE[g]);
-    if (!list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = list[0] ? list[0].id : '';
+    const list = allAccounts.filter(a => a.role === VIEWAS_ROLE[g] && a.email !== 'platform@kiur.internal');
+    let usePlatform = false;
+    if (g === 'doctor' && liveMode){
+      try { if (!platformInfo) platformInfo = await apiFetch('/api/admin/platform'); } catch (e) { platformInfo = null; }
+      usePlatform = !!platformInfo && viewAsPick[g] === platformInfo.user_id;
+    }
+    if (!usePlatform && !list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = list[0] ? list[0].id : (platformInfo ? platformInfo.user_id : '');
+    usePlatform = !!platformInfo && g === 'doctor' && viewAsPick[g] === platformInfo.user_id;
+    const platOpt = g === 'doctor' && platformInfo ? `<option value="${platformInfo.user_id}" ${usePlatform ? 'selected' : ''}>🏛 ${esc(platformInfo.name)} — بدون دكتور (باسم المنصة)</option>` : '';
+    const subjSel = usePlatform ? `<select id="platSubject" style="flex:1; min-width:220px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="pickPlatformSubject(this.value, '${sectionId}')">
+        <option value="">اختر المادة التي تنشر فيها…</option>
+        ${platformInfo.subjects.map(x => `<option value="${x.id}" ${x.id === platformSubject ? 'selected' : ''}>${esc(x.name)} — ${esc(x.path)}${x.active ? ' ✓' : ''}</option>`).join('')}
+      </select>` : '';
+    const note = usePlatform && !platformSubject ? 'اختر المادة من القائمة لتبدأ النشر باسم المنصة.' : usePlatform ? 'كل ما ترفعه هنا (أسئلة، ملازم، امتحانات، كورسات، لمحات) يظهر للطلاب باسم المنصة.' : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
       <span style="font-weight:800; font-size:.86rem;">عرض لوحة ${VIEWAS_WORD[g]}:</span>
-      <select id="viewAsSelect" style="flex:1; min-width:200px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="viewAsPick['${g}']=this.value; loadSection('${sectionId}')">
-        ${list.map(a => `<option value="${a.id}" ${a.id === viewAsPick[g] ? 'selected' : ''}>${esc(a.full_name)}</option>`).join('') || '<option value="">لا يوجد حسابات</option>'}
-      </select>
-      <span class="cell-sub">أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.</span></div>`;
+      <select id="viewAsSelect" style="flex:1; min-width:200px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="viewAsPick['${g}']=this.value; platformSubject=''; activeSubjectId=null; renderViewAsBar('${sectionId}')">
+        ${platOpt}${list.map(a => `<option value="${a.id}" ${a.id === viewAsPick[g] ? 'selected' : ''}>${esc(a.full_name)}</option>`).join('') || (platOpt ? '' : '<option value="">لا يوجد حسابات</option>')}
+      </select>${subjSel}
+      <span class="cell-sub">${note}</span></div>`;
+    if (usePlatform){
+      if (platformSubject) loadSection(sectionId);
+      return;
+    }
     if (viewAsPick[g]) loadSection(sectionId);
+  }
+  async function pickPlatformSubject(subjectId, sectionId){
+    platformSubject = subjectId; activeSubjectId = subjectId || null;
+    if (!subjectId){ renderViewAsBar(sectionId); return; }
+    try {
+      await apiFetch('/api/admin/platform/subject', {method: 'POST', body: JSON.stringify({subject_id: subjectId})});
+      platformInfo = await apiFetch('/api/admin/platform');
+    } catch (e) { showToast(e.detail || 'تعذّر فتح المادة', 'error'); return; }
+    renderViewAsBar(sectionId);
   }
 
   function toggleSidebar(){
@@ -1973,7 +2000,7 @@
   function fmtDate(iso){ if(!iso) return '—'; return new Date(iso).toLocaleDateString('ar-IQ', {day:'numeric', month:'short'}); }
   function initialsOf(name){ return (name||'').trim().split(' ').map(w=>w[0]).slice(0,2).join(''); }
   function roleBadge(role){
-    const map = {owner:'المالك', admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'سوبر فايزر', store_manager:'مدير المتجر', assistant:'مساعد دكتور', representative:'ممثل عام'};
+    const map = {owner:'المالك', admin:'أدمن', student:'طالب', professor:'أستاذ', reseller:'مندوب', supervisor:'مشرف', store_manager:'مدير المتجر', assistant:'مساعد دكتور', representative:'ممثل عام'};
     return `<span class="badge badge-${role}">${map[role]||role}</span>`;
   }
   // Weekday label for a YYYY-MM-DD string, so a real per-day series can
@@ -2157,7 +2184,7 @@
 
     security: d => stKpis(
         stK('تسجيلات الدخول', numAr(d.sessions), `${numAr(d.users)} مستخدم`) + stK('عناوين IP مختلفة', numAr(d.ips), '') + stK('حسابات مقفولة الآن', numAr(d.locked_now), 'محاولات خاطئة') +
-        stK('إدارة بلا تحقق بخطوتين', `${numAr(d.staff_without_2fa)} / ${numAr(d.staff_total)}`, 'مالك وأدمن وسوبر فايزر ومدراء') + stK('حظر بالفترة', numAr(d.bans.in_period), `طعون معلّقة ${numAr(d.bans.appeals)}`)) +
+        stK('إدارة بلا تحقق بخطوتين', `${numAr(d.staff_without_2fa)} / ${numAr(d.staff_total)}`, 'مالك وأدمن ومشرف ومدراء') + stK('حظر بالفترة', numAr(d.bans.in_period), `طعون معلّقة ${numAr(d.bans.appeals)}`)) +
       stGrid(stC('تسجيلات الدخول يوميًا', barsHtml(d.daily_sessions)) + stC('الأجهزة والمتصفحات', listHtml(d.devices))) +
       stGrid(stC('عناوين IP مشتركة بين 3 حسابات فأكثر', listHtml(d.shared_ips, ' حساب'), 'قد تكون شبكة جامعة أو سكن، وقد تكون مشاركة حساب — راجعها بعين الاعتبار.') +
              stC('حسابات دخلت من 3 عناوين IP أو أكثر', tableHtml(['الحساب', 'عناوين IP', 'مرات الدخول'], d.many_ips.map(x => [esc(x.name), numAr(x.ips), numAr(x.logins)])), 'مؤشر محتمل لمشاركة الحساب (قاعدة الجلسة الواحدة تمنع الاستعمال المتزامن).')) +
@@ -2461,7 +2488,7 @@
   function renderAdmins(){
     const box = document.getElementById('adminsBody'); if (!box) return;
     const q = (document.getElementById('adminsSearch')?.value || '').trim().toLowerCase();
-    const groups = [['owner', 'المالك'], ['admin', 'الأدمن'], ['supervisor', 'السوبر فايزر'], ['store_manager', 'مدراء المتجر']];
+    const groups = [['owner', 'المالك'], ['admin', 'الأدمن'], ['supervisor', 'المشرف'], ['store_manager', 'مدراء المتجر']];
     box.innerHTML = groups.map(([role, title]) => {
       const list = allAccounts.filter(a => a.role === role && (!q || a.full_name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)));
       if (!list.length) return '';
@@ -2503,7 +2530,7 @@
   let allCatalogRows = [];
   async function loadAccounts(){
     const chips = ['all','owner','admin','supervisor','store_manager','professor','assistant','reseller','representative','student'];
-    const labels = {all:'الكل', owner:'المالك', admin:'أدمن', supervisor:'سوبر فايزر', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', representative:'ممثلون', student:'طلاب'};
+    const labels = {all:'الكل', owner:'المالك', admin:'أدمن', supervisor:'مشرف', store_manager:'مدراء المتجر', professor:'دكاترة', assistant:'مساعدون', reseller:'مندوبون', representative:'ممثلون', student:'طلاب'};
     document.getElementById('accountFilters').innerHTML = chips.map(c => `
       <button class="filter-chip ${c==='all'?'active':''}" data-role="${c}" onclick="filterAccounts('${c}')">${labels[c]}</button>
     `).join('');
@@ -2811,8 +2838,8 @@
     {value: 'reseller', label: 'مندوب'},
     {value: 'representative', label: 'ممثل عام (توثيق الطلاب)'},
     {value: 'store_manager', label: 'مدير المتجر'},
-    {value: 'supervisor', label: 'سوبر فايزر'},
-    {value: 'admin', label: 'أدمن (مشرف المنصة)'},
+    {value: 'supervisor', label: 'مشرف'},
+    {value: 'admin', label: 'أدمن (مدير المنصة)'},
     {value: 'owner', label: 'المالك (كل الصلاحيات)'},
   ];
   // Only a full admin may create or edit admins, supervisors and store
@@ -2870,7 +2897,7 @@
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
       {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: '', options: scope.depts},
       {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: '', options: scope.stages},
-      {id: 'perms', label: 'الصلاحيات (للأدمن والسوبر فايزر ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
+      {id: 'perms', label: 'الصلاحيات (للأدمن والمشرف ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
       // dashboard 404s, so the subject is collected here rather than left
       // as a step an admin has no way of knowing they still owe.
@@ -2906,7 +2933,7 @@
 
   // ---- Add a doctor / representative: search an existing account first ----
   const FIND_TITLE = {ban: 'حظر طالب'};
-  const FIND_WORD = {ban: 'محظور', professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'سوبر فايزر', store_manager: 'مدير متجر'};
+  const FIND_WORD = {ban: 'محظور', professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'مشرف', store_manager: 'مدير متجر'};
   let findTimer = null;
   async function openFindAccount(role){
     if (!allAccounts.length){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) { /* shown empty */ } }
@@ -3045,7 +3072,7 @@
       {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: current.scope_university_id || '', options: scope.unis},
       {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: current.scope_department_id || '', options: scope.depts},
       {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: current.scope_stage_id || '', options: scope.stages},
-      {id: 'perms', label: 'صلاحيات إضافية (للسوبر فايزر ومدير المتجر فقط)', type: 'checks',
+      {id: 'perms', label: 'صلاحيات إضافية (للمشرف ومدير المتجر فقط)', type: 'checks',
        value: current.extra_permissions || [], options: STAFF_PERM_OPTIONS},
     ], async (v) => {
       if (!v.fullName.trim() || !v.email.trim()) throw {detail: 'الاسم والبريد الإلكتروني مطلوبان'};
@@ -5031,7 +5058,7 @@
   }
 
   // ===== ADMIN: full account details =====
-  const ROLE_NAME = {owner: 'المالك', admin: 'أدمن (مشرف المنصة)', supervisor: 'سوبر فايزر', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
+  const ROLE_NAME = {owner: 'المالك', admin: 'أدمن (مدير المنصة)', supervisor: 'مشرف', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب'};
   // ===== ADMIN: full-page account (view + edit in place) =====
   let acctFrom = 'accounts', lastSectionId = 'accounts';
   let acctPageId = null, acctTree = null, acctEdit = false, acctOv = null, acctOpts = null;

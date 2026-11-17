@@ -49,7 +49,8 @@ PROF_PERMS = {"prof.questions", "prof.exams", "prof.courses", "prof.booklets", "
 ROLE_DEFAULTS: dict[str, set[str]] = {
     "owner": set(PERMISSIONS),
     "admin": set(PERMISSIONS),
-    "supervisor": {"dashboard.analytics", "users.ban", "content.manage", "catalog.manage", "support.manage"},
+    # المشرف: كل صلاحيات الإدارة، ويفتح لوحات الدكاترة والمندوبين والممثلين ليرفع الأسئلة والملازم وغيرها باسمهم
+    "supervisor": set(STAFF_PERMS),
     "store_manager": {"store.manage", "resellers.manage"},
     "reseller": set(),          # everything a reseller can do is granted per reseller
     "professor": set(PROF_PERMS),
@@ -93,6 +94,7 @@ def effective_permissions(role, raw_extra: str | None) -> set[str]:
 # wins, so the narrow rules (ban/unban) sit above the broad ones (/users).
 _ADMIN_RULES: list[tuple[re.Pattern, str]] = [(re.compile(p), perm) for p, perm in [
     (r"^/api/admin/support(/|$)", "support.manage"),
+    (r"^/api/admin/platform(/|$)", "users.manage"),
     (r"^/api/admin/users/[^/]+/(ban|unban)$", "users.ban"),
     (r"^/api/admin/bans(/|$)", "users.ban"),
     (r"^/api/admin/resellers(/|$)", "resellers.manage"),

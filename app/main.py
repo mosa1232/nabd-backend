@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +12,7 @@ from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
 from .database import Base, engine
 from .routers import (
-    activation, admin, admin_ops, ai_chats, admin_stats, student_progress, support, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
+    activation, admin, admin_ops, ai_chats, platform_account, admin_stats, student_progress, support, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
     notifications, professors, public, questions, reseller, store, students, summer,
 )
 from .storage import name_from_url, storage
@@ -78,6 +78,7 @@ app.include_router(questions.router)
 app.include_router(professors.router)
 app.include_router(courses.router)
 app.include_router(store.router)
+app.include_router(platform_account.router)
 app.include_router(admin.router)
 app.include_router(admin_stats.router)
 app.include_router(admin_ops.router)

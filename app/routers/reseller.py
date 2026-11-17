@@ -15,7 +15,7 @@ def _require_reseller(user: models.User, perm: str) -> None:
     """A reseller can do only what the store manager granted them — viewing
     their codes/sales (codes.view) and minting new ones (codes.generate)."""
     if user.role != models.Role.reseller:
-        raise HTTPException(403, "اختر المندوب من «عرض لوحة مندوب» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin) else "هذه الواجهة مخصصة للمندوبين فقط")
+        raise HTTPException(403, "اختر المندوب من «عرض لوحة مندوب» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor) else "هذه الواجهة مخصصة للمندوبين فقط")
     if perm not in user_permissions(user):
         raise HTTPException(403, "لا تملك صلاحية لهذا الإجراء — اطلبها من مدير المتجر")
 
@@ -25,7 +25,7 @@ def my_access(db: Session = Depends(get_db), user: models.User = Depends(get_cur
     """What this reseller may do and how much quota is left — the dashboard
     uses it to show or hide the buttons."""
     if user.role != models.Role.reseller:
-        raise HTTPException(403, "اختر المندوب من «عرض لوحة مندوب» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin) else "هذه الواجهة مخصصة للمندوبين فقط")
+        raise HTTPException(403, "اختر المندوب من «عرض لوحة مندوب» بأعلى الصفحة أولًا" if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor) else "هذه الواجهة مخصصة للمندوبين فقط")
     held = db.query(models.ActivationCode).filter(models.ActivationCode.reseller_id == user.id).count()
     return {
         "permissions": sorted(p for p in user_permissions(user) if p.startswith("codes.")),

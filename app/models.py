@@ -20,7 +20,7 @@ class Role(str, enum.Enum):
     owner = "owner"                  # المالك: كل شيء مفتوح، وهو وحده يدير المدراء
     admin = "admin"
     reseller = "reseller"
-    supervisor = "supervisor"        # سوبر فايزر
+    supervisor = "supervisor"        # مشرف
     store_manager = "store_manager"  # منجر المتجر
     assistant = "assistant"          # مساعد الدكتور
     representative = "representative"  # الممثل العام (يوثّق طلاب جامعته/كليته)

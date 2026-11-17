@@ -121,7 +121,7 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
         if not parent or parent.role != models.Role.professor or parent.is_banned:
             raise HTTPException(403, "حساب المساعد غير مرتبط بدكتور فعّال")
         owner_id = parent.id
-    elif user.role in (models.Role.owner, models.Role.admin):
+    elif user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
         raise HTTPException(403, "اختر الدكتور من «عرض لوحة دكتور» بأعلى الصفحة أولًا، لأن هذا الإجراء يُحفظ باسم دكتور ومادته")
     else:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
@@ -143,7 +143,7 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
 def _draft_profile(db: Session, user: models.User, perm: str):
     """Drafting (AI generation, file import) saves nothing, so the owner/admin may
     do it without picking a doctor; saving still needs one."""
-    if user.role in (models.Role.owner, models.Role.admin):
+    if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
         return None
     return _get_own_profile(db, user, perm)
 
@@ -152,7 +152,7 @@ def _draft_profile(db: Session, user: models.User, perm: str):
 def my_subjects(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """Every subject the signed-in doctor (or their assistant's doctor) teaches,
     with the department it belongs to — drives the subject switcher."""
-    if user.role in (models.Role.owner, models.Role.admin):
+    if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
         return []   # the owner picks a doctor on the page; nothing to switch here
     owner_id = user.id if user.role == models.Role.professor else user.parent_user_id
     if user.role not in (models.Role.professor, models.Role.assistant) or not owner_id:
