@@ -2942,6 +2942,7 @@
         <div class="form-field"><input id="cpPhone" type="tel" placeholder="رقم الهاتف (اختياري)" data-i18n-placeholder="phoneOptional" /></div>
         <div class="form-field"><select id="cpSection" onchange="onCpSectionChange()"><option value="" data-i18n="selectCollege">اختر التخصص/الكلية</option></select></div>
         <div class="form-field"><select id="cpUniversity" onchange="onCpUniversityChange()" disabled><option value="" data-i18n="selectUniversity">اختر الجامعة</option></select></div>
+        <div class="form-field"><select id="cpDept" onchange="onCpDeptChange()" disabled><option value="" data-i18n="selectDept">اختر القسم</option></select></div>
         <div class="form-field"><select id="cpGraduate" onchange="onCpGraduateChange()">
           <option value="" data-i18n="studentOrGraduate">هل أنت طالب أم متخرج؟</option>
           <option value="0" data-i18n="stillStudent">ما زلت طالباً</option>
@@ -3230,6 +3231,7 @@
         <div class="glass" id="academicPathForm" style="display:none; padding:16px 18px;">
           <div class="form-field"><select id="acSection" onchange="onAcSectionChange()"><option value="" data-i18n="selectSection">اختر القسم</option></select></div>
           <div class="form-field"><select id="acUniversity" onchange="onAcUniversityChange()" disabled><option value="" data-i18n="selectUniversity">اختر الجامعة</option></select></div>
+          <div class="form-field"><select id="acDept" onchange="onAcDeptChange()" disabled><option value="" data-i18n="selectDept">اختر القسم</option></select></div>
           <div class="form-field"><select id="acGraduate" onchange="onAcGraduateChange()">
             <option value="" data-i18n="studentOrGraduate">هل أنت طالب أم متخرج؟</option>
             <option value="0" data-i18n="stillStudent">ما زلت طالباً</option>
@@ -3522,6 +3524,7 @@
       bkTotal:'أسئلة متاحة', bkTried:'جرّبت منها', bkAccAll:'الدقة العامة', bkStart:'ابدأ', bkContinue:'تابع', bkReviewMistakes:'راجع أخطائي',
       bsecSub:'اختر ملزمة أو محاضرة: تقرأ أسئلتها أولًا، ثم تمتحن نفسك عليها.', bsecAll:'كل أسئلة المادة', bsecTried:'جرّبت', bsecRead:'قرأتها', bsecOpen:'افتح', bstStep1:'١) اقرأ الأسئلة وإجاباتها', bstStep2:'٢) ثم ابدأ الامتحان — الأسئلة تُخلط عشوائيًا', bstStartExam:'ابدأ الامتحان', bstModel:'الإجابة النموذجية', bstWhy:'التوضيح:',
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
+      selectDept:'اختر القسم',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3668,6 +3671,7 @@
       bkTotal:'Questions', bkTried:'Attempted', bkAccAll:'Overall accuracy', bkStart:'Start', bkContinue:'Continue', bkReviewMistakes:'Review my mistakes',
       bsecSub:'Pick a booklet or lecture: read its questions first, then test yourself on them.', bsecAll:'All questions of the subject', bsecTried:'Tried', bsecRead:'Read', bsecOpen:'Open', bstStep1:'1) Read the questions and answers', bstStep2:'2) Then start the exam — questions are shuffled', bstStartExam:'Start the exam', bstModel:'Model answer', bstWhy:'Explanation:',
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
+      selectDept:'Select department',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3812,6 +3816,7 @@
       bkTotal:'پرسیارەکان', bkTried:'هەوڵت داوە', bkAccAll:'ڕێژەی گشتی', bkStart:'دەستپێبکە', bkContinue:'بەردەوامبە', bkReviewMistakes:'هەڵەکانم پێداچوونەوە',
       bsecSub:'بەرگ یان وانە هەڵبژێرە: یەکەم پرسیارەکان بخوێنەرەوە، پاشان خۆت تاقی بکەرەوە.', bsecAll:'هەموو پرسیارەکانی بابەت', bsecTried:'هەوڵت داوە', bsecRead:'خوێندوتەوە', bsecOpen:'بیکەرەوە', bstStep1:'١) پرسیار و وەڵامەکان بخوێنەرەوە', bstStep2:'٢) پاشان تاقیکردنەوە دەستپێبکە — پرسیارەکان تێکەڵ دەکرێن', bstStartExam:'دەستپێکردنی تاقیکردنەوە', bstModel:'وەڵامی نموونەیی', bstWhy:'ڕوونکردنەوە:',
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
+      selectDept:'بەش هەڵبژێرە',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -5811,10 +5816,15 @@
     const tree = catalogTreeCache || [];
     const section = tree.find(s => s.id === document.getElementById('acSection').value);
     const uni = section?.universities.find(u => u.id === document.getElementById('acUniversity').value);
-    const stageSel = document.getElementById('acStage');
-    stageSel.disabled = !uni;
-    stageSel.innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}" ${st.id === preselectStageId ? 'selected' : ''}>${esc(stageLabel(st))}</option>`).join('') : '');
+    const pre = uni && preselectStageId ? uni.stages.find(st => st.id === preselectStageId) : null;
+    fillDeptSelect(document.getElementById('acDept'), uni, pre ? deptName(pre) : '');
+    onAcDeptChange(preselectStageId);
+  }
+  function onAcDeptChange(preselectStageId){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('acSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('acUniversity').value);
+    fillStageSelect(document.getElementById('acStage'), uni, document.getElementById('acDept').value, typeof preselectStageId === 'string' ? preselectStageId : '');
   }
   function onAcGraduateChange(){
     const isGraduate = document.getElementById('acGraduate').value === '1';
@@ -6668,13 +6678,20 @@
       tree.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
     document.getElementById('cpUniversity').innerHTML = `<option value="">${t('selectUniversity')}</option>`;
     document.getElementById('cpUniversity').disabled = true;
+    document.getElementById('cpDept').innerHTML = `<option value="">${t('selectDept')}</option>`;
+    document.getElementById('cpDept').disabled = true;
     document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>`;
+    document.getElementById('cpStage').disabled = true;
     // Already tied to a college/university (e.g. verified by code)? Start from there.
     if (currentUser?.section_id && currentUser?.university_id){
       document.getElementById('cpSection').value = currentUser.section_id; onCpSectionChange();
       document.getElementById('cpUniversity').value = currentUser.university_id; onCpUniversityChange();
       document.getElementById('cpGraduate').value = '0'; onCpGraduateChange();
-      if (currentUser.stage_id) document.getElementById('cpStage').value = currentUser.stage_id;
+      if (currentUser.stage_id){
+        const sec0 = tree.find(x => x.id === currentUser.section_id), uni0 = sec0?.universities.find(x => x.id === currentUser.university_id);
+        const st0 = uni0?.stages.find(x => x.id === currentUser.stage_id);
+        if (st0){ document.getElementById('cpDept').value = deptName(st0); onCpDeptChange(); document.getElementById('cpStage').value = currentUser.stage_id; }
+      }
     }
   }
 
@@ -6688,12 +6705,31 @@
     onCpUniversityChange();
   }
 
+  // college type -> university -> department -> stage, the same four steps everywhere
+  const deptName = st => st.department_name || 'القسم العام';
+  function fillDeptSelect(sel, uni, preselect){
+    const names = uni ? [...new Set(uni.stages.map(deptName))] : [];
+    sel.disabled = !uni;
+    sel.innerHTML = `<option value="">${t('selectDept')}</option>` + names.map(n => `<option value="${esc(n)}" ${n === preselect ? 'selected' : ''}>${esc(n)}</option>`).join('');
+    if (names.length === 1) sel.value = names[0];   // only one choice: no need to make them pick it
+  }
+  function fillStageSelect(sel, uni, dept, preselect){
+    const list = uni && dept ? uni.stages.filter(st => deptName(st) === dept) : [];
+    sel.disabled = !(uni && dept);
+    sel.innerHTML = `<option value="">${t('selectStage')}</option>` + list.map(st => `<option value="${st.id}" ${st.id === preselect ? 'selected' : ''}>${esc(st.name)}</option>`).join('');
+  }
   function onCpUniversityChange(){
     const tree = catalogTreeCache || [];
     const section = tree.find(s => s.id === document.getElementById('cpSection').value);
     const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
-    document.getElementById('cpStage').innerHTML = `<option value="">${t('selectStage')}</option>` +
-      (uni ? uni.stages.map(st => `<option value="${st.id}">${esc(stageLabel(st))}</option>`).join('') : '');
+    fillDeptSelect(document.getElementById('cpDept'), uni);
+    onCpDeptChange();
+  }
+  function onCpDeptChange(){
+    const tree = catalogTreeCache || [];
+    const section = tree.find(s => s.id === document.getElementById('cpSection').value);
+    const uni = section?.universities.find(u => u.id === document.getElementById('cpUniversity').value);
+    fillStageSelect(document.getElementById('cpStage'), uni, document.getElementById('cpDept').value);
   }
 
   function onCpGraduateChange(){

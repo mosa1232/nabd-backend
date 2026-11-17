@@ -1954,7 +1954,7 @@
   // who only choose the subject they publish in.
   const PLATFORM_PICK = '__platform__';
   let platformInfo = null, platformSubject = '';
-  const platPick = {sec: '', uni: '', stage: ''};
+  const platPick = {sec: '', uni: '', dept: '', stage: ''};
   async function renderViewAsBar(sectionId){
     const g = viewAsGroupOf(sectionId), bar = document.getElementById('viewAsBar');
     bar.style.display = 'block';
@@ -1973,20 +1973,35 @@
     const subs = usePlatform ? platformInfo.subjects : [];
     const uniq = (arr, f) => { const m = new Map(); arr.forEach(x => { const v = f(x); if (v && !m.has(v.id)) m.set(v.id, v); }); return [...m.values()]; };
     const cur = subs.find(x => x.id === platformSubject) || null;
-    if (cur && !platPick.sec) Object.assign(platPick, {sec: cur.section && cur.section.id, uni: cur.university && cur.university.id, stage: cur.stage && cur.stage.id});
+    if (cur && !platPick.sec) Object.assign(platPick, {sec: cur.section && cur.section.id, uni: cur.university && cur.university.id, dept: cur.department && cur.department.id, stage: cur.stage && cur.stage.id});
     const selStyle = 'flex:1; min-width:150px; ' + sel;
     const opt = (v, l, on) => `<option value="${esc(v)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
-    const secs = uniq(subs, x => x.section);
-    const unis = uniq(subs.filter(x => !platPick.sec || (x.section && x.section.id === platPick.sec)), x => x.university);
-    const stages = uniq(subs.filter(x => (!platPick.sec || (x.section && x.section.id === platPick.sec)) && (!platPick.uni || (x.university && x.university.id === platPick.uni))), x => x.stage);
-    const subjs = subs.filter(x => (!platPick.sec || (x.section && x.section.id === platPick.sec)) && (!platPick.uni || (x.university && x.university.id === platPick.uni)) && (!platPick.stage || (x.stage && x.stage.id === platPick.stage)));
-    const subjSel = usePlatform ? `<div style="flex-basis:100%; display:flex; gap:8px; flex-wrap:wrap;">
-        <select style="${selStyle}" onchange="platPick.sec=this.value; platPick.uni=''; platPick.stage=''; pickPlatformSubject('', '${sectionId}')">${opt('', 'الكلية / القسم…', !platPick.sec)}${secs.map(x => opt(x.id, x.name, x.id === platPick.sec)).join('')}</select>
-        <select style="${selStyle}" onchange="platPick.uni=this.value; platPick.stage=''; pickPlatformSubject('', '${sectionId}')">${opt('', 'الجامعة…', !platPick.uni)}${unis.map(x => opt(x.id, x.name, x.id === platPick.uni)).join('')}</select>
-        <select style="${selStyle}" onchange="platPick.stage=this.value; pickPlatformSubject('', '${sectionId}')">${opt('', 'المرحلة…', !platPick.stage)}${stages.map(x => opt(x.id, x.name, x.id === platPick.stage)).join('')}</select>
-        <select style="${selStyle}" onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'المادة…', !platformSubject)}${subjs.map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select>
+    // each level narrows the next: college -> university -> department -> stage -> subject
+    if (usePlatform){   // a level with a single choice is picked for you, so the pyramid shortens itself
+      const keys = [['sec', x => x.section], ['uni', x => x.university], ['dept', x => x.department], ['stage', x => x.stage]];
+      let pool = subs;
+      for (const [k, get] of keys){
+        const opts = uniq(pool, get);
+        if (!platPick[k] && opts.length === 1) platPick[k] = opts[0].id;
+        pool = pool.filter(x => !platPick[k] || (get(x) && get(x).id === platPick[k]));
+      }
+      if (!platformSubject && pool.length === 1 && platPick.stage){ platformSubject = pool[0].id; activeSubjectId = platformSubject; }
+    }
+    const f1 = subs.filter(x => !platPick.sec || (x.section && x.section.id === platPick.sec));
+    const f2 = f1.filter(x => !platPick.uni || (x.university && x.university.id === platPick.uni));
+    const f3 = f2.filter(x => !platPick.dept || (x.department && x.department.id === platPick.dept));
+    const f4 = f3.filter(x => !platPick.stage || (x.stage && x.stage.id === platPick.stage));
+    const lvl = (label, key, list, reset) => `<label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">${label}
+        <select style="${sel}" onchange="platPick.${key}=this.value; ${reset.map(k => 'platPick.' + k + "=''").join('; ')}; pickPlatformSubject('', '${sectionId}')">${opt('', 'اختر…', !platPick[key])}${list.map(x => opt(x.id, x.name, x.id === platPick[key])).join('')}</select></label>`;
+    const subjSel = usePlatform ? `<div style="flex-basis:100%; display:flex; gap:10px; flex-wrap:wrap;">
+        ${lvl('① نوع الكلية', 'sec', uniq(subs, x => x.section), ['uni', 'dept', 'stage'])}
+        ${lvl('② الجامعة', 'uni', uniq(f1, x => x.university), ['dept', 'stage'])}
+        ${lvl('③ القسم', 'dept', uniq(f2, x => x.department), ['stage'])}
+        ${lvl('④ المرحلة', 'stage', uniq(f3, x => x.stage), [])}
+        <label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">⑤ المادة
+          <select style="${sel}" onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'اختر…', !platformSubject)}${f4.map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select></label>
       </div>` : '';
-    const note = usePlatform && !platformSubject ? '⚠ اختر الكلية ثم الجامعة ثم المرحلة ثم المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${cur ? cur.path : ''} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
+    const note = usePlatform && !platformSubject ? '⚠ حدّد: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${(subs.find(x => x.id === platformSubject) || {}).path || ''} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
       <span style="font-weight:800; font-size:.86rem;">لوحة ${VIEWAS_WORD[g]}:</span>
       <select style="flex:1; min-width:200px; ${sel}" onchange="viewAsPick['${g}']=this.value; renderViewAsBar('${sectionId}')">
@@ -3671,7 +3686,7 @@
     const msg = document.getElementById('qeMsg');
     msg.style.display = 'block';
     const fail = t => { msg.style.color = 'var(--danger)'; msg.textContent = t; };
-    if (typeof viewAsPick !== 'undefined' && viewAsPick.doctor === '__platform__' && /\/api\/professors\//.test(qeCtx.createUrl || '') && !platformSubject) return fail('حدّد أولاً مكان النشر: الكلية ثم الجامعة ثم المرحلة ثم المادة (من أعلى الصفحة)');
+    if (typeof viewAsPick !== 'undefined' && viewAsPick.doctor === '__platform__' && /\/api\/professors\//.test(qeCtx.createUrl || '') && !platformSubject) return fail('حدّد أولاً مكان النشر: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة (من أعلى الصفحة)');
     const text = document.getElementById('qeText').value.trim();
     if (!text) return fail('اكتب نص السؤال');
     const body = {

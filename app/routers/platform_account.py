@@ -65,7 +65,8 @@ def platform_info(db: Session = Depends(get_db)):
             "id": s.id, "name": s.name, "path": path, "active": s.id in mine,
             "section": {"id": sec.id, "name": sec.name} if sec else None,
             "university": {"id": uni.id, "name": uni.name} if uni else None,
-            "stage": {"id": st.id, "name": ((dept.name + " — ") if dept else "") + st.name} if st else None,
+            "department": {"id": dept.id, "name": dept.name} if dept else {"id": "none", "name": "بدون قسم"},
+            "stage": {"id": st.id, "name": st.name} if st else None,
         })
     subjects.sort(key=lambda x: (x["path"], x["name"]))
     return {"user_id": u.id, "name": PLATFORM_NAME, "subjects": subjects}
