@@ -613,3 +613,23 @@ class SummerTraining(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+
+class AIConversation(Base):
+    """One saved chat between a user and the study assistant."""
+    __tablename__ = "ai_conversations"
+    id = Column(String, primary_key=True, default=gen_id)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AIChatMessage(Base):
+    __tablename__ = "ai_chat_messages"
+    id = Column(String, primary_key=True, default=gen_id)
+    conversation_id = Column(String, ForeignKey("ai_conversations.id"), nullable=False, index=True)
+    role = Column(String, nullable=False)            # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    mode = Column(String, default="")                # "ai" | "search" for assistant turns
+    created_at = Column(DateTime, default=datetime.utcnow)

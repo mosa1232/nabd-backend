@@ -1514,6 +1514,32 @@
   .det-row{display:flex; justify-content:space-between; gap:14px; padding:12px 2px; border-bottom:1px solid var(--line); font-size:.92rem;}
   .det-row:last-child{border-bottom:none;} .det-l{opacity:.65; flex:none;} .det-v{font-weight:700; text-align:end; min-width:0; overflow-wrap:anywhere;}
   #view-account .tabs{overflow-x:auto;} #view-account .tab-btn{white-space:nowrap;}
+
+  /* ---- AI assistant pages ---- */
+  .aic-list{display:grid; grid-template-columns:minmax(0,1fr); gap:10px; padding-bottom:100px;}
+  #view-ai-list .page-head, #view-ai-chat .page-head{flex-wrap:wrap; gap:10px;} .aic-card{min-width:0;}
+  .aic-card{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:14px 16px;}
+  .aic-main{flex:1; min-width:0; text-align:start; cursor:pointer; background:none; border:none; color:inherit; font:inherit; padding:0;}
+  .aic-main b{display:block; font-size:.98rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .aic-main span{display:block; font-size:.8rem; opacity:.65; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .aic-main small{display:block; font-size:.72rem; opacity:.5; margin-top:3px;}
+  .aic-btns{display:flex; gap:6px; flex:none;}
+  .aic-btns button{width:36px; height:36px; border-radius:11px; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); display:grid; place-items:center; cursor:pointer;}
+  .aic-btns button:hover{border-color:var(--accent); color:var(--accent);} .aic-btns button.del:hover{border-color:var(--danger); color:var(--danger);}
+  .aic-btns svg{width:17px; height:17px;}
+  .aic-title{cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60vw;}
+  .aic-actions{display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; margin:0 0 12px; padding-bottom:4px; scrollbar-width:none;}
+  .aic-actions .btn{padding:8px 14px; font-size:.78rem; white-space:nowrap; flex:none;} .aic-danger{color:var(--danger) !important;}
+  .aic-chat{display:flex; flex-direction:column; height:calc(100vh - 290px); min-height:360px; padding:0; overflow:hidden;}
+  .aic-msgs{flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px;}
+  .aic-msg{max-width:88%; padding:11px 14px; border-radius:16px; line-height:1.9; font-size:.93rem; white-space:pre-wrap; overflow-wrap:anywhere; position:relative;}
+  .aic-msg.user{align-self:flex-start; background:var(--accent); color:#fff; border-end-start-radius:5px;}
+  .aic-msg.bot{align-self:flex-end; background:var(--track); border-end-end-radius:5px;}
+  .aic-msg.err{align-self:center; background:rgba(220,60,60,.1); color:var(--danger);}
+  .aic-cp{display:block; margin-top:6px; font-size:.7rem; opacity:.6; background:none; border:none; color:inherit; cursor:pointer; padding:0; font-family:inherit;}
+  .aic-input{display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); align-items:flex-end;}
+  .aic-input textarea{flex:1; resize:none; max-height:120px; padding:10px 12px; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); font:inherit;}
+  @media (max-width:1023px){ .aic-chat{height:calc(100vh - 380px);} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -1569,6 +1595,10 @@
     <button class="sb-item" data-nav="view-leaderboard" onclick="goToLeaderboard()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg>
       <span data-i18n="tileLeaderboard">المتصدرين</span>
+    </button>
+    <button class="sb-item" data-nav="view-ai-list" onclick="goToAiList()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+      <span data-i18n="aiNavTitle">المساعد الذكي</span>
     </button>
     <button class="sb-item" data-nav="view-support" onclick="goToSupport()" style="position:relative;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1692,6 +1722,10 @@
 
     <div class="home-sec" data-i18n="homeMore">المزيد</div>
     <div class="more-list">
+      <button class="more-row" onclick="goToAiList()">
+        <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg></span>
+        <span class="more-label" data-i18n="aiNavTitle">المساعد الذكي</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
       <button class="more-row" onclick="goToPearls()">
         <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5S4 15.8 4 10.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 8 2.2c0 5.6-8 10.3-8 10.3Z"/></svg></span>
         <span class="more-label" data-i18n="pearlsTitle">لمحات سريرية</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
@@ -2079,6 +2113,49 @@
       <form class="sp-input" onsubmit="event.preventDefault(); sendSupport();">
         <textarea id="supportInput" rows="1" maxlength="2000" placeholder="اكتب رسالتك..." data-i18n-placeholder="supportPlaceholder" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupport();}"></textarea>
         <button class="btn" type="submit" id="supportSendBtn" data-i18n="supportSend">إرسال</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ AI ASSISTANT: LIST ============ -->
+  <div class="view" id="view-ai-list">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goHome()" aria-label="رجوع" data-i18n-aria="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div>
+          <div class="page-title" data-i18n="aiNavTitle">المساعد الذكي</div>
+          <div class="page-sub" data-i18n="aiListSub">محادثاتك المحفوظة مع المساعد.</div>
+        </div>
+      </div>
+      <button class="btn" onclick="aiNewConversation()" data-i18n="aiNew">محادثة جديدة</button>
+    </div>
+    <div id="aiConvList" class="aic-list"></div>
+  </div>
+
+  <!-- ============ AI ASSISTANT: ONE CHAT ============ -->
+  <div class="view" id="view-ai-chat">
+    <div class="page-head">
+      <div class="page-head-main">
+        <button class="icon-btn page-back" onclick="goToAiList()" aria-label="رجوع" data-i18n-aria="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div style="min-width:0;">
+          <div class="page-title aic-title" id="aiChatTitle" onclick="aiRenameCurrent()">—</div>
+          <div class="page-sub" data-i18n="aiTitle">✨ مساعد Kiur الدراسي</div>
+        </div>
+      </div>
+    </div>
+    <div class="aic-actions">
+      <button class="btn btn-ghost" onclick="aiCopyAll()" data-i18n="aiCopyAll">نسخ المحادثة</button>
+      <button class="btn btn-ghost" onclick="aiShareCurrent()" data-i18n="aiShare">إرسال</button>
+      <button class="btn btn-ghost" onclick="aiDuplicateCurrent()" data-i18n="aiDup">نسخ كمحادثة جديدة</button>
+      <button class="btn btn-ghost" onclick="aiOpenTab(aiCurrentId)" data-i18n="aiOpenTab">فتح بنافذة جديدة</button>
+      <button class="btn btn-ghost aic-danger" onclick="aiDeleteCurrent()" data-i18n="aiDel">حذف</button>
+    </div>
+    <div class="aic-chat glass">
+      <div class="aic-msgs" id="aicMsgs"></div>
+      <div class="ai-sugg" id="aicSugg"></div>
+      <form class="aic-input" onsubmit="event.preventDefault(); aiChatSend();">
+        <textarea id="aicInput" rows="1" maxlength="4000" data-i18n-placeholder="aiPlaceholder" placeholder="اسألني عن أي مفهوم أو سؤال..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); aiChatSend();}"></textarea>
+        <button class="btn" type="submit" id="aicSendBtn" data-i18n="aiSend">إرسال</button>
       </form>
     </div>
   </div>
@@ -3014,7 +3091,7 @@
   </button>
 </nav>
 
-<button class="ai-fab" id="aiFab" onclick="toggleAiChat()" aria-label="المساعد الذكي" title="المساعد الذكي">
+<button class="ai-fab" id="aiFab" onclick="aiFabClick()" aria-label="المساعد الذكي" title="المساعد الذكي">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
 </button>
 <div class="ai-panel" id="aiPanel" role="dialog" aria-label="المساعد الذكي">
@@ -3228,6 +3305,7 @@
       lpAnatomyDesc:'جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.', lpHowEyebrow:'البداية', lpHowTitle:'ثلاث خطوات وتبدأ', lpHowSub:'من التسجيل إلى أول سؤال بدقائق.', lpStep1T:'أنشئ حسابك', lpStep1B:'بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.', lpStep2T:'اختر جامعتك ومرحلتك', lpStep2B:'تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.', lpStep3T:'ابدأ الدراسة', lpStep3B:'أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.', lpFaqEyebrow:'أسئلة شائعة', lpFaqTitle:'قبل ما تبدأ', lpFaq1Q:'هل التسجيل مجاني؟', lpFaq1A:'إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.', lpFaq2Q:'هل أقدر أستخدم حسابي على أكثر من جهاز؟', lpFaq2A:'الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.', lpFaq3Q:'كيف أدخل إذا سجّلت بـ Google؟', lpFaq3A:'تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.', lpFaq4Q:'كيف أتواصل مع الدعم؟', lpFaq4A:'من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.', lpFinalTitle:'جاهز تبدأ؟', lpFinalSub:'سجّل الآن وابدأ بأول جلسة أسئلة.', lpSupportLine:'للدعم:',
       navGroupSoon:'قريبًا', homeStart:'ابدأ من هنا', homeMore:'المزيد', homeSoonLine:'قريبًا: أكاديمية الفيديو والتدريب الصيفي', moreHelp:'المساعدة والدعم',
       tabDetails:'بياناتي', detPersonal:'المعلومات الشخصية', detAcademic:'المسار الدراسي', detAccountInfo:'معلومات الحساب', detName:'الاسم', detUsername:'اسم المستخدم', detEmail:'البريد الإلكتروني', detPhone:'رقم الهاتف', detSection:'القسم', detUniversity:'الجامعة', detStage:'المرحلة', detStatus:'الحالة', detStudent:'طالب', detGrad:'متخرج', detJoined:'تاريخ الانضمام', detLastLogin:'آخر دخول', detVerified:'توثيق الحساب', detVerifiedYes:'موثّق', detVerifiedNo:'غير موثّق', detTwoFa:'التحقق بخطوتين', detOn:'مفعّل', detOff:'غير مفعّل', detNotSet:'غير محدد', detPwChanged:'آخر تغيير لكلمة المرور', detEditBtn:'تعديل البيانات', stDetailTitle:'إحصائياتك بالتفصيل', stBank:'أسئلة في مراحلك', stTried:'جرّبت منها', stMastered:'متقنة', stReview:'تحتاج مراجعة', stCoverage:'نسبة التغطية', stSavedN:'محفوظة', stBySubject:'التقدّم حسب المادة',
+      aiNavTitle:'المساعد الذكي', aiListSub:'محادثاتك المحفوظة مع المساعد — افتح أي محادثة أو ابدأ جديدة.', aiNew:'محادثة جديدة', aiEmptyList:'ما عندك محادثات بعد. ابدأ محادثة واسأل عن أي مفهوم أو سؤال.', aiOpenTab:'فتح بنافذة جديدة', aiCopyAll:'نسخ المحادثة', aiShare:'إرسال', aiDup:'نسخ كمحادثة جديدة', aiDel:'حذف', aiDelConfirm:'تحذف هذه المحادثة نهائيًا؟', aiRenameBtn:'تغيير الاسم', aiRenamePrompt:'اسم المحادثة', aiCopyMsg:'نسخ', aiCopiedToast:'تم النسخ ✓', aiDupToast:'تم إنشاء نسخة من المحادثة', aiDelToast:'تم حذف المحادثة', aiMsgsN:'رسالة', aiYouLbl:'أنا', aiBotLbl:'المساعد', aiBack:'كل المحادثات', aiMore:'خيارات',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3368,6 +3446,7 @@
       lpAnatomyDesc:'The human body in detail: muscles, bones, nerves, vessels and organs — rotate, zoom and tap any part to learn its name.', lpHowEyebrow:'Getting started', lpHowTitle:'Three steps and you are in', lpHowSub:'From sign-up to your first question in minutes.', lpStep1T:'Create your account', lpStep1B:'With email and a password, or with Google in one tap.', lpStep2T:'Pick your university and year', lpStep2B:'Your subjects and doctors appear automatically; change your year any time.', lpStep3T:'Start studying', lpStep3B:'Questions with explanations, clinical pearls and a 3D anatomy atlas.', lpFaqEyebrow:'FAQ', lpFaqTitle:'Before you start', lpFaq1Q:'Is sign-up free?', lpFaq1A:'Creating an account is free. Some content (booklets and courses) is unlocked with a code from the store or your representative.', lpFaq2Q:'Can I use my account on more than one device?', lpFaq2A:'An account works on one device at a time to protect the content. Signing in on a new device signs out the old one.', lpFaq3Q:'How do I sign in if I joined with Google?', lpFaq3A:'You set a username and a password once after the first sign-up, then sign in whichever way you prefer.', lpFaq4Q:'How do I reach support?', lpFaq4A:'From inside the app use the Help button to message the team directly, or write to support@kiur.online.', lpFinalTitle:'Ready to start?', lpFinalSub:'Sign up now and begin your first question session.', lpSupportLine:'Support:',
       navGroupSoon:'Coming soon', homeStart:'Start here', homeMore:'More', homeSoonLine:'Coming soon: Video Academy and Summer Training', moreHelp:'Help and support',
       tabDetails:'My details', detPersonal:'Personal information', detAcademic:'Study path', detAccountInfo:'Account information', detName:'Name', detUsername:'Username', detEmail:'Email', detPhone:'Phone', detSection:'Section', detUniversity:'University', detStage:'Stage', detStatus:'Status', detStudent:'Student', detGrad:'Graduate', detJoined:'Joined', detLastLogin:'Last sign-in', detVerified:'Account verification', detVerifiedYes:'Verified', detVerifiedNo:'Not verified', detTwoFa:'Two-step verification', detOn:'On', detOff:'Off', detNotSet:'Not set', detPwChanged:'Password last changed', detEditBtn:'Edit details', stDetailTitle:'Your stats in detail', stBank:'Questions in your stages', stTried:'Attempted', stMastered:'Mastered', stReview:'Need review', stCoverage:'Coverage', stSavedN:'Saved', stBySubject:'Progress by subject',
+      aiNavTitle:'AI assistant', aiListSub:'Your saved chats with the assistant — open one or start a new one.', aiNew:'New chat', aiEmptyList:'No chats yet. Start one and ask about any concept or question.', aiOpenTab:'Open in a new window', aiCopyAll:'Copy chat', aiShare:'Send', aiDup:'Copy as a new chat', aiDel:'Delete', aiDelConfirm:'Delete this chat permanently?', aiRenameBtn:'Rename', aiRenamePrompt:'Chat name', aiCopyMsg:'Copy', aiCopiedToast:'Copied ✓', aiDupToast:'A copy of the chat was created', aiDelToast:'Chat deleted', aiMsgsN:'messages', aiYouLbl:'Me', aiBotLbl:'Assistant', aiBack:'All chats', aiMore:'Options',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3506,6 +3585,7 @@
       lpAnatomyDesc:'جەستەی مرۆڤ بە وردی: ماسولکە و ئێسک و دەمار و خوێنبەر و ئەندامەکان — بیسوڕێنە و نزیک بکەرەوە و دەست بخەرە سەر هەر بەشێک بۆ ناسینی ناوەکەی.', lpHowEyebrow:'دەستپێکردن', lpHowTitle:'سێ هەنگاو و دەست پێدەکەیت', lpHowSub:'لە تۆمارکردنەوە بۆ یەکەم پرسیار بە چەند خولەکێک.', lpStep1T:'هەژمارەکەت دروست بکە', lpStep1B:'بە ئیمەیڵ و وشەی نهێنی، یان بە Google بە یەک کلیک.', lpStep2T:'زانکۆ و قۆناغەکەت هەڵبژێرە', lpStep2B:'بابەت و مامۆستاکانت خۆکارانە دەردەکەون.', lpStep3T:'دەست بکە بە خوێندن', lpStep3B:'پرسیار لەگەڵ ڕوونکردنەوە و تێبینی کلینیکی و ئەناتۆمی سێ ڕەهەند.', lpFaqEyebrow:'پرسیاری باو', lpFaqTitle:'پێش دەستپێکردن', lpFaq1Q:'ئایا تۆمارکردن بێبەرامبەرە؟', lpFaq1A:'دروستکردنی هەژمار بێبەرامبەرە. هەندێک ناوەڕۆک بە کۆد چالاک دەکرێت کە لە فرۆشگا یان نوێنەرەکەتەوە وەریدەگریت.', lpFaq2Q:'دەتوانم هەژمارەکەم لەسەر چەند ئامێرێک بەکاربهێنم؟', lpFaq2A:'هەژمارەکە لە یەک کاتدا لەسەر یەک ئامێر کار دەکات بۆ پاراستنی ناوەڕۆک.', lpFaq3Q:'ئەگەر بە Google تۆمار بووم چۆن دەچمە ژوورەوە؟', lpFaq3A:'جارێک ناوی بەکارهێنەر و وشەی نهێنی دیاری دەکەیت و دواتر بە هەر ڕێگایەک دەچیتە ژوورەوە.', lpFaq4Q:'چۆن پەیوەندی بە پشتگیرییەوە بکەم؟', lpFaq4A:'لە ناو ئەپەکەوە دوگمەی «یارمەتی»، یان بنووسە بۆ support@kiur.online.', lpFinalTitle:'ئامادەیت دەست پێ بکەیت؟', lpFinalSub:'ئێستا تۆمار بکە و یەکەم دانیشتنی پرسیار دەست پێ بکە.', lpSupportLine:'پشتگیری:',
       navGroupSoon:'بەزوویی', homeStart:'لێرەوە دەست پێ بکە', homeMore:'زیاتر', homeSoonLine:'بەزوویی: ئەکادیمیای ڤیدیۆ و ڕاهێنانی هاوین', moreHelp:'یارمەتی و پشتگیری',
       tabDetails:'زانیارییەکانم', detPersonal:'زانیاری کەسی', detAcademic:'ڕێچکەی خوێندن', detAccountInfo:'زانیاری هەژمار', detName:'ناو', detUsername:'ناوی بەکارهێنەر', detEmail:'ئیمەیڵ', detPhone:'ژمارەی مۆبایل', detSection:'بەش', detUniversity:'زانکۆ', detStage:'قۆناغ', detStatus:'دۆخ', detStudent:'خوێندکار', detGrad:'دەرچوو', detJoined:'بەرواری پەیوەستبوون', detLastLogin:'دوایین چوونەژوورەوە', detVerified:'دڵنیابوونەوەی هەژمار', detVerifiedYes:'دڵنیاکراوە', detVerifiedNo:'دڵنیا نەکراوە', detTwoFa:'پشتڕاستکردنەوەی دوو هەنگاو', detOn:'چالاکە', detOff:'چالاک نییە', detNotSet:'دیاری نەکراوە', detPwChanged:'دوایین گۆڕینی وشەی نهێنی', detEditBtn:'دەستکاریکردن', stDetailTitle:'ئامارەکانت بە وردی', stBank:'پرسیار لە قۆناغەکانت', stTried:'هەوڵت داوە', stMastered:'شارەزایت', stReview:'پێویستی بە پێداچوونەوە', stCoverage:'ڕێژەی داپۆشین', stSavedN:'پاشەکەوتکراو', stBySubject:'پێشکەوتن بەپێی بابەت',
+      aiNavTitle:'یاریدەدەری زیرەک', aiListSub:'گفتوگۆ پاشەکەوتکراوەکانت لەگەڵ یاریدەدەر — یەکێک بکەرەوە یان نوێ دەستپێبکە.', aiNew:'گفتوگۆی نوێ', aiEmptyList:'هێشتا گفتوگۆت نییە. دەستپێبکە و پرسیار بکە.', aiOpenTab:'کردنەوە لە پەنجەرەی نوێ', aiCopyAll:'کۆپی گفتوگۆ', aiShare:'ناردن', aiDup:'کۆپی وەک گفتوگۆی نوێ', aiDel:'سڕینەوە', aiDelConfirm:'ئەم گفتوگۆیە بە یەکجاری دەسڕدرێتەوە؟', aiRenameBtn:'گۆڕینی ناو', aiRenamePrompt:'ناوی گفتوگۆ', aiCopyMsg:'کۆپی', aiCopiedToast:'کۆپی کرا ✓', aiDupToast:'کۆپییەک دروستکرا', aiDelToast:'گفتوگۆ سڕایەوە', aiMsgsN:'نامە', aiYouLbl:'من', aiBotLbl:'یاریدەدەر', aiBack:'هەموو گفتوگۆکان', aiMore:'هەڵبژاردنەکان',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -6196,6 +6276,8 @@
       setTimeout(() => document.getElementById('crUsername')?.focus(), 80);
     } else {
       goHome();
+      const dl = /#ai=([\w-]+)/.exec(location.hash);
+      if (dl){ history.replaceState(null, '', location.pathname); aiOpenConversation(dl[1]); }
     }
   }
 
@@ -6630,12 +6712,113 @@
     }
   }
 
+  // ---------- AI assistant: saved chats (list + one page per chat) ----------
+  let aiCurrentId = null, aiCurrentTitle = '', aiCurrentMsgs = [];
+  function aiFabClick(){ if (currentViewId === 'view-quiz') toggleAiChat(); else goToAiList(); }
+  const AI_I = {
+    dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+    open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  };
+  async function goToAiList(){
+    showView('view-ai-list');
+    const box = document.getElementById('aiConvList');
+    box.innerHTML = `<div class="empty-row">${esc(t('loading'))}</div>`;
+    try {
+      const rows = await apiFetch('/api/ai/conversations');
+      const when = iso => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleDateString(dateLocale(), {day:'numeric', month:'short'});
+      box.innerHTML = rows.map(c => `
+        <div class="aic-card">
+          <button class="aic-main" onclick="aiOpenConversation('${c.id}')"><b>${esc(c.title)}</b>${c.preview ? `<span>${esc(c.preview)}</span>` : ''}<small>${c.count} ${esc(t('aiMsgsN'))} · ${when(c.updated_at)}</small></button>
+          <div class="aic-btns">
+            <button title="${esc(t('aiOpenTab'))}" onclick="aiOpenTab('${c.id}')">${AI_I.open}</button>
+            <button title="${esc(t('aiDup'))}" onclick="aiDuplicate('${c.id}')">${AI_I.dup}</button>
+            <button class="del" title="${esc(t('aiDel'))}" onclick="aiDelete('${c.id}')">${AI_I.del}</button>
+          </div>
+        </div>`).join('') || `<div class="empty-row">${esc(t('aiEmptyList'))}</div>`;
+    } catch (e) { box.innerHTML = `<div class="empty-row">${esc(e.detail || t('aiUnavailable'))}</div>`; }
+  }
+  async function aiNewConversation(){
+    try { const c = await apiFetch('/api/ai/conversations', {method: 'POST'}); aiOpenConversation(c.id); }
+    catch (e) { showToast(e.detail || t('aiUnavailable')); }
+  }
+  function aiOpenTab(id){ if (id) window.open(location.origin + location.pathname + '#ai=' + id, '_blank'); }
+  async function aiOpenConversation(id){
+    showView('view-ai-chat');
+    aiCurrentId = id;
+    document.getElementById('aicMsgs').innerHTML = `<div class="empty-row">${esc(t('loading'))}</div>`;
+    try {
+      const c = await apiFetch('/api/ai/conversations/' + id);
+      aiCurrentTitle = c.title; aiCurrentMsgs = c.messages;
+      document.getElementById('aiChatTitle').textContent = c.title;
+      aiRenderMsgs();
+    } catch (e) { showToast(e.detail || t('aiUnavailable')); goToAiList(); }
+  }
+  function aiBubble(m){
+    const mine = m.role === 'user';
+    return `<div class="aic-msg ${mine ? 'user' : 'bot'}">${esc(m.content)}${mine ? '' : `<button class="aic-cp" onclick="aiCopyText(this.parentNode.firstChild.textContent)">${esc(t('aiCopyMsg'))}</button>`}</div>`;
+  }
+  function aiRenderMsgs(){
+    const box = document.getElementById('aicMsgs');
+    box.innerHTML = aiCurrentMsgs.length ? aiCurrentMsgs.map(aiBubble).join('') : `<div class="aic-msg bot">${esc(t('aiIntro'))}</div>`;
+    document.getElementById('aicSugg').innerHTML = aiCurrentMsgs.length ? '' : [t('aiSugg1'), t('aiSugg2'), t('aiSugg3')].map(x => `<button onclick="document.getElementById('aicInput').value=this.textContent; aiChatSend();">${esc(x)}</button>`).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+  async function aiChatSend(){
+    const input = document.getElementById('aicInput'); const text = input.value.trim();
+    if (!text || !aiCurrentId) return;
+    input.value = ''; document.getElementById('aicSugg').innerHTML = '';
+    const box = document.getElementById('aicMsgs');
+    if (!aiCurrentMsgs.length) box.innerHTML = '';
+    box.insertAdjacentHTML('beforeend', aiBubble({role: 'user', content: text}));
+    const wait = document.createElement('div'); wait.className = 'aic-msg bot'; wait.textContent = '…'; box.appendChild(wait); box.scrollTop = box.scrollHeight;
+    const btn = document.getElementById('aicSendBtn'); btn.disabled = true;
+    try {
+      const r = await apiFetch('/api/ai/conversations/' + aiCurrentId + '/messages', {method: 'POST', body: JSON.stringify({content: text})});
+      aiCurrentMsgs.push(r.user, r.assistant);
+      if (r.title){ aiCurrentTitle = r.title; document.getElementById('aiChatTitle').textContent = r.title; }
+      wait.remove(); box.lastElementChild && box.lastElementChild.remove();
+      box.insertAdjacentHTML('beforeend', aiBubble(r.user) + aiBubble(r.assistant));
+    } catch (e) { wait.className = 'aic-msg err'; wait.textContent = e.detail || t('aiUnavailable'); input.value = text; }
+    finally { btn.disabled = false; box.scrollTop = box.scrollHeight; }
+  }
+  function aiTranscript(){
+    return aiCurrentTitle + '\n\n' + aiCurrentMsgs.map(m => (m.role === 'user' ? t('aiYouLbl') : t('aiBotLbl')) + ': ' + m.content).join('\n\n') + '\n\n— Kiur';
+  }
+  async function aiCopyText(txt){
+    try { await navigator.clipboard.writeText(txt); }
+    catch (e) { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (_) {} ta.remove(); }
+    showToast(t('aiCopiedToast'));
+  }
+  function aiCopyAll(){ aiCopyText(aiTranscript()); }
+  async function aiShareCurrent(){
+    if (navigator.share){ try { await navigator.share({title: aiCurrentTitle, text: aiTranscript()}); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    aiCopyText(aiTranscript());
+  }
+  async function aiRenameCurrent(){
+    const name = prompt(t('aiRenamePrompt'), aiCurrentTitle);
+    if (!name || !name.trim()) return;
+    try { const r = await apiFetch('/api/ai/conversations/' + aiCurrentId, {method: 'PUT', body: JSON.stringify({title: name.trim()})}); aiCurrentTitle = r.title; document.getElementById('aiChatTitle').textContent = r.title; }
+    catch (e) { showToast(e.detail || ''); }
+  }
+  async function aiDuplicate(id){
+    try { await apiFetch('/api/ai/conversations/' + id + '/duplicate', {method: 'POST'}); showToast(t('aiDupToast')); goToAiList(); }
+    catch (e) { showToast(e.detail || ''); }
+  }
+  function aiDuplicateCurrent(){ aiDuplicate(aiCurrentId); }
+  async function aiDelete(id){
+    if (!confirm(t('aiDelConfirm'))) return;
+    try { await apiFetch('/api/ai/conversations/' + id, {method: 'DELETE'}); showToast(t('aiDelToast')); goToAiList(); }
+    catch (e) { showToast(e.detail || ''); }
+  }
+  function aiDeleteCurrent(){ aiDelete(aiCurrentId); }
+
   // ---------- AI study assistant ----------
   let aiHistory = [];
   function aiSyncFab(){
     const fab = document.getElementById('aiFab');
     if (!fab) return;
-    fab.style.display = authToken ? 'grid' : 'none';
+    fab.style.display = (authToken && !/^view-ai-/.test(currentViewId || '')) ? 'grid' : 'none';
     if (!authToken){ document.getElementById('aiPanel').classList.remove('open'); aiHistory = []; }
   }
   function aiRenderIntro(){
