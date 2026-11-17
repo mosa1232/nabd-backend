@@ -1507,6 +1507,13 @@
   .kpi-value{white-space:nowrap;} .kpi-of{font-size:.55em; font-weight:600; opacity:.6;}
   .prof-header{flex-wrap:wrap; gap:14px;} .prof-header .btn{width:100%; justify-content:center;}
   @media (min-width:640px){ .prof-header .btn{width:auto;} }
+
+  .sd-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .sd-cell{background:var(--track); border-radius:14px; padding:12px 8px; text-align:center;}
+  .sd-cell b{display:block; font-size:1.25rem; font-weight:800;} .sd-cell span{display:block; font-size:.72rem; opacity:.7; margin-top:2px;}
+  .det-row{display:flex; justify-content:space-between; gap:14px; padding:12px 2px; border-bottom:1px solid var(--line); font-size:.92rem;}
+  .det-row:last-child{border-bottom:none;} .det-l{opacity:.65; flex:none;} .det-v{font-weight:700; text-align:end; min-width:0; overflow-wrap:anywhere;}
+  #view-account .tabs{overflow-x:auto;} #view-account .tab-btn{white-space:nowrap;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2719,6 +2726,7 @@
 
     <div class="tabs" style="margin-top:16px;">
       <button class="tab-btn active" data-atab="overview" onclick="switchAccountTab('overview')" data-i18n="tabOverview">نظرة عامة</button>
+      <button class="tab-btn" data-atab="details" onclick="switchAccountTab('details')" data-i18n="tabDetails">بياناتي</button>
       <button class="tab-btn" data-atab="learning" onclick="switchAccountTab('learning')" data-i18n="tabLearning">التعلّم</button>
       <button class="tab-btn" data-atab="security" onclick="switchAccountTab('security')" data-i18n="tabSecurity">الأمان</button>
     </div>
@@ -2773,6 +2781,11 @@
       </div>
 
 
+      <div class="panel glass" style="margin-top:16px;">
+        <div class="panel-head"><span class="panel-title" data-i18n="stDetailTitle">إحصائياتك بالتفصيل</span></div>
+        <div id="accStatsDetail"><div class="empty-row" data-i18n="loading">جارٍ التحميل...</div></div>
+      </div>
+
       <div class="more-list" style="margin-top:16px;">
         <button class="more-row" onclick="goToMyOrders()">
           <span class="more-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V6a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v2"/><rect x="4" y="8" width="16" height="13" rx="2"/></svg></span>
@@ -2783,6 +2796,12 @@
           <span class="more-label" data-i18n="moreHelp">المساعدة والدعم</span><svg class="more-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
       </div>
+    </div>
+
+    <!-- ---------- بياناتي ---------- -->
+    <div class="tab-panel" id="atab-details">
+      <div id="accDetails"></div>
+      <button class="btn" style="width:100%; justify-content:center; padding:12px; margin-top:14px;" onclick="goToAccountEdit()" data-i18n="detEditBtn">تعديل البيانات</button>
     </div>
 
     <!-- ---------- التعلّم ---------- -->
@@ -3208,6 +3227,7 @@
       ordersTitle:'طلباتي', ordersSub:'تابع حالة طلباتك وأكواد التفعيل.', orderPending:'بانتظار تأكيد الدفع', orderPaid:'مدفوع — قيد التجهيز', orderFulfilled:'تم التسليم', orderCancelled:'ملغي', orderNone:'لا توجد طلبات بعد. تصفّح المتجر وأضف ما يناسبك.', orderCodes:'أكواد التفعيل', orderCopy:'نسخ', orderCopied:'تم النسخ ✓', orderWaiting:'ننتظر تأكيد الدفع من الإدارة، وتصلك الأكواد هنا بمجرد التأكيد.', orderDelivery:'التوصيل', orderZain:'زين كاش', orderCod:'عند الاستلام', orderRedeem:'فعّل الكود من «حسابي ← التعلّم».',
       lpAnatomyDesc:'جسم الإنسان بالتفصيل: عضلات وعظام وأعصاب وأوعية وأعضاء — تدوّرها وتقرّب منها وتضغط على أي جزء لتعرف اسمه.', lpHowEyebrow:'البداية', lpHowTitle:'ثلاث خطوات وتبدأ', lpHowSub:'من التسجيل إلى أول سؤال بدقائق.', lpStep1T:'أنشئ حسابك', lpStep1B:'بالبريد وكلمة مرور، أو بحساب Google بضغطة واحدة.', lpStep2T:'اختر جامعتك ومرحلتك', lpStep2B:'تظهر لك موادك ودكاترتك تلقائيًا، وتغيّر المرحلة متى شئت.', lpStep3T:'ابدأ الدراسة', lpStep3B:'أسئلة بشرح، لمحات سريرية، وتشريح ثلاثي الأبعاد.', lpFaqEyebrow:'أسئلة شائعة', lpFaqTitle:'قبل ما تبدأ', lpFaq1Q:'هل التسجيل مجاني؟', lpFaq1A:'إنشاء الحساب مجاني. بعض المحتوى (ملازم وكورسات) يُفعَّل بكود تحصل عليه من المتجر أو من مندوبك.', lpFaq2Q:'هل أقدر أستخدم حسابي على أكثر من جهاز؟', lpFaq2A:'الحساب يعمل على جهاز واحد في الوقت نفسه لحماية المحتوى. الدخول من جهاز جديد يخرجك من القديم.', lpFaq3Q:'كيف أدخل إذا سجّلت بـ Google؟', lpFaq3A:'تحدد مرة واحدة اسم مستخدم وكلمة مرور بعد أول تسجيل، وبعدها تدخل بأي طريقة تفضلها.', lpFaq4Q:'كيف أتواصل مع الدعم؟', lpFaq4A:'من داخل التطبيق عبر زر «المساعدة» تراسل الإدارة مباشرة، أو على support@kiur.online.', lpFinalTitle:'جاهز تبدأ؟', lpFinalSub:'سجّل الآن وابدأ بأول جلسة أسئلة.', lpSupportLine:'للدعم:',
       navGroupSoon:'قريبًا', homeStart:'ابدأ من هنا', homeMore:'المزيد', homeSoonLine:'قريبًا: أكاديمية الفيديو والتدريب الصيفي', moreHelp:'المساعدة والدعم',
+      tabDetails:'بياناتي', detPersonal:'المعلومات الشخصية', detAcademic:'المسار الدراسي', detAccountInfo:'معلومات الحساب', detName:'الاسم', detUsername:'اسم المستخدم', detEmail:'البريد الإلكتروني', detPhone:'رقم الهاتف', detSection:'القسم', detUniversity:'الجامعة', detStage:'المرحلة', detStatus:'الحالة', detStudent:'طالب', detGrad:'متخرج', detJoined:'تاريخ الانضمام', detLastLogin:'آخر دخول', detVerified:'توثيق الحساب', detVerifiedYes:'موثّق', detVerifiedNo:'غير موثّق', detTwoFa:'التحقق بخطوتين', detOn:'مفعّل', detOff:'غير مفعّل', detNotSet:'غير محدد', detPwChanged:'آخر تغيير لكلمة المرور', detEditBtn:'تعديل البيانات', stDetailTitle:'إحصائياتك بالتفصيل', stBank:'أسئلة في مراحلك', stTried:'جرّبت منها', stMastered:'متقنة', stReview:'تحتاج مراجعة', stCoverage:'نسبة التغطية', stSavedN:'محفوظة', stBySubject:'التقدّم حسب المادة',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3347,6 +3367,7 @@
       ordersTitle:'My orders', ordersSub:'Follow your orders and activation codes.', orderPending:'Awaiting payment confirmation', orderPaid:'Paid — being prepared', orderFulfilled:'Delivered', orderCancelled:'Cancelled', orderNone:'No orders yet. Browse the store and add what you need.', orderCodes:'Activation codes', orderCopy:'Copy', orderCopied:'Copied ✓', orderWaiting:'We are waiting for the team to confirm the payment; your codes will appear here once confirmed.', orderDelivery:'Delivery', orderZain:'ZainCash', orderCod:'Cash on delivery', orderRedeem:'Activate the code from My account → Learning.',
       lpAnatomyDesc:'The human body in detail: muscles, bones, nerves, vessels and organs — rotate, zoom and tap any part to learn its name.', lpHowEyebrow:'Getting started', lpHowTitle:'Three steps and you are in', lpHowSub:'From sign-up to your first question in minutes.', lpStep1T:'Create your account', lpStep1B:'With email and a password, or with Google in one tap.', lpStep2T:'Pick your university and year', lpStep2B:'Your subjects and doctors appear automatically; change your year any time.', lpStep3T:'Start studying', lpStep3B:'Questions with explanations, clinical pearls and a 3D anatomy atlas.', lpFaqEyebrow:'FAQ', lpFaqTitle:'Before you start', lpFaq1Q:'Is sign-up free?', lpFaq1A:'Creating an account is free. Some content (booklets and courses) is unlocked with a code from the store or your representative.', lpFaq2Q:'Can I use my account on more than one device?', lpFaq2A:'An account works on one device at a time to protect the content. Signing in on a new device signs out the old one.', lpFaq3Q:'How do I sign in if I joined with Google?', lpFaq3A:'You set a username and a password once after the first sign-up, then sign in whichever way you prefer.', lpFaq4Q:'How do I reach support?', lpFaq4A:'From inside the app use the Help button to message the team directly, or write to support@kiur.online.', lpFinalTitle:'Ready to start?', lpFinalSub:'Sign up now and begin your first question session.', lpSupportLine:'Support:',
       navGroupSoon:'Coming soon', homeStart:'Start here', homeMore:'More', homeSoonLine:'Coming soon: Video Academy and Summer Training', moreHelp:'Help and support',
+      tabDetails:'My details', detPersonal:'Personal information', detAcademic:'Study path', detAccountInfo:'Account information', detName:'Name', detUsername:'Username', detEmail:'Email', detPhone:'Phone', detSection:'Section', detUniversity:'University', detStage:'Stage', detStatus:'Status', detStudent:'Student', detGrad:'Graduate', detJoined:'Joined', detLastLogin:'Last sign-in', detVerified:'Account verification', detVerifiedYes:'Verified', detVerifiedNo:'Not verified', detTwoFa:'Two-step verification', detOn:'On', detOff:'Off', detNotSet:'Not set', detPwChanged:'Password last changed', detEditBtn:'Edit details', stDetailTitle:'Your stats in detail', stBank:'Questions in your stages', stTried:'Attempted', stMastered:'Mastered', stReview:'Need review', stCoverage:'Coverage', stSavedN:'Saved', stBySubject:'Progress by subject',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3484,6 +3505,7 @@
       ordersTitle:'داواکارییەکانم', ordersSub:'دۆخی داواکارییەکان و کۆدەکانی چالاککردن بەدواداچوون بکە.', orderPending:'چاوەڕێی پشتڕاستکردنەوەی پارەدان', orderPaid:'پارەدراوە — ئامادە دەکرێت', orderFulfilled:'گەیەنرا', orderCancelled:'هەڵوەشێنرایەوە', orderNone:'هێشتا داواکاری نییە. بچۆ فرۆشگا.', orderCodes:'کۆدەکانی چالاککردن', orderCopy:'کۆپی', orderCopied:'کۆپی کرا ✓', orderWaiting:'چاوەڕێی پشتڕاستکردنەوەی بەڕێوەبەرایەتین؛ کۆدەکانت لێرە دەردەکەون.', orderDelivery:'گەیاندن', orderZain:'زەین کاش', orderCod:'پارەدان لە کاتی وەرگرتن', orderRedeem:'کۆدەکە لە «هەژمارەکەم ← فێربوون» چالاک بکە.',
       lpAnatomyDesc:'جەستەی مرۆڤ بە وردی: ماسولکە و ئێسک و دەمار و خوێنبەر و ئەندامەکان — بیسوڕێنە و نزیک بکەرەوە و دەست بخەرە سەر هەر بەشێک بۆ ناسینی ناوەکەی.', lpHowEyebrow:'دەستپێکردن', lpHowTitle:'سێ هەنگاو و دەست پێدەکەیت', lpHowSub:'لە تۆمارکردنەوە بۆ یەکەم پرسیار بە چەند خولەکێک.', lpStep1T:'هەژمارەکەت دروست بکە', lpStep1B:'بە ئیمەیڵ و وشەی نهێنی، یان بە Google بە یەک کلیک.', lpStep2T:'زانکۆ و قۆناغەکەت هەڵبژێرە', lpStep2B:'بابەت و مامۆستاکانت خۆکارانە دەردەکەون.', lpStep3T:'دەست بکە بە خوێندن', lpStep3B:'پرسیار لەگەڵ ڕوونکردنەوە و تێبینی کلینیکی و ئەناتۆمی سێ ڕەهەند.', lpFaqEyebrow:'پرسیاری باو', lpFaqTitle:'پێش دەستپێکردن', lpFaq1Q:'ئایا تۆمارکردن بێبەرامبەرە؟', lpFaq1A:'دروستکردنی هەژمار بێبەرامبەرە. هەندێک ناوەڕۆک بە کۆد چالاک دەکرێت کە لە فرۆشگا یان نوێنەرەکەتەوە وەریدەگریت.', lpFaq2Q:'دەتوانم هەژمارەکەم لەسەر چەند ئامێرێک بەکاربهێنم؟', lpFaq2A:'هەژمارەکە لە یەک کاتدا لەسەر یەک ئامێر کار دەکات بۆ پاراستنی ناوەڕۆک.', lpFaq3Q:'ئەگەر بە Google تۆمار بووم چۆن دەچمە ژوورەوە؟', lpFaq3A:'جارێک ناوی بەکارهێنەر و وشەی نهێنی دیاری دەکەیت و دواتر بە هەر ڕێگایەک دەچیتە ژوورەوە.', lpFaq4Q:'چۆن پەیوەندی بە پشتگیرییەوە بکەم؟', lpFaq4A:'لە ناو ئەپەکەوە دوگمەی «یارمەتی»، یان بنووسە بۆ support@kiur.online.', lpFinalTitle:'ئامادەیت دەست پێ بکەیت؟', lpFinalSub:'ئێستا تۆمار بکە و یەکەم دانیشتنی پرسیار دەست پێ بکە.', lpSupportLine:'پشتگیری:',
       navGroupSoon:'بەزوویی', homeStart:'لێرەوە دەست پێ بکە', homeMore:'زیاتر', homeSoonLine:'بەزوویی: ئەکادیمیای ڤیدیۆ و ڕاهێنانی هاوین', moreHelp:'یارمەتی و پشتگیری',
+      tabDetails:'زانیارییەکانم', detPersonal:'زانیاری کەسی', detAcademic:'ڕێچکەی خوێندن', detAccountInfo:'زانیاری هەژمار', detName:'ناو', detUsername:'ناوی بەکارهێنەر', detEmail:'ئیمەیڵ', detPhone:'ژمارەی مۆبایل', detSection:'بەش', detUniversity:'زانکۆ', detStage:'قۆناغ', detStatus:'دۆخ', detStudent:'خوێندکار', detGrad:'دەرچوو', detJoined:'بەرواری پەیوەستبوون', detLastLogin:'دوایین چوونەژوورەوە', detVerified:'دڵنیابوونەوەی هەژمار', detVerifiedYes:'دڵنیاکراوە', detVerifiedNo:'دڵنیا نەکراوە', detTwoFa:'پشتڕاستکردنەوەی دوو هەنگاو', detOn:'چالاکە', detOff:'چالاک نییە', detNotSet:'دیاری نەکراوە', detPwChanged:'دوایین گۆڕینی وشەی نهێنی', detEditBtn:'دەستکاریکردن', stDetailTitle:'ئامارەکانت بە وردی', stBank:'پرسیار لە قۆناغەکانت', stTried:'هەوڵت داوە', stMastered:'شارەزایت', stReview:'پێویستی بە پێداچوونەوە', stCoverage:'ڕێژەی داپۆشین', stSavedN:'پاشەکەوتکراو', stBySubject:'پێشکەوتن بەپێی بابەت',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -5049,8 +5071,11 @@
     accountTab = tab;
     document.querySelectorAll('#view-account .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.atab === tab));
     document.querySelectorAll('#view-account .tab-panel').forEach(p => p.classList.toggle('active', p.id === 'atab-' + tab));
-    if (tab === 'overview'){
+    if (tab === 'details'){
+      loadAccountDetails();
+    } else if (tab === 'overview'){
       loadAccountKpis();
+      loadStatsDetail();
       loadSubjectSummary();
       loadMyHistory();
     } else if (tab === 'learning'){
@@ -5062,6 +5087,45 @@
       renderPasswordMeta();
       renderTotpStatus();
     }
+  }
+
+  async function loadStatsDetail(){
+    const box = document.getElementById('accStatsDetail');
+    if (!box) return;
+    try {
+      const [rows, saved] = await Promise.all([apiFetch('/api/me/progress'), apiFetch('/api/me/saved-questions').catch(() => [])]);
+      const sum = k => rows.reduce((a, r) => a + (r[k] || 0), 0);
+      const total = sum('total'), tried = sum('answered');
+      const cov = total ? Math.round(100 * tried / total) : 0;
+      const cell = (v, l) => `<div class="sd-cell"><b>${v}</b><span>${esc(t(l))}</span></div>`;
+      box.innerHTML = `<div class="sd-grid">${cell(numLocal(total), 'stBank')}${cell(numLocal(tried), 'stTried')}${cell(numLocal(sum('mastered')), 'stMastered')}${cell(numLocal(sum('to_review')), 'stReview')}${cell(cov + '%', 'stCoverage')}${cell(numLocal(saved.length), 'stSavedN')}</div>`
+        + (rows.length ? `<div class="item-meta" style="margin:16px 0 6px; font-weight:800;">${esc(t('stBySubject'))}</div>` + rows.map(r => `
+          <div class="mastery-row"><div class="mastery-top"><span class="mastery-name">${esc(r.name)}</span><span class="mastery-meta">${r.answered}/${r.total} · ${r.accuracy === null ? '—' : r.accuracy + '%'}</span></div>
+          <div class="mastery-track"><div class="mastery-fill" style="width:${r.total ? Math.round(100 * r.answered / r.total) : 0}%"></div></div></div>`).join('') : '');
+    } catch (e) { box.innerHTML = `<div class="empty-row">${esc(t('noSubjectData'))}</div>`; }
+  }
+  function numLocal(n){ return Number(n).toLocaleString(currentLang === 'en' ? 'en-US' : 'ar-IQ'); }
+
+  async function loadAccountDetails(){
+    const box = document.getElementById('accDetails');
+    if (!box || !currentUser) return;
+    const u = currentUser;
+    let sec = '', uni = '', stg = '';
+    try {
+      const tree = await loadCatalogTreeForProfile();
+      const S = tree.find(x => x.id === u.section_id);
+      const U = S && S.universities.find(x => x.id === u.university_id);
+      const G = U && U.stages.find(x => x.id === u.stage_id);
+      sec = S ? S.name : ''; uni = U ? U.name : ''; stg = G ? G.name : '';
+    } catch (e) {}
+    const none = `<span style="opacity:.55">${esc(t('detNotSet'))}</span>`;
+    const dt = iso => iso ? new Date(iso.endsWith('Z') || /[+-]\d\d:\d\d$/.test(iso) ? iso : iso + 'Z').toLocaleDateString(dateLocale(), {day:'numeric', month:'long', year:'numeric'}) : none;
+    const row = (l, v) => `<div class="det-row"><span class="det-l">${esc(t(l))}</span><span class="det-v">${v || none}</span></div>`;
+    const blk = (title, rows) => `<div class="panel glass" style="margin-bottom:14px;"><div class="panel-head"><span class="panel-title">${esc(t(title))}</span></div>${rows}</div>`;
+    box.innerHTML =
+      blk('detPersonal', row('detName', esc(u.full_name || '')) + row('detUsername', u.username ? `<span dir="ltr">${esc(u.username)}</span>` : '') + row('detEmail', `<span dir="ltr">${esc(u.email || '')}</span>`) + row('detPhone', u.phone ? `<span dir="ltr">${esc(u.phone)}</span>` : '')) +
+      blk('detAcademic', row('detSection', esc(sec)) + row('detUniversity', esc(uni)) + row('detStage', u.is_graduate ? esc(t('detGrad')) : esc(stg)) + row('detStatus', esc(u.is_graduate ? t('detGrad') : t('detStudent')))) +
+      blk('detAccountInfo', row('detJoined', dt(u.created_at)) + row('detLastLogin', dt(u.last_login)) + row('detVerified', esc(u.verified_at ? t('detVerifiedYes') + ' · ' + (u.verified_name || '') : t('detVerifiedNo'))) + row('detTwoFa', esc(u.totp_enabled ? t('detOn') : t('detOff'))) + row('detPwChanged', u.password_changed_at ? dt(u.password_changed_at) : ''));
   }
 
   function renderAccountDateChip(){
