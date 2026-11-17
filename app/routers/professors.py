@@ -122,7 +122,14 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
             raise HTTPException(403, "حساب المساعد غير مرتبط بدكتور فعّال")
         owner_id = parent.id
     elif user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
-        raise HTTPException(403, "اختر الدكتور من «عرض لوحة دكتور» بأعلى الصفحة أولًا، لأن هذا الإجراء يُحفظ باسم دكتور ومادته")
+        # Staff publish in the platform's own name, in whichever subject they pick.
+        if user.role != models.Role.owner and "content.manage" not in user_permissions(user):
+            raise HTTPException(403, "لا تملك صلاحية نشر المحتوى")
+        wanted = getattr(user, "_active_subject_id", None)
+        if not wanted:
+            raise HTTPException(403, "اختر المادة التي تنشر فيها من أعلى الصفحة")
+        from .platform_account import platform_profile
+        return platform_profile(db, wanted)
     else:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")
     profiles = db.query(models.ProfessorProfile).filter(

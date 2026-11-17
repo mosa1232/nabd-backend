@@ -1235,7 +1235,7 @@
     let admin = false;
     try { admin = currentRole === 'admin' || currentRole === 'owner' || currentRole === 'supervisor'; } catch (e) { /* not signed in yet */ }
     const g = admin ? viewAsGroupOf(viewAsSection) : null;
-    return g && viewAsPick[g] ? {'X-View-As': viewAsPick[g]} : {};
+    return g && viewAsPick[g] && viewAsPick[g] !== '__platform__' ? {'X-View-As': viewAsPick[g]} : {};
   }
 
   // ===== popups -> pages =====
@@ -1944,45 +1944,45 @@
 
   const VIEWAS_ROLE = {doctor: 'professor', reseller: 'reseller', rep: 'representative'};
   const VIEWAS_WORD = {doctor: 'دكتور', reseller: 'مندوب', rep: 'ممثل'};
-  // "المنصة": content saved under the platform's own name (a built-in teaching account).
+  // "المنصة": content saved under the platform's own name — the default for staff,
+  // who only choose the subject they publish in.
+  const PLATFORM_PICK = '__platform__';
   let platformInfo = null, platformSubject = '';
   async function renderViewAsBar(sectionId){
     const g = viewAsGroupOf(sectionId), bar = document.getElementById('viewAsBar');
     bar.style.display = 'block';
     if (!allAccounts.length && liveMode){ try { allAccounts = await apiFetch('/api/admin/users'); } catch (e) {} }
     const list = allAccounts.filter(a => a.role === VIEWAS_ROLE[g] && a.email !== 'platform@kiur.internal');
-    let usePlatform = false;
     if (g === 'doctor' && liveMode){
       try { if (!platformInfo) platformInfo = await apiFetch('/api/admin/platform'); } catch (e) { platformInfo = null; }
-      usePlatform = !!platformInfo && viewAsPick[g] === platformInfo.user_id;
     }
-    if (!usePlatform && !list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = list[0] ? list[0].id : (platformInfo ? platformInfo.user_id : '');
-    usePlatform = !!platformInfo && g === 'doctor' && viewAsPick[g] === platformInfo.user_id;
-    const platOpt = g === 'doctor' && platformInfo ? `<option value="${platformInfo.user_id}" ${usePlatform ? 'selected' : ''}>🏛 ${esc(platformInfo.name)} — بدون دكتور (باسم المنصة)</option>` : '';
-    const subjSel = usePlatform ? `<select id="platSubject" style="flex:1; min-width:220px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="pickPlatformSubject(this.value, '${sectionId}')">
-        <option value="">اختر المادة التي تنشر فيها…</option>
-        ${platformInfo.subjects.map(x => `<option value="${x.id}" ${x.id === platformSubject ? 'selected' : ''}>${esc(x.name)} — ${esc(x.path)}${x.active ? ' ✓' : ''}</option>`).join('')}
+    const canPlatform = g === 'doctor' && !!platformInfo;
+    if (canPlatform && !viewAsPick[g]) viewAsPick[g] = PLATFORM_PICK;
+    if (viewAsPick[g] !== PLATFORM_PICK && !list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = canPlatform ? PLATFORM_PICK : (list[0] ? list[0].id : '');
+    const usePlatform = canPlatform && viewAsPick[g] === PLATFORM_PICK;
+    if (usePlatform && !platformSubject){
+      let saved = ''; try { saved = localStorage.getItem('kiur_platform_subject') || ''; } catch (e) {}
+      const ok = platformInfo.subjects.find(x => x.id === saved) || platformInfo.subjects[0];
+      platformSubject = ok ? ok.id : '';
+    }
+    activeSubjectId = usePlatform ? (platformSubject || null) : (g === 'doctor' ? null : activeSubjectId);
+    const sel = 'padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;';
+    const platOpt = canPlatform ? `<option value="${PLATFORM_PICK}" ${usePlatform ? 'selected' : ''}>🏛 ${esc(platformInfo.name)} — باسم المنصة (بدون دكتور)</option>` : '';
+    const subjSel = usePlatform ? `<select style="flex:1; min-width:220px; ${sel}" onchange="pickPlatformSubject(this.value, '${sectionId}')">
+        ${platformInfo.subjects.map(x => `<option value="${x.id}" ${x.id === platformSubject ? 'selected' : ''}>${esc(x.name)} — ${esc(x.path)}</option>`).join('') || '<option value="">لا توجد مواد — أضف مادة من المناهج</option>'}
       </select>` : '';
-    const note = usePlatform && !platformSubject ? 'اختر المادة من القائمة لتبدأ النشر باسم المنصة.' : usePlatform ? 'كل ما ترفعه هنا (أسئلة، ملازم، امتحانات، كورسات، لمحات) يظهر للطلاب باسم المنصة.' : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
+    const note = usePlatform ? 'ما تنشره هنا (أسئلة، ملازم، امتحانات، كورسات، لمحات) يظهر للطلاب باسم المنصة في المادة المختارة.' : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
-      <span style="font-weight:800; font-size:.86rem;">عرض لوحة ${VIEWAS_WORD[g]}:</span>
-      <select id="viewAsSelect" style="flex:1; min-width:200px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="viewAsPick['${g}']=this.value; platformSubject=''; activeSubjectId=null; renderViewAsBar('${sectionId}')">
+      <span style="font-weight:800; font-size:.86rem;">لوحة ${VIEWAS_WORD[g]}:</span>
+      <select style="flex:1; min-width:200px; ${sel}" onchange="viewAsPick['${g}']=this.value; renderViewAsBar('${sectionId}')">
         ${platOpt}${list.map(a => `<option value="${a.id}" ${a.id === viewAsPick[g] ? 'selected' : ''}>${esc(a.full_name)}</option>`).join('') || (platOpt ? '' : '<option value="">لا يوجد حسابات</option>')}
       </select>${subjSel}
       <span class="cell-sub">${note}</span></div>`;
-    if (usePlatform){
-      if (platformSubject) loadSection(sectionId);
-      return;
-    }
-    if (viewAsPick[g]) loadSection(sectionId);
+    if (usePlatform ? platformSubject : viewAsPick[g]) loadSection(sectionId);
   }
-  async function pickPlatformSubject(subjectId, sectionId){
+  function pickPlatformSubject(subjectId, sectionId){
     platformSubject = subjectId; activeSubjectId = subjectId || null;
-    if (!subjectId){ renderViewAsBar(sectionId); return; }
-    try {
-      await apiFetch('/api/admin/platform/subject', {method: 'POST', body: JSON.stringify({subject_id: subjectId})});
-      platformInfo = await apiFetch('/api/admin/platform');
-    } catch (e) { showToast(e.detail || 'تعذّر فتح المادة', 'error'); return; }
+    try { localStorage.setItem('kiur_platform_subject', subjectId); } catch (e) {}
     renderViewAsBar(sectionId);
   }
 

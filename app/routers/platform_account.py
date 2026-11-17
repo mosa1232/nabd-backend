@@ -30,6 +30,20 @@ def platform_user(db: Session) -> models.User:
     return u
 
 
+def platform_profile(db: Session, subject_id: str) -> models.ProfessorProfile:
+    """The platform's teaching profile for a subject, created on first use."""
+    if not db.get(models.Subject, subject_id):
+        raise HTTPException(404, "المادة غير موجودة")
+    u = platform_user(db)
+    p = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == u.id, models.ProfessorProfile.subject_id == subject_id).first()
+    if not p:
+        p = models.ProfessorProfile(user_id=u.id, subject_id=subject_id, title="المنصة", bio="محتوى تنشره منصة Kiur")
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+    return p
+
+
 class SubjectIn(BaseModel):
     subject_id: str
 
@@ -55,12 +69,5 @@ def platform_info(db: Session = Depends(get_db)):
 @router.post("/subject")
 def platform_subject(body: SubjectIn, db: Session = Depends(get_db)):
     """Opens the platform's teaching profile for a subject (once)."""
-    if not db.get(models.Subject, body.subject_id):
-        raise HTTPException(404, "المادة غير موجودة")
-    u = platform_user(db)
-    p = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == u.id, models.ProfessorProfile.subject_id == body.subject_id).first()
-    if not p:
-        p = models.ProfessorProfile(user_id=u.id, subject_id=body.subject_id, title="المنصة", bio="محتوى تنشره منصة Kiur")
-        db.add(p)
-        db.commit()
-    return {"user_id": u.id, "subject_id": body.subject_id}
+    p = platform_profile(db, body.subject_id)
+    return {"user_id": p.user_id, "subject_id": body.subject_id}
