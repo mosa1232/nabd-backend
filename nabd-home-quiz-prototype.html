@@ -2629,16 +2629,11 @@
         </button>
         <div>
           <div class="page-title" data-i18n="anatomyTitle">التشريح ثلاثي الأبعاد</div>
-          <div class="page-sub" data-i18n="anatomySub">مجسّم تفاعلي للجسم: دوّره، قرّب منه، فعّل الأجهزة، واضغط أي جزء لتتعرّف عليه.</div>
+          <div class="page-sub" data-i18n="anatomySub">اختر عضوًا أو جهازًا، دوّره بإصبعك، وقرّب منه لترى التفاصيل.</div>
         </div>
       </div>
     </div>
-    <div class="tabs anat-tabs" id="anatTabs" style="margin:0 0 12px; display:none;">
-      <button class="tab-btn active" id="anatTabBody" onclick="setAnatomyMode('body')" data-i18n="anatTabBody">المجسّم الكامل</button>
-      <button class="tab-btn" id="anatTabSketch" onclick="setAnatomyMode('models')" data-i18n="anatTabSketch">نماذج تفصيلية</button>
-    </div>
-    <div id="anatRoot"></div>
-    <div id="anatModels" style="display:none;">
+    <div id="anatModels">
       <div class="anat-chips" id="anatChips" role="tablist"></div>
       <div class="anat-stage" id="anatStage">
         <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoadingModel">جارٍ تحميل النموذج…</div>
@@ -3495,7 +3490,7 @@
       continueEyebrow:'آخر ملزمة', continueBtn:'متابعة', navHome:'الرئيسية', navAccount:'حسابي', hi:'مرحباً،',
       continueCourseEyebrow:'متابعة الكورس', lecturesOf:'محاضرة',
       anatomyTitle:'التشريح ثلاثي الأبعاد', anatomyShort:'التشريح', anatomyHeroBtn:'استكشف التشريح ثلاثي الأبعاد',
-      anatomySub:'مجسّم تفاعلي للجسم: دوّره، قرّب منه، فعّل الأجهزة، واضغط أي جزء لتتعرّف عليه.',
+      anatomySub:'اختر عضوًا أو جهازًا، دوّره بإصبعك، وقرّب منه لترى التفاصيل.',
       anatomyLoading:'جارٍ تجهيز مجسّم الجسم…', anatomyFailed:'تعذّر تحميل المجسّم — تحقق من الاتصال وحاول مجددًا.',
       comingSoon:'هذا القسم قريبًا — Soon',
       studyingFor:'مرحلتك الدراسية', navGroupStudy:'التعلّم والتدريب', navGroupRecord:'سجلّك وتقدّمك',
@@ -3652,7 +3647,7 @@
       continueEyebrow:'Last booklet', continueBtn:'Continue', navHome:'Home', navAccount:'My Account', hi:'Hi,',
       continueCourseEyebrow:'Continue course', lecturesOf:'lectures',
       anatomyTitle:'3D Anatomy', anatomyShort:'Anatomy', anatomyHeroBtn:'Explore 3D anatomy',
-      anatomySub:'An interactive body: rotate it, zoom in, switch systems on, and tap any part to learn about it.',
+      anatomySub:'Pick an organ or system, rotate it with your finger and zoom in to see the details.',
       anatomyLoading:'Preparing the 3D body…', anatomyFailed:'Could not load the 3D model — check your connection and try again.',
       comingSoon:'This section is coming soon',
       studyingFor:'Your stage', navGroupStudy:'Learning & practice', navGroupRecord:'Your record',
@@ -3798,7 +3793,7 @@
       continueEyebrow:'دوایین مەلزەمە', continueBtn:'بەردەوامبوون', navHome:'سەرەکی', navAccount:'هەژماری من', hi:'سڵاو،',
       continueCourseEyebrow:'بەردەوامبوون لە کۆرس', lecturesOf:'وانە',
       anatomyTitle:'تەشریحی سێ ڕەهەندی', anatomyShort:'تەشریح', anatomyHeroBtn:'تەشریحی سێ ڕەهەندی ببینە',
-      anatomySub:'جەستەیەکی کارلێککەر: بیسوڕێنە، نزیک بکەوە، سیستەمەکان چالاک بکە و کلیک لە هەر بەشێک بکە.',
+      anatomySub:'ئەندام یان سیستەمێک هەڵبژێرە، بە پەنجە بیسوڕێنە و نزیک بکەوە بۆ بینینی وردەکاری.',
       anatomyLoading:'مۆدێلی جەستە ئامادە دەکرێت…', anatomyFailed:'نەتوانرا مۆدێلەکە بار بکرێت — پەیوەندی بپشکنە.',
       comingSoon:'ئەم بەشە بەمزووانە دەکرێتەوە — Soon',
       studyingFor:'قۆناغی خوێندنت', navGroupStudy:'فێربوون و ڕاهێنان', navGroupRecord:'تۆمار و پێشکەوتنت',
@@ -7072,10 +7067,7 @@
   // ---------- Sections that are not open yet ----------
   function comingSoon(){ showToast(t('comingSoon')); }
 
-  // ---------- Anatomy: our own 3D simulator ----------
-  // static/anatomy.js builds the whole body from code (three.js primitives, no
-  // third-party model), so it is loaded only when the student opens the section.
-  let anatomyLoading = null;
+  // ---------- Anatomy: detailed models stored on this server ----------
   function loadScriptOnce(src){
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -7083,30 +7075,15 @@
       document.head.appendChild(s);
     });
   }
-  function ensureAnatomyLib(){
-    if (window.KiurAnatomy) return Promise.resolve();
-    if (!anatomyLoading){
-      anatomyLoading = (async () => {
-        if (!window.THREE) await loadScriptOnce('/static/vendor/three.min.js');
-        if (!window.THREE.OrbitControls) await loadScriptOnce('/static/vendor/OrbitControls.js');
-        await loadScriptOnce('/static/anatomy.js');
-      })().catch(e => { anatomyLoading = null; throw e; });
-    }
-    return anatomyLoading;
-  }
   async function goToAnatomy(){
     showView('view-anatomy');
-    const root = document.getElementById('anatRoot');
-    if (!root.firstChild) root.innerHTML = `<div class="empty-row">${t('anatomyLoading')}</div>`;
-    try {
-      await ensureAnatomyLib();
-      KiurAnatomy.mount(root, {lang: currentLang});
-      KiurAnatomy.setLang(currentLang);
-      await loadAnatomyManifest();
-      if (anatomyMode === 'models' && anatomyModels.length){ KiurAnatomy.pause(); mvStart(); } else if (anatomyMode === 'models') setAnatomyMode('body');
-    } catch (e) {
-      root.innerHTML = `<div class="empty-row">${t('anatomyFailed')}</div>`;
-    }
+    await loadAnatomyManifest();
+    const box = document.getElementById('anatModels');
+    if (!anatomyModels.length){ box.innerHTML = `<div class="empty-row">${t('anatomyFailed')}</div>`; return; }
+    anatomyMode = 'models';
+    renderAnatomyChips();
+    await selectAnatomy(anatomyCurrent || anatomyModels[0].id);
+    mvStart();
   }
 
 
@@ -7120,16 +7097,6 @@
       const r = await fetch('/static/models/manifest.json', {cache: 'no-cache'});
       anatomyModels = r.ok ? ((await r.json()).models || []) : [];
     } catch (e) { anatomyModels = []; }
-    document.getElementById('anatTabs').style.display = anatomyModels.length ? 'flex' : 'none';
-  }
-  function setAnatomyMode(mode){
-    anatomyMode = mode;
-    document.getElementById('anatTabBody').classList.toggle('active', mode === 'body');
-    document.getElementById('anatTabSketch').classList.toggle('active', mode === 'models');
-    document.getElementById('anatRoot').style.display = mode === 'body' ? '' : 'none';
-    document.getElementById('anatModels').style.display = mode === 'models' ? '' : 'none';
-    if (mode === 'body'){ mvStop(); if (window.KiurAnatomy) KiurAnatomy.mount(document.getElementById('anatRoot'), {lang: currentLang}); }
-    else { if (window.KiurAnatomy) KiurAnatomy.pause(); renderAnatomyChips(); selectAnatomy(anatomyCurrent || anatomyModels[0].id); }
   }
   function renderAnatomyChips(){
     const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
