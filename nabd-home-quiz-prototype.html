@@ -3551,6 +3551,7 @@
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
       selectDept:'اختر القسم',
       anatTabBody:'المجسّم الكامل', anatTabSketch:'نماذج تفصيلية', anatomyLoadingModel:'جارٍ تحميل النموذج…', anatomyCreditPrefix:'النموذج:',
+      anatWelcome:'أهلًا بك! ابدأ جولتك بالتشريح ثلاثي الأبعاد — اختر عضوًا ودوّره.',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3699,6 +3700,7 @@
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
       selectDept:'Select department',
       anatTabBody:'Full body', anatTabSketch:'Detailed models', anatomyLoadingModel:'Loading the model…', anatomyCreditPrefix:'Model:',
+      anatWelcome:'Welcome! Start with the 3D anatomy — pick an organ and rotate it.',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3845,6 +3847,7 @@
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
       selectDept:'بەش هەڵبژێرە',
       anatTabBody:'جەستەی تەواو', anatTabSketch:'مۆدێلی ورد', anatomyLoadingModel:'مۆدێلەکە بار دەکرێت…', anatomyCreditPrefix:'مۆدێل:',
+      anatWelcome:'بەخێربێیت! بە تەشریحی سێ ڕەهەند دەست پێبکە — ئەندامێک هەڵبژێرە و بیسوڕێنە.',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -6655,6 +6658,20 @@
   // Sign-up is open to any email now (not just university ones), so this is
   // the platform's only source of phone/college/university/study-status —
   // shown once, right after the first successful login, before goHome().
+  // A brand-new student (account made in the last 3 days) lands on the 3D anatomy the first time they get in.
+  function maybeWelcomeAnatomy(){
+    try {
+      const u = currentUser;
+      if (!u || u.role !== 'student' || !u.created_at) return;
+      const age = Date.now() - new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(u.created_at) ? u.created_at : u.created_at + 'Z').getTime();
+      const key = 'kiur_welcomed_' + u.id;
+      if (age > 3 * 864e5 || localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+      goToAnatomy();
+      showToast(t('anatWelcome'));
+    } catch (e) { /* storage unavailable: skip the welcome */ }
+  }
+
   function proceedAfterAuth(){
     if (currentUser && currentUser.profile_complete === false){
       showCompleteProfileView();
@@ -6667,6 +6684,7 @@
       goHome();
       const dl = /#ai=([\w-]+)/.exec(location.hash);
       if (dl){ history.replaceState(null, '', location.pathname); aiOpenConversation(dl[1]); }
+      else maybeWelcomeAnatomy();
     }
   }
 
