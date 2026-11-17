@@ -5524,28 +5524,50 @@
     }
   }
 
-  // Polls a background generation and draws a real progress bar (questions written so far).
+  // Polls a background generation and draws a progress bar. The server only knows a batch is
+  // finished when it is, so between batches the bar creeps forward on an estimate (never past the
+  // next milestone) and the text says which batch is being written and for how long.
+  let aiJobId = null, aiJobCancelled = false;
+  async function aiCancelJob(){
+    aiJobCancelled = true;
+    if (aiJobId){ try { await apiFetch('/api/professors/me/ai/jobs/' + aiJobId + '/cancel', {method: 'POST'}); } catch (e) {} }
+  }
   async function aiWaitForJob(jobId, total, msg, btn){
+    aiJobId = jobId; aiJobCancelled = false;
     const started = Date.now();
+    let last = {done: 0, part: 0, parts: 0}, lastAt = Date.now();
     msg.style.display = 'block'; msg.style.color = 'var(--ink)';
-    const draw = (done, t) => {
-      const pct = t ? Math.min(100, Math.round(100 * done / t)) : 0;
+    const fmt = secs => Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    const draw = () => {
       const secs = Math.round((Date.now() - started) / 1000);
-      msg.innerHTML = `<div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;"><span>جارٍ كتابة الأسئلة…</span><span>${done} / ${t} · ${pct}%</span></div>
-        <div style="height:12px; border-radius:99px; background:var(--track); overflow:hidden;"><div style="height:100%; width:${Math.max(pct, 3)}%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .6s ease;"></div></div>
-        <div class="item-meta" style="margin-top:6px; font-size:.74rem;">مضى ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} — لا تغلق هذه النافذة</div>`;
-      if (btn) btn.textContent = pct + '% …';
+      const sinceBatch = (Date.now() - lastAt) / 1000;
+      const per = last.parts ? total / last.parts : 10;                     // questions per batch
+      const creep = Math.min(per * 0.9, per * (1 - Math.exp(-sinceBatch / 25)));   // estimate inside the current batch
+      const shown = Math.min(total - 0.5, last.done + creep);
+      const pct = Math.max(2, Math.round(100 * shown / total));
+      const phase = last.part ? `الدفعة ${last.part} من ${last.parts}` : 'يقرأ الملف…';
+      msg.innerHTML = `<div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;"><span>✍️ ${phase}</span><span>${last.done} / ${total} سؤال</span></div>
+        <div style="height:14px; border-radius:99px; background:var(--track); overflow:hidden;"><div style="height:100%; width:${pct}%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width 1s linear;"></div></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:.74rem;" class="item-meta">
+          <span>مضى ${fmt(secs)} · هذه الدفعة منذ ${Math.round(sinceBatch)} ثانية${sinceBatch > 90 ? ' — الخدمة بطيئة الآن، ما زلنا ننتظر' : ''}</span>
+          <button type="button" class="btn btn-ghost" style="padding:3px 12px; font-size:.72rem;" onclick="aiCancelJob()">إلغاء</button></div>`;
+      if (btn) btn.textContent = Math.round(100 * last.done / total) + '% …';
     };
-    draw(0, total);
-    for (;;){
-      await new Promise(r => setTimeout(r, 1500));
-      let st;
-      try { st = await apiFetch('/api/professors/me/ai/jobs/' + jobId); }
-      catch (e){ if (e.status === 404) throw e; continue; }   // a dropped poll is not a failure
-      if (st.status === 'error'){ const err = new Error(st.error || 'تعذّر التوليد'); err.detail = st.error; throw err; }
-      draw(st.done, st.total);
-      if (st.status === 'done') return st;
-    }
+    draw();
+    const ticker = setInterval(draw, 1000);
+    try {
+      for (;;){
+        await new Promise(r => setTimeout(r, 1500));
+        if (aiJobCancelled) throw Object.assign(new Error('تم إلغاء التوليد'), {detail: 'تم إلغاء التوليد'});
+        let st;
+        try { st = await apiFetch('/api/professors/me/ai/jobs/' + jobId); }
+        catch (e){ if (e.status === 404) throw e; continue; }   // a dropped poll is not a failure
+        if (st.status === 'error'){ const err = new Error(st.error || 'تعذّر التوليد'); err.detail = st.error; throw err; }
+        if (st.done !== last.done || st.part !== last.part){ lastAt = Date.now() - Math.round((st.batch_age || 0) * 1000); }
+        last = {done: st.done, part: st.part, parts: st.parts};
+        if (st.status === 'done') return st;
+      }
+    } finally { clearInterval(ticker); aiJobId = null; }
   }
 
   function renderAiDrafts(skipped, errors){

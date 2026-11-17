@@ -963,9 +963,13 @@ def _purge_jobs() -> None:
 
 def _run_question_job(job: dict, blocks, subject_name, count, wanted, difficulty, notes, language) -> None:
     try:
+        def tick(done, part=0, parts=0):
+            job.update(done=done, part=part, parts=parts, batch_started=time.time())
         qs, skipped = ai.generate_questions(blocks, subject_name, count, wanted, difficulty, notes, language,
-                                            progress=lambda d: job.__setitem__("done", d))
-        if not qs:
+                                            progress=tick, cancel=lambda: job.get("cancel"))
+        if job.get("cancel"):
+            job.update(status="cancelled", questions=qs)
+        elif not qs:
             job.update(status="error", error="لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
         else:
             job.update(status="done", done=len(qs), questions=qs, skipped=skipped)
@@ -981,7 +985,8 @@ def ai_job_status(job_id: str, db: Session = Depends(get_db), user: models.User 
     job = _AI_JOBS.get(job_id)
     if not job or job["user_id"] != user.id:
         raise HTTPException(404, "انتهت صلاحية هذه العملية — ابدأ التوليد من جديد")
-    out = {"status": job["status"], "done": job["done"], "total": job["total"]}
+    out = {"status": job["status"], "done": job["done"], "total": job["total"], "part": job.get("part", 0), "parts": job.get("parts", 0),
+           "batch_age": round(time.time() - job.get("batch_started", job["created"]), 1), "age": round(time.time() - job["created"], 1)}
     if job["status"] == "error":
         out["error"] = job.get("error", "")
     if job["status"] == "done":
@@ -991,6 +996,14 @@ def ai_job_status(job_id: str, db: Session = Depends(get_db), user: models.User 
             q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"]) if profile else None
         out.update(questions=qs, skipped=job.get("skipped", 0))
     return out
+
+
+@router.post("/me/ai/jobs/{job_id}/cancel")
+def ai_job_cancel(job_id: str, user: models.User = Depends(get_current_user)):
+    job = _AI_JOBS.get(job_id)
+    if job and job["user_id"] == user.id:
+        job["cancel"] = True
+    return {"ok": True}
 
 
 @router.post("/me/ai/generate-questions")

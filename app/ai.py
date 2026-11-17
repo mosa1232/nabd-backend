@@ -489,7 +489,7 @@ LANG_RULES = {
 }
 
 
-QUESTION_BATCH = 20      # per model call: keeps each answer inside the output limit
+QUESTION_BATCH = 10      # per model call: short answers, and the progress bar moves often
 
 
 def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts):
@@ -516,7 +516,7 @@ def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, lan
 
 
 def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "", language: str = "ar", progress=None) -> tuple[list[dict], int]:
+                       difficulty: str, notes: str = "", language: str = "ar", progress=None, cancel=None) -> tuple[list[dict], int]:
     """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
     model answer stays within its output limit, and later batches are told what
     was already written. language: "ar", "en", or "both" (`count` Arabic then
@@ -527,7 +527,7 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         for lg in ("ar", "en"):
             base = len(out)
             qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg,
-                                        (lambda d, base=base: progress(base + d)) if progress else None)
+                                        (lambda d, p=0, n=0, base=base, lg=lg: progress(base + d, p + (0 if lg == "ar" else n), n * 2)) if progress else None, cancel)
             out += qs
             skipped += sk
         return out, skipped
@@ -535,7 +535,11 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
     parts = (count + QUESTION_BATCH - 1) // QUESTION_BATCH
     out, skipped, part = [], 0, 0
     while len(out) < count and part < parts + 2:      # a couple of spare rounds for duplicates / rejects
+        if cancel and cancel():
+            break
         part += 1
+        if progress:
+            progress(len(out), part, parts)
         n = min(QUESTION_BATCH, count - len(out))
         avoid = [q["text"][:80] for q in out][-50:]
         try:
@@ -549,7 +553,7 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         fresh = [q for q in qs if q["text"].strip().lower() not in seen]
         out += fresh[:count - len(out)]
         if progress:
-            progress(len(out))
+            progress(len(out), part, parts)
         if not qs:
             break
     return out, skipped
