@@ -1529,6 +1529,33 @@
 
   /* ---- home tiles: ten tiles = two full rows ---- */
   @media (min-width:760px){ .tiles{grid-template-columns:repeat(5,1fr);} }
+
+  /* ---- home hero: new layout ---- */
+  #view-home .hero{display:grid; grid-template-columns:1fr auto; grid-template-areas:"greet ring" "stats stats" "acts acts"; gap:18px 20px; align-items:center; padding:26px 28px !important; border:none !important; color:#fff; border-radius:26px; overflow:hidden; position:relative;
+    background:radial-gradient(420px 260px at 88% -10%, rgba(255,255,255,.22), transparent 70%), linear-gradient(120deg,#1B2670 0%,#3445C4 55%,#6D5BF0 100%) !important; box-shadow:0 22px 44px -24px rgba(52,69,196,.75) !important;}
+  #view-home .hero::before, #view-home .hero::after{display:none !important;}
+  #view-home .hero .hero-top{display:contents;}
+  #view-home .hero .hero-top > div:first-child{grid-area:greet; min-width:0;}
+  #view-home .hero .stat-ring{grid-area:ring; width:92px; height:92px; background:conic-gradient(#fff calc(var(--p)*1%), rgba(255,255,255,.22) 0) !important; color:#fff;}
+  #view-home .hero .stat-ring::before{inset:8px; background:#3040BF !important;}
+  #view-home .hero .stat-ring span{font-size:1rem; font-weight:800;}
+  #view-home .hero .hero-greeting{color:#fff !important; font-size:clamp(1.6rem,3vw,2.3rem); font-weight:800; line-height:1.25;}
+  #view-home .hero .hero-sub{color:rgba(255,255,255,.78) !important; margin-top:6px;}
+  #view-home .hero .hero-stats{grid-area:stats; display:grid; grid-template-columns:repeat(3,1fr); gap:0; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:18px; padding:4px 0; margin:0;}
+  #view-home .hero .stat-chip{background:transparent !important; border:none !important; box-shadow:none !important; border-radius:0 !important; flex-direction:row; justify-content:center; gap:10px; padding:14px 8px; color:#fff !important; flex-wrap:wrap;}
+  #view-home .hero .stat-chip + .stat-chip{border-inline-start:1px solid rgba(255,255,255,.2) !important;}
+  #view-home .hero .stat-chip svg{stroke:#fff !important; width:20px; height:20px; opacity:.9;}
+  #view-home .hero .stat-chip b{color:#fff !important; font-size:1.35rem; font-weight:800;}
+  #view-home .hero .stat-chip span{color:rgba(255,255,255,.78) !important; font-size:.78rem; flex-basis:100%; text-align:center;}
+  #view-home .hero .hero-actions{grid-area:acts; display:flex; gap:12px; flex-wrap:wrap; margin:0;}
+  #view-home .hero .hero-actions .btn:not(.btn-ghost){background:#fff !important; color:#2B3BB5 !important; box-shadow:none !important; font-weight:800;}
+  #view-home .hero .hero-actions .btn-ghost{background:transparent !important; color:#fff !important; border:1.5px solid rgba(255,255,255,.45) !important;}
+  #view-home .hero .hero-actions .btn svg{stroke:currentColor;}
+  @media (min-width:900px){
+    #view-home .hero{grid-template-columns:1.3fr auto 1fr; grid-template-areas:"greet greet ring" "acts acts ring" "stats stats stats";}
+    #view-home .hero .stat-ring{width:116px; height:116px; justify-self:end;}
+  }
+  @media (max-width:520px){ #view-home .hero .hero-actions .btn{flex:1 1 100%; justify-content:center;} #view-home .hero .stat-chip b{font-size:1.15rem;} }
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
