@@ -1703,6 +1703,19 @@
   html.is-phone .prof-list, html.is-phone .course-grid{grid-template-columns:1fr !important;}
   html.is-phone .section-block{margin-bottom:16px;}
   html.is-phone .lp-dock-wrap{top:calc(8px + env(safe-area-inset-top));}
+  /* ---- anatomy: detailed models served from this server ---- */
+  .anat-chips{display:flex; gap:8px; overflow-x:auto; padding:2px 16px 10px; scrollbar-width:none;}
+  .anat-chips::-webkit-scrollbar{display:none;}
+  .anat-chip{flex:none; padding:9px 16px; border-radius:99px; border:1.5px solid var(--glass-border, #0002); background:var(--glass-bg-strong, #fff8); color:var(--ink); font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .anat-chip.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .anat-stage{position:relative; margin:0 16px; border-radius:18px; overflow:hidden; background:#10131c; aspect-ratio:4/3; min-height:300px;}
+  .anat-stage iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  .anat-loading{position:absolute; inset:0; display:grid; place-items:center; color:#cfd3e6; font-size:.85rem; pointer-events:none; text-align:center; padding:20px;}
+  .anat-info{margin:12px 16px 0; display:grid; gap:6px;}
+  .anat-credit{font-size:.7rem; color:var(--ink-faint);}
+  @media (min-width:900px){ .anat-stage{aspect-ratio:16/9; min-height:460px;} }
+  #anatModels .anat-chips{padding:2px 0 10px;} #anatModels .anat-stage{margin:0; touch-action:none;} #anatModels .anat-info{margin:12px 0 0;}
+  .anat-stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2618,7 +2631,22 @@
         </div>
       </div>
     </div>
+    <div class="tabs anat-tabs" id="anatTabs" style="margin:0 0 12px; display:none;">
+      <button class="tab-btn active" id="anatTabBody" onclick="setAnatomyMode('body')" data-i18n="anatTabBody">المجسّم الكامل</button>
+      <button class="tab-btn" id="anatTabSketch" onclick="setAnatomyMode('models')" data-i18n="anatTabSketch">نماذج تفصيلية</button>
+    </div>
     <div id="anatRoot"></div>
+    <div id="anatModels" style="display:none;">
+      <div class="anat-chips" id="anatChips" role="tablist"></div>
+      <div class="anat-stage" id="anatStage">
+        <div class="anat-loading" id="anatLoading" data-i18n="anatomyLoadingModel">جارٍ تحميل النموذج…</div>
+      </div>
+      <div class="anat-info">
+        <div style="font-weight:800;" id="anatName"></div>
+        <div class="item-meta" id="anatDesc"></div>
+        <div class="anat-credit" id="anatCredit"></div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ SUMMER TRAINING (signed in, scoped to the student's college) ============ -->
@@ -3525,6 +3553,7 @@
       bsecSub:'اختر ملزمة أو محاضرة: تقرأ أسئلتها أولًا، ثم تمتحن نفسك عليها.', bsecAll:'كل أسئلة المادة', bsecTried:'جرّبت', bsecRead:'قرأتها', bsecOpen:'افتح', bstStep1:'١) اقرأ الأسئلة وإجاباتها', bstStep2:'٢) ثم ابدأ الامتحان — الأسئلة تُخلط عشوائيًا', bstStartExam:'ابدأ الامتحان', bstModel:'الإجابة النموذجية', bstWhy:'التوضيح:',
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
       selectDept:'اختر القسم',
+      anatTabBody:'المجسّم الكامل', anatTabSketch:'نماذج تفصيلية', anatomyLoadingModel:'جارٍ تحميل النموذج…', anatomyCreditPrefix:'النموذج:',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3672,6 +3701,7 @@
       bsecSub:'Pick a booklet or lecture: read its questions first, then test yourself on them.', bsecAll:'All questions of the subject', bsecTried:'Tried', bsecRead:'Read', bsecOpen:'Open', bstStep1:'1) Read the questions and answers', bstStep2:'2) Then start the exam — questions are shuffled', bstStartExam:'Start the exam', bstModel:'Model answer', bstWhy:'Explanation:',
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
       selectDept:'Select department',
+      anatTabBody:'Full body', anatTabSketch:'Detailed models', anatomyLoadingModel:'Loading the model…', anatomyCreditPrefix:'Model:',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3817,6 +3847,7 @@
       bsecSub:'بەرگ یان وانە هەڵبژێرە: یەکەم پرسیارەکان بخوێنەرەوە، پاشان خۆت تاقی بکەرەوە.', bsecAll:'هەموو پرسیارەکانی بابەت', bsecTried:'هەوڵت داوە', bsecRead:'خوێندوتەوە', bsecOpen:'بیکەرەوە', bstStep1:'١) پرسیار و وەڵامەکان بخوێنەرەوە', bstStep2:'٢) پاشان تاقیکردنەوە دەستپێبکە — پرسیارەکان تێکەڵ دەکرێن', bstStartExam:'دەستپێکردنی تاقیکردنەوە', bstModel:'وەڵامی نموونەیی', bstWhy:'ڕوونکردنەوە:',
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
       selectDept:'بەش هەڵبژێرە',
+      anatTabBody:'جەستەی تەواو', anatTabSketch:'مۆدێلی ورد', anatomyLoadingModel:'مۆدێلەکە بار دەکرێت…', anatomyCreditPrefix:'مۆدێل:',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -7069,9 +7100,95 @@
       await ensureAnatomyLib();
       KiurAnatomy.mount(root, {lang: currentLang});
       KiurAnatomy.setLang(currentLang);
+      await loadAnatomyManifest();
+      if (anatomyMode === 'models' && anatomyModels.length){ KiurAnatomy.pause(); mvStart(); } else if (anatomyMode === 'models') setAnatomyMode('body');
     } catch (e) {
       root.innerHTML = `<div class="empty-row">${t('anatomyFailed')}</div>`;
     }
+  }
+
+
+  // ---------- Anatomy: detailed models (files stored on this server, see tools/import_models.py) ----------
+  let anatomyMode = 'body', anatomyModels = [], anatomyCurrent = null, anatomyManifestLoaded = false;
+  let mv = null;   // the three.js viewer for the detailed models
+  async function loadAnatomyManifest(){
+    if (anatomyManifestLoaded) return;
+    anatomyManifestLoaded = true;
+    try {
+      const r = await fetch('/static/models/manifest.json', {cache: 'no-cache'});
+      anatomyModels = r.ok ? ((await r.json()).models || []) : [];
+    } catch (e) { anatomyModels = []; }
+    document.getElementById('anatTabs').style.display = anatomyModels.length ? 'flex' : 'none';
+  }
+  function setAnatomyMode(mode){
+    anatomyMode = mode;
+    document.getElementById('anatTabBody').classList.toggle('active', mode === 'body');
+    document.getElementById('anatTabSketch').classList.toggle('active', mode === 'models');
+    document.getElementById('anatRoot').style.display = mode === 'body' ? '' : 'none';
+    document.getElementById('anatModels').style.display = mode === 'models' ? '' : 'none';
+    if (mode === 'body'){ mvStop(); if (window.KiurAnatomy) KiurAnatomy.mount(document.getElementById('anatRoot'), {lang: currentLang}); }
+    else { if (window.KiurAnatomy) KiurAnatomy.pause(); renderAnatomyChips(); selectAnatomy(anatomyCurrent || anatomyModels[0].id); }
+  }
+  function renderAnatomyChips(){
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    document.getElementById('anatChips').innerHTML = anatomyModels.map(m =>
+      `<button type="button" class="anat-chip ${m.id === anatomyCurrent ? 'active' : ''}" role="tab" onclick="selectAnatomy('${m.id}')">${esc(m[lang] || m.en)}</button>`).join('');
+  }
+  async function mvEnsure(){
+    if (!window.THREE) await loadScriptOnce('/static/vendor/three.min.js');
+    if (!THREE.OrbitControls) await loadScriptOnce('/static/vendor/OrbitControls.js');
+    if (!THREE.GLTFLoader) await loadScriptOnce('/static/vendor/GLTFLoader.js');
+    if (mv) return;
+    const stage = document.getElementById('anatStage');
+    const renderer = new THREE.WebGLRenderer({antialias: true, alpha: false});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setClearColor(0x10131c, 1);
+    stage.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 0.9));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(2, 4, 3); scene.add(dl);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    mv = {renderer, scene, camera, controls, obj: null, running: false};
+    const resize = () => { const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    window.addEventListener('resize', resize); mv.resize = resize;
+  }
+  function mvStop(){ if (mv) mv.running = false; }
+  function mvStart(){
+    if (!mv || mv.running) return;
+    mv.running = true;
+    const loop = () => {
+      if (!mv.running || currentViewId !== 'view-anatomy' || anatomyMode !== 'models'){ mv.running = false; return; }
+      mv.controls.update(); mv.renderer.render(mv.scene, mv.camera); requestAnimationFrame(loop);
+    };
+    mv.resize(); loop();
+  }
+  async function selectAnatomy(id){
+    const m = anatomyModels.find(x => x.id === id);
+    if (!m) return;
+    anatomyCurrent = id;
+    renderAnatomyChips();
+    const lang = currentLang === 'en' ? 'en' : (currentLang === 'ku' ? 'ku' : 'ar');
+    document.getElementById('anatName').textContent = m[lang] || m.en;
+    document.getElementById('anatDesc').textContent = m['d_' + lang] || m.d_en || '';
+    // the licence asks for the author's name: plain text, no link
+    document.getElementById('anatCredit').textContent = `${t('anatomyCreditPrefix')} «${m.title}» — @${m.author} · ${m.license || 'CC BY 4.0'}`;
+    const loading = document.getElementById('anatLoading'); loading.style.display = 'grid'; loading.textContent = t('anatomyLoadingModel');
+    try {
+      await mvEnsure();
+      const gltf = await new Promise((res, rej) => new THREE.GLTFLoader().load(m.url, res, undefined, rej));
+      if (anatomyCurrent !== id) return;
+      if (mv.obj){ mv.scene.remove(mv.obj); mv.obj.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+      const obj = gltf.scene; mv.obj = obj; mv.scene.add(obj);
+      const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+      const dim = Math.max(size.x, size.y, size.z) || 1;
+      obj.position.sub(center);
+      mv.camera.position.set(0, 0, dim * 1.9); mv.camera.near = dim / 100; mv.camera.far = dim * 100; mv.camera.updateProjectionMatrix();
+      mv.controls.target.set(0, 0, 0); mv.controls.update();
+      loading.style.display = 'none';
+      mvStart();
+    } catch (e) { loading.textContent = t('anatomyFailed'); }
   }
 
   // ---------- Summer training ----------
