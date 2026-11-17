@@ -319,6 +319,8 @@ def register(body: schemas.RegisterIn, response: Response, db: Session = Depends
         raise HTTPException(400, "كلمة المرور يجب أن تكون 8 أحرف على الأقل")
     if not _domain_allowed(email):
         raise HTTPException(403, "الرجاء التسجيل ببريدك الجامعي الرسمي")
+    if email.lower().endswith("@kiur.internal"):      # reserved for built-in accounts (the platform's own teaching account)
+        raise HTTPException(400, "هذا البريد غير صالح")
     if db.query(models.User).filter(models.User.email == email).first():
         raise HTTPException(400, "البريد الإلكتروني مستخدم مسبقاً")
 

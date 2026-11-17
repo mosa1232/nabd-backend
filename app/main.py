@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import models  # noqa: F401  (registers tables on Base.metadata)
 from .config import get_settings
+from .hardening import RateLimitMiddleware, SecurityHeadersMiddleware
 from .database import Base, engine
 from .routers import (
     activation, admin, admin_ops, ai_chats, platform_account, admin_stats, student_progress, support, ai as ai_router, auth, representative, verification, bans, catalog, courses, exams, import_export, pearls,
@@ -21,7 +22,10 @@ from .security import client_ctx
 settings = get_settings()
 FRONTEND_DIR = Path(__file__).resolve().parent.parent
 
-app = FastAPI(title="Nabd API", version="0.1.0")
+# The interactive API docs list every endpoint of the platform; only needed while developing.
+app = FastAPI(title="Nabd API", version="0.1.0",
+              docs_url="/docs" if settings.debug else None, redoc_url="/redoc" if settings.debug else None,
+              openapi_url="/openapi.json" if settings.debug else None)
 
 
 class _ClientInfoMiddleware:
@@ -46,6 +50,8 @@ class _ClientInfoMiddleware:
 
 
 app.add_middleware(_ClientInfoMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Required by Authlib to stash the OAuth `state` between the redirect to
 # Google and the callback.
@@ -270,7 +276,7 @@ def on_startup():
     # yourself if you ever want the demo dataset back for local testing.
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok"}
 
@@ -286,12 +292,12 @@ def health():
 SPA_HEADERS = {"Cache-Control": "no-cache"}
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def serve_student_app():
     return FileResponse(FRONTEND_DIR / "nabd-home-quiz-prototype.html", headers=SPA_HEADERS)
 
 
-@app.get("/admin")
+@app.api_route("/admin", methods=["GET", "HEAD"])
 def serve_admin_app():
     return FileResponse(FRONTEND_DIR / "nabd-admin-dashboard.html", headers=SPA_HEADERS)
 

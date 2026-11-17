@@ -2012,7 +2012,7 @@
         <label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">⑤ المادة
           <select style="${sel}${platPick.stage ? '' : ' opacity:.5;'}" ${platPick.stage ? '' : 'disabled'} onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'اختر…', !platformSubject)}${(platPick.stage ? f4 : []).map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select></label>
       </div>` : '';
-    const note = usePlatform && !platformSubject ? '⚠ حدّد: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${(subs.find(x => x.id === platformSubject) || {}).path || ''} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
+    const note = usePlatform && !platformSubject ? '⚠ حدّد: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${esc((subs.find(x => x.id === platformSubject) || {}).path || '')} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
       <span style="font-weight:800; font-size:.86rem;">لوحة ${VIEWAS_WORD[g]}:</span>
       <select style="flex:1; min-width:200px; ${sel}" onchange="viewAsPick['${g}']=this.value; renderViewAsBar('${sectionId}')">
