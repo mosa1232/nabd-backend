@@ -1993,6 +1993,7 @@
       for (const [k, get] of keys){
         const opts = uniq(pool, get);
         if (!platPick[k] && opts.length === 1) platPick[k] = opts[0].id;
+        if (!platPick[k]) break;   // a level can only be filled once the one before it is
         pool = pool.filter(x => !platPick[k] || (get(x) && get(x).id === platPick[k]));
       }
       if (!platformSubject && pool.length === 1 && platPick.stage){ platformSubject = pool[0].id; activeSubjectId = platformSubject; }
@@ -2001,15 +2002,15 @@
     const f2 = f1.filter(x => !platPick.uni || (x.university && x.university.id === platPick.uni));
     const f3 = f2.filter(x => !platPick.dept || (x.department && x.department.id === platPick.dept));
     const f4 = f3.filter(x => !platPick.stage || (x.stage && x.stage.id === platPick.stage));
-    const lvl = (label, key, list, reset) => `<label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">${label}
-        <select style="${sel}" onchange="platPick.${key}=this.value; ${reset.map(k => 'platPick.' + k + "=''").join('; ')}; pickPlatformSubject('', '${sectionId}')">${opt('', 'اختر…', !platPick[key])}${list.map(x => opt(x.id, x.name, x.id === platPick[key])).join('')}</select></label>`;
+    const lvl = (label, key, list, reset, locked) => `<label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">${label}
+        <select style="${sel}${locked ? ' opacity:.5;' : ''}" ${locked ? 'disabled' : ''} onchange="platPick.${key}=this.value; ${reset.map(k => 'platPick.' + k + "=''").join('; ')}; pickPlatformSubject('', '${sectionId}')">${opt('', 'اختر…', !platPick[key])}${list.map(x => opt(x.id, x.name, x.id === platPick[key])).join('')}</select></label>`;
     const subjSel = usePlatform ? `<div style="flex-basis:100%; display:flex; gap:10px; flex-wrap:wrap;">
         ${lvl('① نوع الكلية', 'sec', uniq(subs, x => x.section), ['uni', 'dept', 'stage'])}
-        ${lvl('② الجامعة', 'uni', uniq(f1, x => x.university), ['dept', 'stage'])}
-        ${lvl('③ القسم', 'dept', uniq(f2, x => x.department), ['stage'])}
-        ${lvl('④ المرحلة', 'stage', uniq(f3, x => x.stage), [])}
+        ${lvl('② الجامعة', 'uni', platPick.sec ? uniq(f1, x => x.university) : [], ['dept', 'stage'], !platPick.sec)}
+        ${lvl('③ القسم', 'dept', platPick.uni ? uniq(f2, x => x.department) : [], ['stage'], !platPick.uni)}
+        ${lvl('④ المرحلة', 'stage', platPick.dept ? uniq(f3, x => x.stage) : [], [], !platPick.dept)}
         <label style="flex:1; min-width:150px; display:flex; flex-direction:column; gap:4px; font-size:.7rem; font-weight:700; opacity:.9;">⑤ المادة
-          <select style="${sel}" onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'اختر…', !platformSubject)}${f4.map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select></label>
+          <select style="${sel}${platPick.stage ? '' : ' opacity:.5;'}" ${platPick.stage ? '' : 'disabled'} onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'اختر…', !platformSubject)}${(platPick.stage ? f4 : []).map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select></label>
       </div>` : '';
     const note = usePlatform && !platformSubject ? '⚠ حدّد: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${(subs.find(x => x.id === platformSubject) || {}).path || ''} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
@@ -5455,6 +5456,13 @@
           <label><input type="checkbox" class="aiType" value="true_false" checked style="width:auto; padding:0; margin-inline-end:5px;" />صح / خطأ</label>
           <label><input type="checkbox" class="aiType" value="essay" style="width:auto; padding:0; margin-inline-end:5px;" />مقالي</label>
         </div></div>
+      <div class="form-field"><label style="font-size:.75rem; color:var(--ink-faint);">لغة الأسئلة</label>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:4px; font-size:.84rem;">
+          <label><input type="radio" name="aiLang" value="ar" checked style="width:auto; padding:0; margin-inline-end:5px;" />عربي</label>
+          <label><input type="radio" name="aiLang" value="en" style="width:auto; padding:0; margin-inline-end:5px;" />English</label>
+          <label><input type="radio" name="aiLang" value="both" style="width:auto; padding:0; margin-inline-end:5px;" />الاثنين (عربي + English)</label>
+        </div>
+        <div class="item-meta" style="font-size:.74rem; margin-top:4px;">«الاثنين» يولّد العدد المطلوب بالعربي ومثله بالإنجليزي (أي ضعف الوقت).</div></div>
       <div class="form-field"><textarea id="aiNotes" rows="2" placeholder="تعليمات إضافية (اختياري) — مثال: ركّز على الفصل الثاني" style="${field} resize:vertical;"></textarea></div>` : `
       <div class="item-meta" style="margin-bottom:10px;">اكتب موضوعًا أو ارفع ملفًا (أو الاثنين) وسيكتب الذكاء الاصطناعي لمحات سريرية قصيرة تراجعها قبل الحفظ.</div>
       <div class="form-field"><input type="text" id="aiTopic" placeholder="الموضوع (مثال: الحصبة عند الأطفال)" style="${field}" /></div>
@@ -5495,6 +5503,7 @@
       fd.append('file', file); fd.append('count', document.getElementById('aiCount').value);
       fd.append('types', types.join(',')); fd.append('difficulty', document.getElementById('aiDifficulty').value);
       fd.append('notes', document.getElementById('aiNotes').value);
+      fd.append('language', (document.querySelector('input[name="aiLang"]:checked') || {}).value || 'ar');
     } else {
       const topic = document.getElementById('aiTopic').value.trim();
       if (!file && !topic){ msg.style.display = 'block'; msg.style.color = 'var(--danger)'; msg.textContent = 'اكتب موضوعًا أو ارفع ملفًا'; return; }

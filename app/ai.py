@@ -483,21 +483,40 @@ def normalize_questions(raw: list[dict], allowed: set[str]) -> tuple[list[dict],
     return out, skipped
 
 
+LANG_RULES = {
+    "ar": "اكتب الأسئلة والخيارات والشرح بالعربية الفصحى الواضحة، مع إبقاء المصطلحات الطبية الإنجليزية كما هي بين قوسين عند الحاجة.",
+    "en": "Write every question, option and explanation ENTIRELY in English (translate from the source material if it is in Arabic). Do not use Arabic.",
+}
+
+
 def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "") -> tuple[list[dict], int]:
+                       difficulty: str, notes: str = "", language: str = "ar") -> tuple[list[dict], int]:
+    """language: "ar", "en", or "both" — both returns `count` Arabic questions
+    followed by `count` English ones (each tagged in `lang`)."""
+    if language == "both":
+        out, skipped = [], 0
+        for lg in ("ar", "en"):
+            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg)
+            out += qs
+            skipped += sk
+        return out, skipped
     allowed = {t for t in types if t in TYPE_NAMES} or {"mcq"}
     wanted = "، ".join(TYPE_NAMES[t] for t in sorted(allowed))
     instruction = (
         f"المادة: {subject_name or 'غير محددة'}.\n"
         f"ولّد {count} سؤالًا من المحتوى المرفق، من الأنواع التالية فقط: {wanted} (وزّعها بشكل متوازن).\n"
         f"مستوى الصعوبة: {difficulty}.\n"
-        "لأسئلة الاختيارات: أربعة خيارات، واحد صحيح فقط، ومموّهات معقولة. لكل سؤال شرح موجز للإجابة الصحيحة."
+        "لأسئلة الاختيارات: أربعة خيارات، واحد صحيح فقط، ومموّهات معقولة. لكل سؤال شرح موجز للإجابة الصحيحة.\n"
+        + LANG_RULES.get(language, LANG_RULES["ar"])
     )
     if notes.strip():
         instruction += "\nتعليمات إضافية من الدكتور: " + notes.strip()[:500]
     content = list(blocks) + [{"type": "text", "text": instruction}]
     result = call_tool(GENERATOR_SYSTEM, content, QUESTIONS_TOOL)
-    return normalize_questions(result.get("questions"), allowed)
+    qs, skipped = normalize_questions(result.get("questions"), allowed)
+    for q in qs:
+        q["lang"] = language if language in ("ar", "en") else "ar"
+    return qs, skipped
 
 
 def generate_pearls(blocks: list[dict], subject_name: str, count: int, topic: str = "") -> list[dict]:

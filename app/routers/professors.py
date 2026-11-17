@@ -951,6 +951,7 @@ async def ai_generate_questions(
     types: str = Form("mcq,true_false"),
     difficulty: str = Form("متوسط"),
     notes: str = Form(""),
+    language: str = Form("ar"),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
@@ -960,6 +961,8 @@ async def ai_generate_questions(
     profile = _draft_profile(db, user, "prof.questions")
     if not (1 <= count <= 30):
         raise HTTPException(400, "العدد يجب أن يكون بين 1 و30")
+    if language not in ("ar", "en", "both"):
+        raise HTTPException(400, "اللغة غير صالحة")
     wanted = [t.strip() for t in types.split(",") if t.strip() in ("mcq", "true_false", "essay")]
     if not wanted:
         raise HTTPException(400, "اختر نوع سؤال واحدًا على الأقل")
@@ -967,7 +970,7 @@ async def ai_generate_questions(
     data = await file.read()
     blocks = _ai_call(ai.file_blocks, file.filename, data)
     subject_name = profile.subject.name if profile and profile.subject else ""
-    questions, skipped = _ai_call(ai.generate_questions, blocks, subject_name, count, wanted, difficulty[:40], notes)
+    questions, skipped = _ai_call(ai.generate_questions, blocks, subject_name, count, wanted, difficulty[:40], notes, language)
     if not questions:
         raise HTTPException(502, "لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
     # Warn about drafts that are already in the bank (the search model's job).
