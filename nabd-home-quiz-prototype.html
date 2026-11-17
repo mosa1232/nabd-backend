@@ -1556,6 +1556,26 @@
     #view-home .hero .stat-ring{width:116px; height:116px; justify-self:end;}
   }
   @media (max-width:520px){ #view-home .hero .hero-actions .btn{flex:1 1 100%; justify-content:center;} #view-home .hero .stat-chip b{font-size:1.15rem;} }
+
+  /* ---- home: weekly card (replaces the daily bar chart) ---- */
+  .wk-card{padding:20px; margin-bottom:18px;}
+  .wk-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .wk-title{font-weight:800; font-size:1.05rem;}
+  .wk-goal{margin-bottom:18px;}
+  .wk-goal-top{display:flex; justify-content:space-between; font-size:.86rem; margin-bottom:8px; color:var(--ink-soft);} .wk-goal-top b{color:var(--ink); font-size:.95rem;}
+  .wk-bar{height:10px; border-radius:99px; background:var(--track); overflow:hidden;}
+  .wk-bar i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .5s ease;} .wk-bar i.done{background:var(--success);}
+  .wk-days{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:18px;}
+  .wk-day{display:flex; flex-direction:column; align-items:center; gap:7px;}
+  .wk-day i{width:38px; height:38px; border-radius:50%; display:grid; place-items:center; font-style:normal; font-size:.78rem; font-weight:800; background:var(--track); color:var(--accent);}
+  .wk-day.on i{background:var(--accent); color:#fff;}
+  .wk-day.today i{box-shadow:0 0 0 3px var(--track-strong);}
+  .wk-day span{font-size:.68rem; color:var(--ink-faint); font-weight:600;} .wk-day.today span{color:var(--accent); font-weight:800;}
+  .wk-stats{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .wk-stats > div{background:var(--track); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:3px;}
+  .wk-stats b{font-size:1.4rem; font-weight:800;} .wk-stats span{font-size:.74rem; color:var(--ink-soft);}
+  .wk-stats em{font-style:normal; font-size:.72rem; font-weight:700;} .wk-stats em.up{color:var(--success);} .wk-stats em.down{color:var(--danger);}
+  .wk-more{display:flex; align-items:center; gap:6px; margin:14px 0 0 auto; margin-inline-start:auto; font-size:.8rem; font-weight:700; color:var(--accent);} .wk-more svg{width:14px; height:14px;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -1807,28 +1827,23 @@
     </button>
 
     <!-- أداؤك اليومي — من /auth/me/daily -->
-    <div class="daily-card" id="homeDailyCard" style="display:none;">
-      <div class="daily-head">
-        <div class="daily-title">
-          <span class="daily-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></span>
-          <span data-i18n="dailyTitle">أداؤك اليومي</span>
-        </div>
+    <div class="wk-card glass" id="homeDailyCard" style="display:none;">
+      <div class="wk-head">
+        <div class="wk-title" data-i18n="wkTitle">أسبوعك</div>
         <span class="daily-live" id="dailyLive" style="display:none;"><i></i><span data-i18n="dailyActiveToday">نشط اليوم</span></span>
       </div>
-      <div class="daily-stats">
-        <div class="daily-stat"><p class="k" data-i18n="dailyAnsweredWeek">إجابات هذا الأسبوع</p><p class="v" id="dailyAnswered">—</p><span class="d" id="dailyAnsweredDelta"></span></div>
-        <div class="daily-stat"><p class="k" data-i18n="dailyAccuracyWeek">نسبة الصح</p><p class="v" id="dailyAccuracy">—</p><span class="d" id="dailyAccuracyDelta"></span></div>
+      <div class="wk-goal">
+        <div class="wk-goal-top"><span data-i18n="wkGoal">هدف اليوم</span><b id="wkGoalText">0 / 20</b></div>
+        <div class="wk-bar"><i id="wkGoalFill" style="width:0%"></i></div>
       </div>
-      <div class="daily-chart">
-        <div class="daily-bars" id="dailyBars"></div>
-        <div class="daily-days" id="dailyDays"></div>
+      <div class="wk-days" id="wkDays"></div>
+      <div class="wk-stats">
+        <div><b id="dailyAnswered">—</b><span data-i18n="dailyAnsweredWeek">إجابات هذا الأسبوع</span><em id="dailyAnsweredDelta"></em></div>
+        <div><b id="dailyAccuracy">—</b><span data-i18n="dailyAccuracyWeek">نسبة الصح</span><em id="dailyAccuracyDelta"></em></div>
       </div>
       <div class="daily-empty" id="dailyEmpty" style="display:none;" data-i18n="dailyEmpty">لا توجد إجابات خلال آخر 7 أيام — ابدأ بسؤال اليوم.</div>
-      <div class="daily-foot">
-        <span class="daily-range" data-i18n="dailyLast7">آخر 7 أيام</span>
-        <button class="daily-details" onclick="goToAccount()"><span data-i18n="dailyDetails">عرض التفاصيل</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
-      </div>
+      <button class="wk-more" onclick="goToAccount()"><span data-i18n="dailyDetails">عرض التفاصيل</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
     </div>
 
     <!-- أخطاء تحتاج مراجعة — من /api/me/mistakes -->
@@ -3330,6 +3345,7 @@
       tabDetails:'بياناتي', detPersonal:'المعلومات الشخصية', detAcademic:'المسار الدراسي', detAccountInfo:'معلومات الحساب', detName:'الاسم', detUsername:'اسم المستخدم', detEmail:'البريد الإلكتروني', detPhone:'رقم الهاتف', detSection:'القسم', detUniversity:'الجامعة', detStage:'المرحلة', detStatus:'الحالة', detStudent:'طالب', detGrad:'متخرج', detJoined:'تاريخ الانضمام', detLastLogin:'آخر دخول', detVerified:'توثيق الحساب', detVerifiedYes:'موثّق', detVerifiedNo:'غير موثّق', detTwoFa:'التحقق بخطوتين', detOn:'مفعّل', detOff:'غير مفعّل', detNotSet:'غير محدد', detPwChanged:'آخر تغيير لكلمة المرور', detEditBtn:'تعديل البيانات', stDetailTitle:'إحصائياتك بالتفصيل', stBank:'أسئلة في مراحلك', stTried:'جرّبت منها', stMastered:'متقنة', stReview:'تحتاج مراجعة', stCoverage:'نسبة التغطية', stSavedN:'محفوظة', stBySubject:'التقدّم حسب المادة',
       aiNavTitle:'المساعد الذكي', aiListSub:'محادثاتك المحفوظة مع المساعد — افتح أي محادثة أو ابدأ جديدة.', aiNew:'محادثة جديدة', aiEmptyList:'ما عندك محادثات بعد. ابدأ محادثة واسأل عن أي مفهوم أو سؤال.', aiOpenTab:'فتح بنافذة جديدة', aiCopyAll:'نسخ المحادثة', aiShare:'إرسال', aiDup:'نسخ كمحادثة جديدة', aiDel:'حذف', aiDelConfirm:'تحذف هذه المحادثة نهائيًا؟', aiRenameBtn:'تغيير الاسم', aiRenamePrompt:'اسم المحادثة', aiCopyMsg:'نسخ', aiCopiedToast:'تم النسخ ✓', aiDupToast:'تم إنشاء نسخة من المحادثة', aiDelToast:'تم حذف المحادثة', aiMsgsN:'رسالة', aiYouLbl:'أنا', aiBotLbl:'المساعد', aiBack:'كل المحادثات', aiMore:'خيارات',
       navGroupSoon:'قريبًا',
+      wkTitle:'أسبوعك', wkGoal:'هدف اليوم',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3472,6 +3488,7 @@
       tabDetails:'My details', detPersonal:'Personal information', detAcademic:'Study path', detAccountInfo:'Account information', detName:'Name', detUsername:'Username', detEmail:'Email', detPhone:'Phone', detSection:'Section', detUniversity:'University', detStage:'Stage', detStatus:'Status', detStudent:'Student', detGrad:'Graduate', detJoined:'Joined', detLastLogin:'Last sign-in', detVerified:'Account verification', detVerifiedYes:'Verified', detVerifiedNo:'Not verified', detTwoFa:'Two-step verification', detOn:'On', detOff:'Off', detNotSet:'Not set', detPwChanged:'Password last changed', detEditBtn:'Edit details', stDetailTitle:'Your stats in detail', stBank:'Questions in your stages', stTried:'Attempted', stMastered:'Mastered', stReview:'Need review', stCoverage:'Coverage', stSavedN:'Saved', stBySubject:'Progress by subject',
       aiNavTitle:'AI assistant', aiListSub:'Your saved chats with the assistant — open one or start a new one.', aiNew:'New chat', aiEmptyList:'No chats yet. Start one and ask about any concept or question.', aiOpenTab:'Open in a new window', aiCopyAll:'Copy chat', aiShare:'Send', aiDup:'Copy as a new chat', aiDel:'Delete', aiDelConfirm:'Delete this chat permanently?', aiRenameBtn:'Rename', aiRenamePrompt:'Chat name', aiCopyMsg:'Copy', aiCopiedToast:'Copied ✓', aiDupToast:'A copy of the chat was created', aiDelToast:'Chat deleted', aiMsgsN:'messages', aiYouLbl:'Me', aiBotLbl:'Assistant', aiBack:'All chats', aiMore:'Options',
       navGroupSoon:'Coming soon',
+      wkTitle:'Your week', wkGoal:'Today\'s goal',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3612,6 +3629,7 @@
       tabDetails:'زانیارییەکانم', detPersonal:'زانیاری کەسی', detAcademic:'ڕێچکەی خوێندن', detAccountInfo:'زانیاری هەژمار', detName:'ناو', detUsername:'ناوی بەکارهێنەر', detEmail:'ئیمەیڵ', detPhone:'ژمارەی مۆبایل', detSection:'بەش', detUniversity:'زانکۆ', detStage:'قۆناغ', detStatus:'دۆخ', detStudent:'خوێندکار', detGrad:'دەرچوو', detJoined:'بەرواری پەیوەستبوون', detLastLogin:'دوایین چوونەژوورەوە', detVerified:'دڵنیابوونەوەی هەژمار', detVerifiedYes:'دڵنیاکراوە', detVerifiedNo:'دڵنیا نەکراوە', detTwoFa:'پشتڕاستکردنەوەی دوو هەنگاو', detOn:'چالاکە', detOff:'چالاک نییە', detNotSet:'دیاری نەکراوە', detPwChanged:'دوایین گۆڕینی وشەی نهێنی', detEditBtn:'دەستکاریکردن', stDetailTitle:'ئامارەکانت بە وردی', stBank:'پرسیار لە قۆناغەکانت', stTried:'هەوڵت داوە', stMastered:'شارەزایت', stReview:'پێویستی بە پێداچوونەوە', stCoverage:'ڕێژەی داپۆشین', stSavedN:'پاشەکەوتکراو', stBySubject:'پێشکەوتن بەپێی بابەت',
       aiNavTitle:'یاریدەدەری زیرەک', aiListSub:'گفتوگۆ پاشەکەوتکراوەکانت لەگەڵ یاریدەدەر — یەکێک بکەرەوە یان نوێ دەستپێبکە.', aiNew:'گفتوگۆی نوێ', aiEmptyList:'هێشتا گفتوگۆت نییە. دەستپێبکە و پرسیار بکە.', aiOpenTab:'کردنەوە لە پەنجەرەی نوێ', aiCopyAll:'کۆپی گفتوگۆ', aiShare:'ناردن', aiDup:'کۆپی وەک گفتوگۆی نوێ', aiDel:'سڕینەوە', aiDelConfirm:'ئەم گفتوگۆیە بە یەکجاری دەسڕدرێتەوە؟', aiRenameBtn:'گۆڕینی ناو', aiRenamePrompt:'ناوی گفتوگۆ', aiCopyMsg:'کۆپی', aiCopiedToast:'کۆپی کرا ✓', aiDupToast:'کۆپییەک دروستکرا', aiDelToast:'گفتوگۆ سڕایەوە', aiMsgsN:'نامە', aiYouLbl:'من', aiBotLbl:'یاریدەدەر', aiBack:'هەموو گفتوگۆکان', aiMore:'هەڵبژاردنەکان',
       navGroupSoon:'بەزوویی',
+      wkTitle:'هەفتەکەت', wkGoal:'ئامانجی ئەمڕۆ',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -3989,17 +4007,19 @@
         setDelta(cDelta, (pts > 0 ? '+' : '') + pts + ' ' + t('dailyPoints'), pts > 0 ? 'up' : pts < 0 ? 'down' : 'flat');
       } else setDelta(cDelta, '', 'flat');
 
-      const max = Math.max(1, ...days.map(d => d.answered));
+      const GOAL = 20;
+      const today = days.length ? days[days.length - 1] : {answered: 0};
+      const pctGoal = Math.min(100, Math.round((today.answered || 0) / GOAL * 100));
+      document.getElementById('wkGoalText').textContent = (today.answered || 0) + ' / ' + GOAL;
+      document.getElementById('wkGoalFill').style.width = pctGoal + '%';
+      document.getElementById('wkGoalFill').className = pctGoal >= 100 ? 'done' : '';
       const todayKey = days.length ? days[days.length - 1].date : '';
-      document.getElementById('dailyBars').innerHTML = days.map(d => {
-        const h = d.answered ? Math.max(6, Math.round(d.answered / max * 100)) : 0;
-        const inner = d.answered ? Math.round(d.correct / d.answered * 100) : 0;
-        const label = new Date(d.date + 'T00:00:00Z').toLocaleDateString(dateLocale(), {weekday:'long', day:'numeric', month:'short', timeZone:'UTC'});
-        return `<div class="daily-bar ${d.date === todayKey ? 'today' : ''}" title="${label} — ${d.correct}/${d.answered}">
-          <div class="daily-bar-total" style="height:${h}%"><div class="daily-bar-correct" style="height:${inner}%"></div></div></div>`;
+      document.getElementById('wkDays').innerHTML = days.map(d => {
+        const label = new Date(d.date + 'T00:00:00Z').toLocaleDateString(dateLocale(), {weekday: 'short', timeZone: 'UTC'});
+        const full = new Date(d.date + 'T00:00:00Z').toLocaleDateString(dateLocale(), {weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC'});
+        const on = d.answered > 0;
+        return `<div class="wk-day ${on ? 'on' : ''} ${d.date === todayKey ? 'today' : ''}" title="${full} — ${d.correct}/${d.answered}"><i>${on ? d.answered : ''}</i><span>${label}</span></div>`;
       }).join('');
-      document.getElementById('dailyDays').innerHTML = days.map(d =>
-        `<span>${new Date(d.date + 'T00:00:00Z').toLocaleDateString(dateLocale(), {weekday:'narrow', timeZone:'UTC'})}</span>`).join('');
 
       document.getElementById('dailyLive').style.display = days.length && days[days.length - 1].answered ? 'inline-flex' : 'none';
       document.getElementById('dailyEmpty').style.display = answered ? 'none' : 'block';
