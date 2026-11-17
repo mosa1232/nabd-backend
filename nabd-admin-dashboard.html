@@ -1301,6 +1301,12 @@
       err.detail = detail;
       throw err;
     }
+    // staff publishing in the platform's name: always say where it went
+    if ((options.method || 'GET') !== 'GET' && (options.method || '') !== 'DELETE' && path.startsWith('/api/professors/me/') && !path.includes('/ai/') && !path.includes('/template/')
+        && typeof viewAsPick !== 'undefined' && viewAsPick.doctor === '__platform__' && platformSubject && typeof platformInfo !== 'undefined' && platformInfo){
+      const sj = platformInfo.subjects.find(x => x.id === platformSubject);
+      if (sj) showToast('✓ تم النشر في: ' + sj.path);
+    }
     return res.status === 204 ? null : res.json();
   }
   async function apiReachable(){
@@ -1948,6 +1954,7 @@
   // who only choose the subject they publish in.
   const PLATFORM_PICK = '__platform__';
   let platformInfo = null, platformSubject = '';
+  const platPick = {sec: '', uni: '', stage: ''};
   async function renderViewAsBar(sectionId){
     const g = viewAsGroupOf(sectionId), bar = document.getElementById('viewAsBar');
     bar.style.display = 'block';
@@ -1960,18 +1967,26 @@
     if (canPlatform && !viewAsPick[g]) viewAsPick[g] = PLATFORM_PICK;
     if (viewAsPick[g] !== PLATFORM_PICK && !list.some(a => a.id === viewAsPick[g])) viewAsPick[g] = canPlatform ? PLATFORM_PICK : (list[0] ? list[0].id : '');
     const usePlatform = canPlatform && viewAsPick[g] === PLATFORM_PICK;
-    if (usePlatform && !platformSubject){
-      let saved = ''; try { saved = localStorage.getItem('kiur_platform_subject') || ''; } catch (e) {}
-      const ok = platformInfo.subjects.find(x => x.id === saved) || platformInfo.subjects[0];
-      platformSubject = ok ? ok.id : '';
-    }
     activeSubjectId = usePlatform ? (platformSubject || null) : (g === 'doctor' ? null : activeSubjectId);
     const sel = 'padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;';
     const platOpt = canPlatform ? `<option value="${PLATFORM_PICK}" ${usePlatform ? 'selected' : ''}>🏛 ${esc(platformInfo.name)} — باسم المنصة (بدون دكتور)</option>` : '';
-    const subjSel = usePlatform ? `<select style="flex:1; min-width:220px; ${sel}" onchange="pickPlatformSubject(this.value, '${sectionId}')">
-        ${platformInfo.subjects.map(x => `<option value="${x.id}" ${x.id === platformSubject ? 'selected' : ''}>${esc(x.name)} — ${esc(x.path)}</option>`).join('') || '<option value="">لا توجد مواد — أضف مادة من المناهج</option>'}
-      </select>` : '';
-    const note = usePlatform ? 'ما تنشره هنا (أسئلة، ملازم، امتحانات، كورسات، لمحات) يظهر للطلاب باسم المنصة في المادة المختارة.' : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
+    const subs = usePlatform ? platformInfo.subjects : [];
+    const uniq = (arr, f) => { const m = new Map(); arr.forEach(x => { const v = f(x); if (v && !m.has(v.id)) m.set(v.id, v); }); return [...m.values()]; };
+    const cur = subs.find(x => x.id === platformSubject) || null;
+    if (cur && !platPick.sec) Object.assign(platPick, {sec: cur.section && cur.section.id, uni: cur.university && cur.university.id, stage: cur.stage && cur.stage.id});
+    const selStyle = 'flex:1; min-width:150px; ' + sel;
+    const opt = (v, l, on) => `<option value="${esc(v)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
+    const secs = uniq(subs, x => x.section);
+    const unis = uniq(subs.filter(x => !platPick.sec || (x.section && x.section.id === platPick.sec)), x => x.university);
+    const stages = uniq(subs.filter(x => (!platPick.sec || (x.section && x.section.id === platPick.sec)) && (!platPick.uni || (x.university && x.university.id === platPick.uni))), x => x.stage);
+    const subjs = subs.filter(x => (!platPick.sec || (x.section && x.section.id === platPick.sec)) && (!platPick.uni || (x.university && x.university.id === platPick.uni)) && (!platPick.stage || (x.stage && x.stage.id === platPick.stage)));
+    const subjSel = usePlatform ? `<div style="flex-basis:100%; display:flex; gap:8px; flex-wrap:wrap;">
+        <select style="${selStyle}" onchange="platPick.sec=this.value; platPick.uni=''; platPick.stage=''; pickPlatformSubject('', '${sectionId}')">${opt('', 'الكلية / القسم…', !platPick.sec)}${secs.map(x => opt(x.id, x.name, x.id === platPick.sec)).join('')}</select>
+        <select style="${selStyle}" onchange="platPick.uni=this.value; platPick.stage=''; pickPlatformSubject('', '${sectionId}')">${opt('', 'الجامعة…', !platPick.uni)}${unis.map(x => opt(x.id, x.name, x.id === platPick.uni)).join('')}</select>
+        <select style="${selStyle}" onchange="platPick.stage=this.value; pickPlatformSubject('', '${sectionId}')">${opt('', 'المرحلة…', !platPick.stage)}${stages.map(x => opt(x.id, x.name, x.id === platPick.stage)).join('')}</select>
+        <select style="${selStyle}" onchange="pickPlatformSubject(this.value, '${sectionId}')">${opt('', 'المادة…', !platformSubject)}${subjs.map(x => opt(x.id, x.name, x.id === platformSubject)).join('')}</select>
+      </div>` : '';
+    const note = usePlatform && !platformSubject ? '⚠ اختر الكلية ثم الجامعة ثم المرحلة ثم المادة — لن يُنشر شيء قبل تحديد المكان.' : usePlatform ? `📍 النشر في: ${cur ? cur.path : ''} — يظهر للطلاب باسم المنصة.` : 'أنت تتصرف كصاحب هذا الحساب — ما تغيّره يُحفظ باسمه.';
     bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
       <span style="font-weight:800; font-size:.86rem;">لوحة ${VIEWAS_WORD[g]}:</span>
       <select style="flex:1; min-width:200px; ${sel}" onchange="viewAsPick['${g}']=this.value; renderViewAsBar('${sectionId}')">
@@ -3656,6 +3671,7 @@
     const msg = document.getElementById('qeMsg');
     msg.style.display = 'block';
     const fail = t => { msg.style.color = 'var(--danger)'; msg.textContent = t; };
+    if (typeof viewAsPick !== 'undefined' && viewAsPick.doctor === '__platform__' && /\/api\/professors\//.test(qeCtx.createUrl || '') && !platformSubject) return fail('حدّد أولاً مكان النشر: الكلية ثم الجامعة ثم المرحلة ثم المادة (من أعلى الصفحة)');
     const text = document.getElementById('qeText').value.trim();
     if (!text) return fail('اكتب نص السؤال');
     const body = {

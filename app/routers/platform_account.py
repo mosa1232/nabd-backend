@@ -60,8 +60,13 @@ def platform_info(db: Session = Depends(get_db)):
         uni = st.university if st else None
         dept = st.department if st else None
         sec = uni.section if uni and getattr(uni, "section", None) else None
-        path = " / ".join(x for x in [sec.name if sec else "", uni.name if uni else "", dept.name if dept else "", st.name if st else ""] if x)
-        subjects.append({"id": s.id, "name": s.name, "path": path, "active": s.id in mine})
+        path = " ← ".join(x for x in [sec.name if sec else "", uni.name if uni else "", dept.name if dept else "", st.name if st else "", s.name] if x)
+        subjects.append({
+            "id": s.id, "name": s.name, "path": path, "active": s.id in mine,
+            "section": {"id": sec.id, "name": sec.name} if sec else None,
+            "university": {"id": uni.id, "name": uni.name} if uni else None,
+            "stage": {"id": st.id, "name": ((dept.name + " — ") if dept else "") + st.name} if st else None,
+        })
     subjects.sort(key=lambda x: (x["path"], x["name"]))
     return {"user_id": u.id, "name": PLATFORM_NAME, "subjects": subjects}
 
