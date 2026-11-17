@@ -1731,6 +1731,12 @@
   .anat-stage.anat-full .anat-tools{top:calc(12px + env(safe-area-inset-top));} .anat-stage.anat-full .anat-hint{bottom:calc(14px + env(safe-area-inset-bottom));}
   body.anat-fullscreen{overflow:hidden;} body.anat-fullscreen .bottom-nav, body.anat-fullscreen .topbar, body.anat-fullscreen .ai-fab{display:none !important;}
   @media (max-width:520px){ .anat-hint{font-size:.66rem; max-width:90%; white-space:normal; text-align:center;} }
+
+  /* ---- part card ---- */
+  .anat-part{margin:0 0 12px; padding:12px 14px; border-radius:14px; background:var(--glass-bg-strong); border:1.5px solid var(--accent);}
+  .anat-part b{display:block; font-size:1.05rem; margin-bottom:6px; color:var(--accent);} .anat-part p{font-size:.9rem; line-height:1.9; margin:0;} .anat-part small{display:block; margin-top:6px; opacity:.65; font-size:.72rem;}
+  .anat-part-over{position:absolute; left:10px; right:10px; bottom:48px; z-index:7; margin:0; background:rgba(16,19,28,.9); color:#eef0fa; border-color:#5b6cf0; max-height:42%; overflow:auto;} .anat-part-over b{color:#aab6ff;}
+  .anat-part-over button{position:absolute; top:6px; inset-inline-end:8px; background:none; border:none; color:#cfd3e6; font-size:1rem; cursor:pointer;}
   /* ---- Kiur logo (rounded-square app icon) ---- */
   .kiur-logo{display:block; flex:none; border-radius:22%; object-fit:contain;}
   .login-logo .kiur-logo, .auth-logo .kiur-logo{width:56px; height:56px; border-radius:15px;}
@@ -2660,9 +2666,11 @@
         </div>
         <button type="button" class="anat-nav prevx" onclick="mvStep(-1)" aria-label="السابق"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
         <button type="button" class="anat-nav nextx" onclick="mvStep(1)" aria-label="التالي"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="anat-part anat-part-over" id="anatPartOver" style="display:none;"><button type="button" onclick="mvClearPart()" aria-label="✕">✕</button><b id="anatPartNameO"></b><p id="anatPartTextO"></p><small id="anatPartNoteO"></small></div>
         <div class="anat-hint" id="anatHint" data-i18n="anatHint">اسحب للتدوير · اقرص أو استخدم + − للتكبير · إصبعان للتحريك</div>
       </div>
       <div class="anat-info">
+        <div class="anat-part" id="anatPart" style="display:none;"><b id="anatPartName"></b><p id="anatPartText"></p><small id="anatPartNote"></small></div>
         <div style="font-weight:800;" id="anatName"></div>
         <div class="item-meta" id="anatDesc"></div>
         <div class="anat-credit" id="anatCredit"></div>
@@ -3575,7 +3583,7 @@
       devViewTitle:'شكل المنصة', devViewNote:'تتعرّف المنصة تلقائيًا على جهازك. يمكنك فرض نسخة التلفون أو نسخة المتصفح.', devAuto:'تلقائي', devPhone:'تلفون', devDesktop:'متصفح',
       selectDept:'اختر القسم',
       anatTabBody:'المجسّم الكامل', anatTabSketch:'نماذج تفصيلية', anatomyLoadingModel:'جارٍ تحميل النموذج…', anatomyCreditPrefix:'النموذج:',
-      anatHint:'اسحب للتدوير · اقرص أو استخدم + − للتكبير · إصبعان للتحريك', anatZoomIn:'تكبير', anatZoomOut:'تصغير', anatReset:'إعادة العرض', anatAuto:'دوران تلقائي', anatFull:'ملء الشاشة',
+      anatHint:'المس أي جزء لترى اسمه وشرحه · اسحب للتدوير · اقرص للتكبير', anatZoomIn:'تكبير', anatZoomOut:'تصغير', anatReset:'إعادة العرض', anatAuto:'دوران تلقائي', anatFull:'ملء الشاشة',
       rankOf:'من',
       completeProfileTitle:'أكمل بياناتك', completeProfileSub:'نحتاج بعض المعلومات لتخصيص تجربتك على Kiur',
       threeDigitName:'الاسم الثلاثي', phone:'رقم الهاتف', selectCollege:'اختر التخصص/الكلية',
@@ -3724,7 +3732,7 @@
       devViewTitle:'Platform layout', devViewNote:'The platform detects your device automatically. You can force the phone or the browser layout.', devAuto:'Auto', devPhone:'Phone', devDesktop:'Browser',
       selectDept:'Select department',
       anatTabBody:'Full body', anatTabSketch:'Detailed models', anatomyLoadingModel:'Loading the model…', anatomyCreditPrefix:'Model:',
-      anatHint:'Drag to rotate · pinch or use + − to zoom · two fingers to move', anatZoomIn:'Zoom in', anatZoomOut:'Zoom out', anatReset:'Reset view', anatAuto:'Auto-rotate', anatFull:'Full screen',
+      anatHint:'Tap any part for its name and explanation · drag to rotate · pinch to zoom', anatZoomIn:'Zoom in', anatZoomOut:'Zoom out', anatReset:'Reset view', anatAuto:'Auto-rotate', anatFull:'Full screen',
       rankOf:'of',
       completeProfileTitle:'Complete your profile', completeProfileSub:'We need a few details to personalize your Kiur experience',
       threeDigitName:'Full name', phone:'Phone number', selectCollege:'Select your college',
@@ -3871,7 +3879,7 @@
       devViewTitle:'شێوازی پلاتفۆرم', devViewNote:'پلاتفۆرم خۆکارانە ئامێرەکەت دەناسێتەوە. دەتوانیت شێوازی مۆبایل یان وێبگەڕ هەڵبژێریت.', devAuto:'خۆکار', devPhone:'مۆبایل', devDesktop:'وێبگەڕ',
       selectDept:'بەش هەڵبژێرە',
       anatTabBody:'جەستەی تەواو', anatTabSketch:'مۆدێلی ورد', anatomyLoadingModel:'مۆدێلەکە بار دەکرێت…', anatomyCreditPrefix:'مۆدێل:',
-      anatHint:'بکێشە بۆ سوڕاندن · بچووککردنەوە/گەورەکردن بە + − · بە دوو پەنجە بجوڵێنە', anatZoomIn:'گەورەکردن', anatZoomOut:'بچووککردنەوە', anatReset:'گەڕانەوە', anatAuto:'سوڕانەوەی خۆکار', anatFull:'پڕ بە شاشە',
+      anatHint:'دەست بدە بە هەر بەشێک بۆ ناو و ڕوونکردنەوە · بکێشە بۆ سوڕاندن · بچووککردنەوە بە پەنجە', anatZoomIn:'گەورەکردن', anatZoomOut:'بچووککردنەوە', anatReset:'گەڕانەوە', anatAuto:'سوڕانەوەی خۆکار', anatFull:'پڕ بە شاشە',
       rankOf:'لە',
       completeProfileTitle:'زانیارییەکانت تەواو بکە', completeProfileSub:'چەند زانیارییەکمان پێویستە بۆ تایبەتمەندکردنی ئەزموونەکەت لە Kiur',
       threeDigitName:'ناوی سێ‌کلمە', phone:'ژمارەی مۆبایل', selectCollege:'پسپۆڕی/کۆلێژ هەڵبژێرە',
@@ -7153,7 +7161,13 @@
     window.addEventListener('resize', resize); mv.resize = resize;
     // the first touch hides the hint; a double tap/click resets the view
     renderer.domElement.addEventListener('pointerdown', () => { const h = document.getElementById('anatHint'); if (h) h.classList.add('gone'); });
-    renderer.domElement.addEventListener('dblclick', () => mvReset());
+    let down = null;
+    renderer.domElement.addEventListener('pointerdown', e => { down = {x: e.clientX, y: e.clientY, t: performance.now()}; });
+    renderer.domElement.addEventListener('pointerup', e => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
+      if (moved < 7 && dt < 600) mvPick(e.clientX, e.clientY);
+    });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && stage.classList.contains('anat-full')) mvFull(false); });
     document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && stage.classList.contains('anat-full')) mvFull(false); });
   }
@@ -7172,6 +7186,73 @@
       mv.controls.update(); mv.renderer.render(mv.scene, mv.camera); requestAnimationFrame(loop);
     };
     mv.resize(); loop();
+  }
+
+
+  // ---------- tap a part: name + explanation ----------
+  let anatParts = null;
+  async function loadAnatParts(){
+    if (anatParts) return anatParts;
+    try { const r = await fetch('/static/models/parts.json', {cache: 'no-cache'}); anatParts = r.ok ? await r.json() : {by: {}, regions: {}}; }
+    catch (e) { anatParts = {by: {}, regions: {}}; }
+    return anatParts;
+  }
+  function mvClearPart(){
+    if (!mv) return;
+    if (mv.marker){ mv.scene.remove(mv.marker); mv.marker.geometry.dispose(); mv.marker = null; }
+    if (mv.hl){ mv.hl.mesh.material = mv.hl.orig; mv.hl.tmp.dispose(); mv.hl = null; }
+    ['anatPart', 'anatPartOver'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  }
+  function mvShowPart(name, text, note){
+    for (const suffix of ['', 'O']){
+      document.getElementById('anatPartName' + suffix).textContent = name;
+      document.getElementById('anatPartText' + suffix).textContent = text;
+      document.getElementById('anatPartNote' + suffix).textContent = note || '';
+    }
+    const full = document.getElementById('anatStage').classList.contains('anat-full');
+    document.getElementById('anatPart').style.display = full ? 'none' : 'block';
+    document.getElementById('anatPartOver').style.display = full ? 'block' : 'none';
+  }
+  async function mvPick(cx, cy){
+    if (!mv || !mv.obj) return;
+    const parts = await loadAnatParts();
+    const rect = mv.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((cx - rect.left) / rect.width) * 2 - 1, -((cy - rect.top) / rect.height) * 2 + 1);
+    const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, mv.camera);
+    const hit = ray.intersectObject(mv.obj, true)[0];
+    mvClearPart();
+    if (!hit) return;
+    const m = anatomyModels.find(x => x.id === anatomyCurrent) || {};
+    const lang = currentLang === 'en' ? 'en' : 'ar';           // part texts exist in Arabic and English (Kurdish shows Arabic)
+    const mesh = hit.object, mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    // 1) the author's own names for the piece (node, mesh, material)
+    const names = [mesh.name, mesh.parent && mesh.parent.name, mat && mat.name].filter(Boolean).join(' | ').toLowerCase();
+    const byRule = (parts.by[anatomyCurrent] || []).find(r => r.m.split('|').some(k => names.includes(k.toLowerCase())));
+    let title = null, text = null, note = '';
+    if (byRule){
+      title = byRule['ar' === lang ? 'ar' : 'en']; text = byRule['d_' + lang];
+      if (mat && mat.emissive){     // light the piece up
+        const tmp = mat.clone(); tmp.emissive = new THREE.Color(0x3a5bff); tmp.emissiveIntensity = 0.55;
+        mv.hl = {mesh, orig: mesh.material, tmp}; mesh.material = tmp;
+      }
+    } else if (parts.regions[anatomyCurrent]){
+      // 2) unnamed pieces: the region under the tap, by position inside the model
+      const box = new THREE.Box3().setFromObject(mv.obj), size = box.getSize(new THREE.Vector3());
+      const ny = (hit.point.y - box.min.y) / (size.y || 1), nz = (hit.point.z - box.min.z) / (size.z || 1);
+      const ax = Math.abs(hit.point.x - (box.min.x + box.max.x) / 2) / ((size.x || 1) / 2);
+      const spec = parts.regions[anatomyCurrent];
+      const reg = spec.list.find(r => ny >= r.ny[0] && ny < r.ny[1] + 1e-6 && (!r.ax || (ax >= r.ax[0] && ax <= r.ax[1])) && (!r.nz || (nz >= r.nz[0] && nz <= r.nz[1])));
+      if (reg){
+        title = reg[lang]; const d = reg['d_' + lang]; text = typeof d === 'string' ? d : (d[spec.kind] || d.body || '');
+        note = lang === 'ar' ? 'تحديد تقريبي حسب موضع اللمس' : 'Approximate: picked by where you tapped';
+      }
+    }
+    if (!title){ title = m[lang] || m.en || ''; text = m['d_' + lang] || m.d_en || ''; note = lang === 'ar' ? 'هذا النموذج لا يفصل أجزاءه — اللمس يعرض اسم النموذج.' : 'This model does not separate its parts; tapping shows the model itself.'; }
+    // a small ring where you tapped
+    const dim = mv.home ? mv.home.dist / 1.9 : 1;
+    const marker = new THREE.Mesh(new THREE.SphereGeometry(dim * 0.012, 16, 12), new THREE.MeshBasicMaterial({color: 0xffd34d, depthTest: false}));
+    marker.renderOrder = 999; marker.position.copy(hit.point); mv.scene.add(marker); mv.marker = marker;
+    mvShowPart(title, text, note);
   }
 
   // viewer buttons: zoom, reset, auto-rotate, full screen, previous/next model
@@ -7204,6 +7285,7 @@
       if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
     } catch (e) { /* the CSS full-screen layout works without the browser API */ }
     setTimeout(() => mv && mv.resize && mv.resize(), 60); setTimeout(() => mv && mv.resize && mv.resize(), 350);
+    const shown = document.getElementById('anatPartName').textContent; if (shown) mvShowPart(shown, document.getElementById('anatPartText').textContent, document.getElementById('anatPartNote').textContent);
   }
   async function selectAnatomy(id){
     const m = anatomyModels.find(x => x.id === id);
@@ -7228,7 +7310,7 @@
       mv.camera.position.set(0, 0, dim * 1.9); mv.camera.near = dim / 100; mv.camera.far = dim * 100; mv.camera.updateProjectionMatrix();
       mv.controls.target.set(0, 0, 0); mv.controls.minDistance = dim * 0.25; mv.controls.maxDistance = dim * 6; mv.controls.update();
       mv.home = {pos: mv.camera.position.clone(), dist: dim * 1.9}; mv.zoomTo = null;
-      document.getElementById('anatNameTag').textContent = m[lang] || m.en;
+      document.getElementById('anatNameTag').textContent = m[lang] || m.en; mvClearPart();
       loading.style.display = 'none';
       mvStart();
     } catch (e) { loading.textContent = t('anatomyFailed'); }
