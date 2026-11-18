@@ -184,7 +184,7 @@ export function Shell() {
   const dlg = useDialogs();
   const items = useMemo(() => itemsFor(user), [user]);
   const navId = routeSection || (items[0] || {}).id;
-  const navItem = items.find(i => i.id === navId);
+  const navItem = items.find(i => i.id === navId) || (routeSection === 'me' ? { id: 'me', label: 'ملفي الشخصي' } : undefined);
   const alias = navItem && navItem.alias;
   const sectionId = alias || navId;
   const staff = ['owner', 'admin', 'supervisor'].includes(user.role);
@@ -252,7 +252,7 @@ export function Shell() {
               })}
           </nav>
           <div className="sidebar-footer">
-            <div className="admin-mini" style={{ cursor: 'pointer' }} title="ملفي الشخصي">
+            <div className="admin-mini" style={{ cursor: 'pointer' }} title="ملفي الشخصي" onClick={() => nav('/admin/me')}>
               <div className="admin-mini-avatar">{(user.full_name || '؟').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('')}</div>
               <div style={{ minWidth: 0 }}><div className="admin-mini-name">{user.full_name}</div><div className="admin-mini-role">{ROLE_LABELS[user.role]}</div></div>
             </div>
