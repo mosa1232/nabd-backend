@@ -11,6 +11,11 @@ import { Exam, ExamResult } from './pages/Exam.jsx';
 import { Review, Leaderboard, StudentProfile } from './pages/Review.jsx';
 import { Professors, Professor } from './pages/Professors.jsx';
 import { Notifications, Support } from './pages/Inbox.jsx';
+import { AiList, AiChat } from './pages/AI.jsx';
+import { Pearls, Summer } from './pages/Misc.jsx';
+import { Anatomy } from './pages/Anatomy.jsx';
+import { Academy, Course } from './pages/Academy.jsx';
+import { StoreProvider, Store, Cart, Checkout, MyOrders } from './pages/Store.jsx';
 import studentCss from './student.css?inline';
 import { useStyle } from '../lib/useStyle.js';
 
@@ -46,6 +51,7 @@ export default function StudentApp() {
   const { t } = useApp();
   const soon = (key) => <Moving title={t(key)} />;
   return (
+    <StoreProvider>
     <Routes>
       <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
@@ -62,24 +68,31 @@ export default function StudentApp() {
         <Route path="/bank/:subjectId/study/:key" element={<BankStudy />} />
         <Route path="/quiz/:subjectId" element={<Quiz />} />
         <Route path="/quiz-summary" element={<QuizSummary />} />
-        <Route path="/anatomy" element={soon('anatomyTitle')} />
+        <Route path="/anatomy" element={<Anatomy />} />
+        <Route path="/summer" element={<Summer />} />
         <Route path="/professors" element={<Professors />} />
         <Route path="/professors/:id" element={<Professor />} />
         <Route path="/exam/:examId" element={<Exam />} />
         <Route path="/exam-result/:attemptId" element={<ExamResult />} />
         <Route path="/students/:id" element={<StudentProfile />} />
-        <Route path="/store/*" element={soon('tileStore')} />
+        <Route path="/store" element={<Store />} />
+        <Route path="/store/cart" element={<Cart />} />
+        <Route path="/store/checkout" element={<Checkout />} />
+        <Route path="/store/orders" element={<MyOrders />} />
         <Route path="/review" element={<Review />} />
-        <Route path="/pearls" element={soon('pearlsTitle')} />
+        <Route path="/pearls" element={<Pearls />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/ai/*" element={soon('aiNavTitle')} />
+        <Route path="/ai" element={<AiList />} />
+        <Route path="/ai/:id" element={<AiChat />} />
         <Route path="/support" element={<Support />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/account" element={<Account />} />
         <Route path="/account/edit" element={<AccountEdit />} />
-        <Route path="/academy/*" element={soon('tileVideo')} />
+        <Route path="/academy" element={<Academy />} />
+        <Route path="/academy/:id" element={<Course />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </StoreProvider>
   );
 }

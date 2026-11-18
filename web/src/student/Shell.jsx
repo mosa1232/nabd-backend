@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useApp, initials } from '../lib/app.jsx';
 import { apiFetch, mediaUrl } from '../lib/api.js';
 import { Ic } from '../lib/icons.jsx';
+import { AiFab } from './pages/AI.jsx';
 
 // Which sidebar / bottom-nav item lights up for each page
 const NAV = [
@@ -26,6 +27,15 @@ const BOTTOM = [
   { to: '/account', key: 'navAccount', icon: 'user' },
 ];
 
+// the stylesheet keys a few phone layouts on the old view ids
+function viewId(path) {
+  if (path.startsWith('/quiz/')) return 'view-quiz';
+  if (path.startsWith('/exam/')) return 'view-exam';
+  if (/^\/ai\/.+/.test(path)) return 'view-ai-chat';
+  if (path === '/support') return 'view-support';
+  return 'view' + path.replace(/\//g, '-');
+}
+
 export default function Shell() {
   const { user, t, lang, setLang, dark, toggleTheme, logout, toasts } = useApp();
   const nav = useNavigate();
@@ -35,7 +45,7 @@ export default function Shell() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => { document.body.classList.toggle('sidebar-collapsed', collapsed); }, [collapsed]);
-  useEffect(() => { document.body.classList.remove('auth-mode', 'landing-mode'); document.body.dataset.view = loc.pathname; }, [loc.pathname]);
+  useEffect(() => { document.body.classList.remove('auth-mode', 'landing-mode'); document.body.dataset.view = viewId(loc.pathname); }, [loc.pathname]);
 
   // the stage the student studies for, shown under the name
   useEffect(() => {
@@ -124,6 +134,7 @@ export default function Shell() {
           </NavLink>
         ))}
       </nav>
+      <AiFab />
       <Toasts toasts={toasts} />
     </>
   );

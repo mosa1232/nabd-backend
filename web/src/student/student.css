@@ -1716,3 +1716,6 @@
   .signin-brand .kiur-logo{width:46px; height:46px; border-radius:13px;}
   .lp-dock-mark .kiur-logo{width:100%; height:100%; border-radius:inherit;}
   .lp-foot-mark .kiur-logo{width:24px; height:24px; border-radius:7px;}
+
+/* React port: let the page column shrink so wide rows (anatomy chips) scroll inside themselves */
+.shell > .app{min-width:0}
