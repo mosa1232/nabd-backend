@@ -1347,6 +1347,9 @@
         const opts = f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value) ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
         return `<div class="form-field">${labelHtml}<select id="gm_${f.id}">${opts}</select></div>`;
       }
+      if (f.type === 'scope'){
+        return `<div class="form-field">${labelHtml}${scopeFieldHtml('gm_' + f.id, f.tree, f.value)}</div>`;
+      }
       if (f.type === 'checks'){
         // A group of checkboxes (permissions). Value = array of checked codes.
         const checked = new Set(f.value || []);
@@ -1370,7 +1373,7 @@
     document.getElementById('genericModalMsg').style.display = 'none';
     document.getElementById('genericModalOverlay').style.display = 'flex';
     const first = fields[0];
-    if (first) setTimeout(() => document.getElementById('gm_' + first.id)?.focus(), 50);
+    if (first && first.type !== 'scope') setTimeout(() => document.getElementById('gm_' + first.id)?.focus(), 50);
   }
 
   function closeGenericModal(){
@@ -1382,6 +1385,7 @@
     if (!genericModalOnSubmit) return;
     const values = {};
     genericModalFieldsSpec.forEach(f => {
+      if (f.type === 'scope'){ values[f.id] = scopeFieldValue('gm_' + f.id); return; }
       const el = document.getElementById('gm_' + f.id);
       values[f.id] = f.type === 'checks'
         ? [...el.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value)
@@ -2940,6 +2944,55 @@
     : currentRole === 'admin' ? ROLE_OPTIONS.filter(o => !['owner', 'admin'].includes(o.value))
     : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
   const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({value: c, label: PERM_LABELS[c]}));
+
+  // ---------- where a representative works: college type -> university -> department -> stage ----------
+  // Each level narrows the next and stays locked until the one above is chosen; department and stage are optional.
+  async function loadScopeTree(){
+    const rows = await apiFetch('/api/admin/catalog');
+    const secs = []; let sec = null, uni = null, dept = null;
+    rows.forEach(r => {
+      if (r.type === 'section'){ sec = {id: r.id, name: r.name, unis: []}; secs.push(sec); uni = dept = null; }
+      else if (r.type === 'university' && sec){ uni = {id: r.id, name: r.name, depts: [], stages: []}; sec.unis.push(uni); dept = null; }
+      else if (r.type === 'department' && uni){ dept = {id: r.id, name: r.name}; uni.depts.push(dept); }
+      else if (r.type === 'stage' && uni){ uni.stages.push({id: r.id, name: r.name, dept: dept ? dept.id : null}); }
+    });
+    return secs;
+  }
+  const SC_STYLE = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit; font-size:.86rem;';
+  function scopeFieldHtml(prefix, tree, value){
+    window.__scopeTrees = window.__scopeTrees || {}; window.__scopeTrees[prefix] = tree;
+    const lbl = (t, id) => `<label style="font-size:.72rem; color:var(--ink-faint); display:block; margin:8px 0 4px;">${t}</label><select id="${prefix}_${id}" style="${SC_STYLE}" onchange="scopeFieldChange('${prefix}','${id}')"></select>`;
+    const html = lbl('① نوع الكلية', 'sec') + lbl('② الجامعة', 'uni') + lbl('③ القسم (اختياري)', 'dept') + lbl('④ المرحلة (اختياري)', 'stage');
+    setTimeout(() => scopeFieldFill(prefix, value || {}), 0);
+    return `<div id="${prefix}_box">${html}</div>`;
+  }
+  function scopeFieldFill(prefix, v){
+    const tree = (window.__scopeTrees || {})[prefix] || [];
+    const g = id => document.getElementById(prefix + '_' + id);
+    const opts = (list, cur, first) => (first ? `<option value="">${first}</option>` : '') + list.map(x => `<option value="${esc(x.id)}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+    // work out the college type from the saved university when editing
+    let secId = v.sec || '';
+    if (!secId && v.uni){ const s0 = tree.find(sx => sx.unis.some(u => u.id === v.uni)); if (s0) secId = s0.id; }
+    g('sec').innerHTML = opts(tree, secId, 'اختر نوع الكلية…');
+    const sec = tree.find(x => x.id === secId);
+    g('uni').innerHTML = opts(sec ? sec.unis : [], v.uni || '', 'اختر الجامعة…'); g('uni').disabled = !sec;
+    const uni = sec && sec.unis.find(x => x.id === v.uni);
+    g('dept').innerHTML = opts(uni ? uni.depts : [], v.dept || '', 'كل الأقسام'); g('dept').disabled = !uni;
+    const stages = uni ? uni.stages.filter(st => !v.dept || st.dept === v.dept) : [];
+    g('stage').innerHTML = opts(stages, v.stage || '', 'كل المراحل'); g('stage').disabled = !uni;
+  }
+  function scopeFieldChange(prefix, level){
+    const g = id => (document.getElementById(prefix + '_' + id) || {}).value || '';
+    const v = {sec: g('sec'), uni: g('uni'), dept: g('dept'), stage: g('stage')};
+    if (level === 'sec'){ v.uni = v.dept = v.stage = ''; }
+    if (level === 'uni'){ v.dept = v.stage = ''; }
+    if (level === 'dept'){ v.stage = ''; }
+    scopeFieldFill(prefix, v);
+  }
+  function scopeFieldValue(prefix){
+    const g = id => (document.getElementById(prefix + '_' + id) || {}).value || '';
+    return {uni: g('uni'), dept: g('dept'), stage: g('stage')};
+  }
   // Where a representative works: a college inside a university (and
   // optionally one stage of it), read off the flat catalogue listing.
   async function scopeOptions(){
@@ -2979,6 +3032,7 @@
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
     let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
     try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
+    let scopeTree = []; try { scopeTree = await loadScopeTree(); } catch (e) { /* only needed for representatives */ }
     openGenericModal('إضافة مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text'},
       {id: 'email', label: 'البريد الإلكتروني', type: 'text'},
@@ -2986,9 +3040,7 @@
       {id: 'password', label: 'كلمة المرور (8 أحرف على الأقل)', type: 'password'},
       {id: 'role', label: 'الدور', type: 'select', value: presetRole || 'student', options: roleOptionsForMe()},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: '', options: professors},
-      {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: '', options: scope.unis},
-      {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: '', options: scope.depts},
-      {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: '', options: scope.stages},
+      {id: 'scope', label: 'الكلية التي يمثّلها (للممثل العام فقط)', type: 'scope', tree: scopeTree, value: {}},
       {id: 'perms', label: 'الصلاحيات (للأدمن والمشرف ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', type: 'checks', value: [], options: STAFF_PERM_OPTIONS},
       // A professor without a subject can sign in but every screen of their
       // dashboard 404s, so the subject is collected here rather than left
@@ -3001,7 +3053,7 @@
       if (v.role === 'professor' && !v.subjectId){
         throw {detail: subjects.length ? 'اختر المادة التي يدرّسها الدكتور' : 'أضف مادة في "المناهج" أولاً، ثم أنشئ حساب الدكتور'};
       }
-      if (v.role === 'representative' && !v.scopeUni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها الممثل العام'};
+      if (v.role === 'representative' && !v.scope.uni) throw {detail: 'اختر نوع الكلية ثم الجامعة التي يمثّلها الممثل العام'};
       await apiFetch('/api/admin/users', {
         method: 'POST',
         body: JSON.stringify({
@@ -3011,9 +3063,9 @@
           subject_id: v.role === 'professor' ? v.subjectId : null,
           title: v.role === 'professor' ? (v.title || '').trim() : null,
           parent_user_id: v.role === 'assistant' ? (v.parentUserId || null) : null,
-          scope_university_id: v.role === 'representative' ? v.scopeUni : null,
-          scope_stage_id: v.role === 'representative' ? (v.scopeStage || null) : null,
-          scope_department_id: v.role === 'representative' ? (v.scopeDept || null) : null,
+          scope_university_id: v.role === 'representative' ? v.scope.uni : null,
+          scope_stage_id: v.role === 'representative' ? (v.scope.stage || null) : null,
+          scope_department_id: v.role === 'representative' ? (v.scope.dept || null) : null,
           // a reseller made here can view + take codes unless the store manager says otherwise
           permissions: v.role === 'reseller' ? ['codes.view', 'codes.generate']
             : (['supervisor', 'store_manager', 'admin'].includes(v.role) ? v.perms : []),
@@ -3099,15 +3151,13 @@
         ], v => save({permissions: v.perms}));
       }
     } else {
-      let scope = {unis: [], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
-      try { scope = await scopeOptions(); } catch (e) {}
+      let tree = []; try { tree = await loadScopeTree(); } catch (e) {}
+      if (!tree.length){ showToast('أضف كلية وجامعة في "المناهج" أولاً', 'error'); return; }
       openGenericModal('تعيين ممثل: ' + common, [
-        {id: 'uni', label: 'الجامعة / الكلية التي يمثّلها', type: 'select', value: '', options: scope.unis},
-        {id: 'dept', label: 'القسم (اختياري)', type: 'select', value: '', options: scope.depts},
-        {id: 'stage', label: 'المرحلة (اختياري)', type: 'select', value: '', options: scope.stages},
+        {id: 'scope', label: 'الكلية التي يمثّلها: اختر نوع الكلية ثم الجامعة (والقسم والمرحلة اختياري)', type: 'scope', tree, value: {}},
       ], async v => {
-        if (!v.uni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها'};
-        await save({scope_university_id: v.uni, scope_department_id: v.dept || null, scope_stage_id: v.stage || null});
+        if (!v.scope.uni) throw {detail: 'اختر نوع الكلية ثم الجامعة التي يمثّلها'};
+        await save({scope_university_id: v.scope.uni, scope_department_id: v.scope.dept || null, scope_stage_id: v.scope.stage || null});
       });
     }
   }
@@ -3152,6 +3202,7 @@
     try { professors = await professorOptions(); } catch (e) { /* only needed for assistants */ }
     let scope = {unis: [{value: '', label: 'لا ينطبق'}], stages: [{value: '', label: 'كل المراحل'}], depts: [{value: '', label: 'كل الأقسام'}]};
     try { scope = await scopeOptions(); } catch (e) { /* only needed for representatives */ }
+    let scopeTree = []; try { scopeTree = await loadScopeTree(); } catch (e) { /* only needed for representatives */ }
     const isStaff = ['supervisor', 'store_manager'].includes(current.role);
     openGenericModal('تعديل مستخدم', [
       {id: 'fullName', label: 'الاسم الكامل', type: 'text', value: current.full_name},
@@ -3161,9 +3212,7 @@
       {id: 'role', label: 'الدور', type: 'select', value: current.role,
        options: roleOptionsForMe().some(o => o.value === current.role) ? roleOptionsForMe() : ROLE_OPTIONS},
       {id: 'parentUserId', label: 'الدكتور (للمساعد فقط)', type: 'select', value: current.parent_user_id || '', options: professors},
-      {id: 'scopeUni', label: 'الجامعة / الكلية (للممثل العام فقط)', type: 'select', value: current.scope_university_id || '', options: scope.unis},
-      {id: 'scopeDept', label: 'القسم (للممثل العام — اختياري)', type: 'select', value: current.scope_department_id || '', options: scope.depts},
-      {id: 'scopeStage', label: 'المرحلة (للممثل العام — اختياري)', type: 'select', value: current.scope_stage_id || '', options: scope.stages},
+      {id: 'scope', label: 'الكلية التي يمثّلها (للممثل العام فقط)', type: 'scope', tree: scopeTree, value: {uni: current.scope_university_id || '', dept: current.scope_department_id || '', stage: current.scope_stage_id || ''}},
       {id: 'perms', label: 'صلاحيات إضافية (للمشرف ومدير المتجر فقط)', type: 'checks',
        value: current.extra_permissions || [], options: STAFF_PERM_OPTIONS},
     ], async (v) => {
@@ -3171,8 +3220,8 @@
       const body = {full_name: v.fullName.trim(), email: v.email.trim(), role: v.role, phone: v.phone.trim(), password: v.password || null};
       if (v.role === 'assistant') body.parent_user_id = v.parentUserId || null;
       if (v.role === 'representative'){
-        if (!v.scopeUni) throw {detail: 'اختر الجامعة/الكلية التي يمثّلها الممثل العام'};
-        body.scope_university_id = v.scopeUni; body.scope_stage_id = v.scopeStage || null; body.scope_department_id = v.scopeDept || null;
+        if (!v.scope.uni) throw {detail: 'اختر نوع الكلية ثم الجامعة التي يمثّلها الممثل العام'};
+        body.scope_university_id = v.scope.uni; body.scope_stage_id = v.scope.stage || null; body.scope_department_id = v.scope.dept || null;
       }
       // staff grants are only sent for the roles that use them, so editing a
       // reseller or professor here never wipes their own kind of grants
@@ -5181,6 +5230,7 @@
       acctOpts = {
         professors: a.role === 'assistant' || true ? await professorOptions().catch(() => []) : [],
         scope: await scopeOptions().catch(() => ({unis: [], stages: [], depts: []})),
+        scopeTree: await loadScopeTree().catch(() => []),
       };
     } catch (e) { acctOpts = {professors: [], scope: {unis: [], stages: [], depts: []}}; }
     acctEdit = true; renderAccountPage();
@@ -5249,7 +5299,7 @@
           `<div style="margin-top:12px;"><button class="btn btn-ghost" onclick="resellerOpen='${a.id}'; showSection('resellers')">فتح صفحة المندوب (الأكواد والتوليد)</button></div>`);
     }
     if (a.role === 'representative') role = card('نطاق الممثل', ed
-      ? row('الجامعة / الكلية', sel('efScopeUni', acctOpts.scope.unis, a.scope_university_id)) + row('القسم', sel('efScopeDept', acctOpts.scope.depts, a.scope_department_id)) + row('المرحلة', sel('efScopeStage', acctOpts.scope.stages, a.scope_stage_id))
+      ? scopeFieldHtml('efScope', acctOpts.scopeTree || [], {uni: a.scope_university_id, dept: a.scope_department_id, stage: a.scope_stage_id})
       : row('يمثّل', nm(a.scope_university_id)) + row('القسم', a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام') + row('المرحلة', a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'));
     if (isStaff) role = card(a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية', ed && canEditPerms
       ? `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px;">${STAFF_PERM_OPTIONS.map(o => `<label style="display:flex; gap:8px; align-items:center; font-size:.84rem;"><input type="checkbox" class="efPerm" value="${o.value}" ${heldPerms.includes(o.value) ? 'checked' : ''}/> ${esc(o.label)}</label>`).join('')}</div>${a.role === 'admin' ? '<div class="cell-sub" style="margin-top:8px;">الأدمن يرى ويفعل ما تحدده هنا فقط. الصلاحيات من صلاحية المالك وحده.</div>' : ''}`
@@ -5345,8 +5395,9 @@
     if (role === 'reseller') { const q = v('efQuota'); body.code_quota = q === '' || q == null ? null : Number(q);
       if (document.querySelector('.efRsPerm')) body.permissions = [...document.querySelectorAll('.efRsPerm:checked')].map(x => x.value); }
     if (role === 'representative'){
-      if (!v('efScopeUni')){ showToast('اختر الجامعة/الكلية التي يمثّلها', 'error'); return; }
-      body.scope_university_id = v('efScopeUni'); body.scope_department_id = v('efScopeDept') || null; body.scope_stage_id = v('efScopeStage') || null;
+      const sc = scopeFieldValue('efScope');
+      if (!sc.uni){ showToast('اختر نوع الكلية ثم الجامعة التي يمثّلها', 'error'); return; }
+      body.scope_university_id = sc.uni; body.scope_department_id = sc.dept || null; body.scope_stage_id = sc.stage || null;
     }
     if (['supervisor', 'store_manager'].includes(role) || (role === 'admin' && currentRole === 'owner' && document.querySelector('.efPerm')))
       body.permissions = [...document.querySelectorAll('.efPerm:checked')].map(x => x.value);
