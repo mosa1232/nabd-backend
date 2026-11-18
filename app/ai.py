@@ -492,7 +492,7 @@ LANG_RULES = {
 QUESTION_BATCH = 10      # per model call: short answers, and the progress bar moves often
 
 
-def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts):
+def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts, other_lang=None):
     wanted = "، ".join(TYPE_NAMES[t] for t in sorted(allowed))
     instruction = (
         f"المادة: {subject_name or 'غير محددة'}.\n"
@@ -501,10 +501,14 @@ def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, lan
         "لأسئلة الاختيارات: أربعة خيارات، واحد صحيح فقط، ومموّهات معقولة. لكل سؤال شرح موجز للإجابة الصحيحة.\n"
         + LANG_RULES.get(language, LANG_RULES["ar"])
     )
+    if other_lang:
+        # "both": two independent sets, not one set shown twice
+        instruction += (f"\nهذه المجموعة {'العربية' if language == 'ar' else 'الإنجليزية'} من مجموعتين مستقلتين (عربية وإنجليزية). "
+                        "اكتب أسئلة جديدة تمامًا عن نقاط مختلفة من المحتوى؛ ممنوع ترجمة أي سؤال من المجموعة الأخرى أو إعادة صياغته بلغة ثانية.")
     if parts > 1:
         instruction += f"\nهذه الدفعة {part} من {parts}: غطِّ أجزاء مختلفة من المحتوى ولا تكتفِ ببدايته."
     if avoid:
-        instruction += "\nلا تكرر هذه الأسئلة (سبق توليدها):\n- " + "\n- ".join(avoid)
+        instruction += "\nلا تكرر هذه الأسئلة ولا أفكارها حتى لو كانت بلغة أخرى (سبق توليدها):\n- " + "\n- ".join(avoid)
     if notes.strip():
         instruction += "\nتعليمات إضافية من الدكتور: " + notes.strip()[:500]
     content = list(blocks) + [{"type": "text", "text": instruction}]
@@ -516,7 +520,8 @@ def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, lan
 
 
 def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "", language: str = "ar", progress=None, cancel=None) -> tuple[list[dict], int]:
+                       difficulty: str, notes: str = "", language: str = "ar", progress=None, cancel=None,
+                       _other: list[str] | None = None) -> tuple[list[dict], int]:
     """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
     model answer stays within its output limit, and later batches are told what
     was already written. language: "ar", "en", or "both" (`count` Arabic then
@@ -526,8 +531,10 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         out, skipped = [], 0
         for lg in ("ar", "en"):
             base = len(out)
+            # the English set is told what the Arabic set already asked, so it is a different set, not a translation
             qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg,
-                                        (lambda d, p=0, n=0, base=base, lg=lg: progress(base + d, p + (0 if lg == "ar" else n), n * 2)) if progress else None, cancel)
+                                        (lambda d, p=0, n=0, base=base, lg=lg: progress(base + d, p + (0 if lg == "ar" else n), n * 2)) if progress else None, cancel,
+                                        _other=[q["text"][:80] for q in out][-50:] if out else [])
             out += qs
             skipped += sk
         return out, skipped
@@ -541,9 +548,9 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         if progress:
             progress(len(out), part, parts)
         n = min(QUESTION_BATCH, count - len(out))
-        avoid = [q["text"][:80] for q in out][-50:]
+        avoid = ((_other or []) + [q["text"][:80] for q in out])[-60:]
         try:
-            qs, sk = _generate_batch(blocks, subject_name, n, allowed, difficulty, notes, language, avoid, part, parts)
+            qs, sk = _generate_batch(blocks, subject_name, n, allowed, difficulty, notes, language, avoid, part, parts, other_lang=_other is not None)
         except (AIError, AIUnavailable):
             if not out:
                 raise
