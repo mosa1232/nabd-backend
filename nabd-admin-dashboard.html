@@ -1233,8 +1233,10 @@
   const VIEWAS_GROUPS = {doctor: ['p-'], reseller: ['r-'], rep: ['rep-']};
   var viewAsSection = '';
   var viewAsPick = {doctor: '', reseller: '', rep: ''};
+  var viewAsForce = null;   // set when a doctor-style page is opened "as a representative"
   function viewAsGroupOf(sectionId){
     if (!sectionId) return null;
+    if (viewAsForce && sectionId.startsWith('p-')) return viewAsForce;
     if (sectionId.startsWith('rep-')) return 'rep';
     if (sectionId.startsWith('p-')) return 'doctor';
     if (sectionId.startsWith('r-')) return 'reseller';
@@ -1843,6 +1845,11 @@
     {id:'r-codes', label:'الأكواد', icon:'pdf', perm:'viewas'},
     {id:'r-sales', label:'سجل المبيعات', icon:'log', perm:'viewas'},
     {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'viewas', group:'لوحة الممثل العام'},
+    // the same publishing pages, opened as a representative (alias = the page that is shown)
+    {id:'repv-questions', label:'بنك الأسئلة', icon:'pdf', perm:'viewas', alias:'p-questions'},
+    {id:'repv-booklets', label:'الملازم', icon:'pdf', perm:'viewas', alias:'p-booklets'},
+    {id:'repv-exams', label:'الامتحانات (كوزات)', icon:'exam', perm:'viewas', alias:'p-exams'},
+    {id:'repv-pearls', label:'لمحات سريرية', icon:'book', perm:'viewas', alias:'p-pearls'},
   ];
   const ROLE_NAV = {
     owner: STAFF_NAV.concat(VIEWAS_NAV),
@@ -1945,15 +1952,18 @@
     showSection(first);
   }
 
-  function showSection(id){
+  function showSection(navId){
+    const navItem = (roles[currentRole] && roles[currentRole].items.find(it => it.id === navId)) || {};
+    const id = navItem.alias || navId;                 // the page that is actually shown
+    viewAsForce = navItem.alias ? 'rep' : null;
     document.body.classList.remove('acct-full');
     lastSectionId = id;
     document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById('sec-' + id);
     if (target) target.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.sec === id));
-    openNavFor(id);
-    const item = roles[currentRole].items.find(it => it.id === id);
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.sec === navId));
+    openNavFor(navId);
+    const item = roles[currentRole].items.find(it => it.id === navId);
     document.getElementById('dashTitle').textContent = item ? item.label : '';
     closeSidebarMobile();
     viewAsSection = id;
@@ -2046,6 +2056,17 @@
         ${platOpt}${list.map(a => `<option value="${a.id}" ${a.id === viewAsPick[g] ? 'selected' : ''}>${esc(a.full_name)}</option>`).join('') || (platOpt ? '' : '<option value="">لا يوجد حسابات</option>')}
       </select>${subjSel}
       <span class="cell-sub">${note}</span></div>`;
+    if (g === 'rep' && sectionId.startsWith('p-') && viewAsPick[g]){
+      // a representative publishes inside one subject of their scope: let the owner pick which
+      let subs = [];
+      try { subs = await apiFetch('/api/professors/me/subjects'); } catch (e) { subs = []; }
+      if (!subs.some(x => x.subject_id === activeSubjectId)) activeSubjectId = subs[0] ? subs[0].subject_id : null;
+      const box = bar.querySelector('.dash-card');
+      if (box && subs.length){
+        box.insertAdjacentHTML('beforeend', `<select style="flex-basis:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="activeSubjectId=this.value; loadSection('${sectionId}')">
+          ${subs.map(x => `<option value="${esc(x.subject_id)}" ${x.subject_id === activeSubjectId ? 'selected' : ''}>${esc(x.subject_name)}${x.department_name ? ' — ' + esc(x.department_name) : ''}${x.stage_name ? ' — ' + esc(x.stage_name) : ''}</option>`).join('')}</select>`);
+      }
+    }
     if (usePlatform ? platformSubject : viewAsPick[g]) loadSection(sectionId);
   }
   function pickPlatformSubject(subjectId, sectionId){
