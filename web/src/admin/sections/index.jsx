@@ -3,6 +3,7 @@ import { Questions, Pearls, Assistants } from './Content.jsx';
 import { Accounts, Doctors, Reps } from './People.jsx';
 import { Catalog, Students as StudentsAdmin, Bans, Notifications } from './Staff.jsx';
 import { Roles, Admins, Logs } from './System.jsx';
+import { Overview as StatsOverview } from './Overview.jsx';
 import { RepCodes, ResellerOverview, ResellerSales, ResellerCodes } from './Codes.jsx';
 
 // section id -> component. Anything not listed here shows the "being moved" card.
@@ -15,6 +16,7 @@ const SECTIONS = {
   'p-questions': Questions,
   'p-pearls': Pearls,
   'p-assistants': Assistants,
+  overview: StatsOverview,
   accounts: Accounts,
   roles: Roles,
   admins: Admins,
