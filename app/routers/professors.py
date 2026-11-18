@@ -1,6 +1,8 @@
 from urllib.parse import quote
 
+import re
 import threading
+from pathlib import Path
 import time
 import uuid
 
@@ -391,6 +393,55 @@ def create_booklet(body: schemas.BookletIn, db: Session = Depends(get_db), user:
     return b
 
 
+MAX_BOOKLET_BYTES = 80 * 1024 * 1024      # a scanned booklet is often 30-60 MB; 20 MB rejected most of them
+
+
+def _pdf_pages(data: bytes) -> int:
+    """Page count read straight from the PDF's page objects (0 if it can't be told)."""
+    try:
+        return len(re.findall(rb"/Type\s*/Page(?![s\w])", data))
+    except Exception:
+        return 0
+
+
+async def _read_booklet_file(file: UploadFile) -> tuple[str, bytes, str]:
+    if file is None or not (file.filename or "").strip():
+        raise HTTPException(400, "اختر ملف الملزمة أولًا (PDF أو صورة)")
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(400, "الملف فارغ")
+    if len(contents) > MAX_BOOKLET_BYTES:
+        raise HTTPException(400, f"الملف كبير ({len(contents) // (1024 * 1024)} ميغابايت) — الحد الأقصى {MAX_BOOKLET_BYTES // (1024 * 1024)} ميغابايت. اضغط الـ PDF ثم أعد الرفع.")
+    stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
+    if stored_name.lower().endswith(".pdf") and not contents.lstrip()[:5].startswith(b"%PDF"):
+        raise HTTPException(400, "الملف ليس PDF سليمًا")
+    return optimize_upload(stored_name, contents, file.content_type or "", 1600)
+
+
+@router.post("/me/booklets/with-file", response_model=schemas.BookletOut)
+async def create_booklet_with_file(
+    title: str = Form(""),
+    pages: int = Form(0),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """One step: the booklet and its file together. The title defaults to the file's
+    name and the page count is read from the PDF, so the doctor only has to pick a file."""
+    profile = _get_own_profile(db, user, "prof.booklets")
+    stored_name, contents, ctype = await _read_booklet_file(file)
+    name = (title or "").strip() or re.sub(r"[_\-]+", " ", Path(file.filename or "ملزمة").stem).strip() or "ملزمة"
+    count = pages if pages and pages > 0 else (_pdf_pages(contents) if stored_name.lower().endswith(".pdf") else 1)
+    storage.save(stored_name, contents, ctype)
+    b = models.Booklet(professor_id=profile.id, title=name[:200], pages=count, file_url=media_url(stored_name))
+    db.add(b)
+    db.flush()
+    _notify_new_content(db, profile, "ملزمة", b.title, "booklet", b.id)
+    db.commit()
+    db.refresh(b)
+    return b
+
+
 @router.put("/me/booklets/{booklet_id}", response_model=schemas.BookletOut)
 def update_booklet(booklet_id: str, body: schemas.BookletIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     profile = _get_own_profile(db, user, "prof.booklets")
@@ -434,14 +485,12 @@ async def upload_booklet_file(
     b = db.get(models.Booklet, booklet_id)
     if not b or b.professor_id != profile.id:
         raise HTTPException(404, "الملزمة غير موجودة")
-    contents = await file.read()
-    if len(contents) > MAX_UPLOAD_BYTES:
-        raise HTTPException(400, "الملف أكبر من الحد المسموح (20 ميغابايت)")
-    stored_name = safe_upload_name(file.filename, DOC_EXTS | IMAGE_EXTS, "booklet")
-    stored_name, contents, ctype = optimize_upload(stored_name, contents, file.content_type or "", 1600)
+    stored_name, contents, ctype = await _read_booklet_file(file)
     storage.save(stored_name, contents, ctype)
     delete_stored_upload(b.file_url)  # replacing a file shouldn't strand the old one
     b.file_url = media_url(stored_name)
+    if not b.pages and stored_name.lower().endswith(".pdf"):
+        b.pages = _pdf_pages(contents)
     db.commit()
     db.refresh(b)
     return b

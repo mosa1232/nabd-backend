@@ -1350,6 +1350,9 @@
       if (f.type === 'scope'){
         return `<div class="form-field">${labelHtml}${scopeFieldHtml('gm_' + f.id, f.tree, f.value)}</div>`;
       }
+      if (f.type === 'file'){
+        return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="file" accept="${esc(f.accept || '')}" ${f.onchange ? `onchange="${f.onchange}"` : ''} style="width:100%; padding:12px; border:1.5px dashed var(--glass-border); border-radius:var(--radius-sm); background:var(--glass-bg-strong);" /></div>`;
+      }
       if (f.type === 'checks'){
         // A group of checkboxes (permissions). Value = array of checked codes.
         const checked = new Set(f.value || []);
@@ -1386,6 +1389,7 @@
     const values = {};
     genericModalFieldsSpec.forEach(f => {
       if (f.type === 'scope'){ values[f.id] = scopeFieldValue('gm_' + f.id); return; }
+      if (f.type === 'file'){ const fe = document.getElementById('gm_' + f.id); values[f.id] = fe && fe.files ? fe.files[0] : null; return; }
       const el = document.getElementById('gm_' + f.id);
       values[f.id] = f.type === 'checks'
         ? [...el.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value)
@@ -3743,7 +3747,7 @@
     try {
       const res = await fetch(API_BASE_URL + (mine ? '/api/professors/me/questions/image' : '/api/admin/media/upload'), {
         method: 'POST', body: fd, credentials: 'include',
-        headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...(mine && activeSubjectId ? {'X-Subject-Id': activeSubjectId} : {})},
+        headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...(mine && activeSubjectId ? {'X-Subject-Id': activeSubjectId} : {}), ...(mine ? viewAsHeader('/api/professors/me/questions/image') : {})},
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw {detail: data.detail || 'تعذّر رفع الصورة'};
@@ -4266,12 +4270,7 @@
     const form = new FormData();
     form.append('file', file);
     try {
-      const res = await fetch(API_BASE_URL + '/api/professors/me/photo', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + authToken},
-        body: form,
-      });
-      if (!res.ok) throw new Error();
+      await uploadWithProgress('/api/professors/me/photo', form, null);
       profDashboard = null;
       await loadProfessorOverview();
       showToast('تم تحديث الصورة ✓');
@@ -4289,18 +4288,14 @@
     const form = new FormData();
     form.append('file', file);
     try {
-      const res = await fetch(API_BASE_URL + '/api/professors/me/booklets/' + id + '/file', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + authToken},
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'فشل الرفع');
+      if (file.size > BOOKLET_MAX_MB * 1024 * 1024) throw new Error(`الملف ${(file.size / 1048576).toFixed(0)} ميغابايت — الحد الأقصى ${BOOKLET_MAX_MB}`);
+      showToast('جارٍ رفع الملف…');
+      await uploadWithProgress('/api/professors/me/booklets/' + id + '/file', form, null);
       document.getElementById('bookletFileInput').value = '';
       invalidateProfDashboard();
       await loadProfessorBooklets();
       showToast('تم رفع الملف بنجاح');
-    } catch (e) { showToast(e.message || 'تعذّر رفع الملف', 'error'); }
+    } catch (e) { showToast(e.detail || e.message || 'تعذّر رفع الملف', 'error'); }
   }
   async function loadProfessorBooklets(){
     const d = await fetchProfDashboard();
@@ -4334,14 +4329,22 @@
 
   function invalidateProfDashboard(){ profDashboard = null; }
 
+  const BOOKLET_MAX_MB = 80;
   function promptAddBooklet(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
-    openGenericModal('إضافة ملزمة', [
-      {id: 'title', label: 'عنوان الملزمة', type: 'text'},
-      {id: 'pages', label: 'عدد الصفحات', type: 'number', value: 20},
+    openGenericModal('رفع ملزمة', [
+      {id: 'file', label: `ملف الملزمة (PDF أو صورة — حتى ${BOOKLET_MAX_MB} ميغابايت)`, type: 'file', accept: 'application/pdf,image/*',
+       onchange: "(function(i){ const f = i.files[0]; const t = document.getElementById('gm_title'); if (f && t && !t.value) t.value = f.name.replace(/\\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim(); })(this)"},
+      {id: 'title', label: 'عنوان الملزمة (يؤخذ من اسم الملف إن تركته)', type: 'text'},
+      {id: 'pages', label: 'عدد الصفحات (يُقرأ من الـ PDF تلقائيًا إن تركته فارغًا)', type: 'number', value: ''},
     ], async (v) => {
-      if (!v.title.trim()) throw {detail: 'العنوان مطلوب'};
-      await apiFetch('/api/professors/me/booklets', {method: 'POST', body: JSON.stringify({title: v.title.trim(), pages: parseInt(v.pages, 10) || 0})});
+      if (!v.file) throw {detail: 'اختر ملف الملزمة أولًا'};
+      if (v.file.size > BOOKLET_MAX_MB * 1024 * 1024) throw {detail: `الملف ${(v.file.size / 1048576).toFixed(0)} ميغابايت — الحد الأقصى ${BOOKLET_MAX_MB}. اضغط الـ PDF ثم أعد الرفع.`};
+      const form = new FormData();
+      form.append('file', v.file); form.append('title', (v.title || '').trim()); form.append('pages', String(parseInt(v.pages, 10) || 0));
+      const msgEl = document.getElementById('genericModalMsg');
+      await uploadWithProgress('/api/professors/me/booklets/with-file', form, pct => { msgEl.style.display = 'block'; msgEl.style.color = 'var(--ink-faint)'; msgEl.textContent = pct < 100 ? `جارٍ الرفع… ${pct}%` : 'اكتمل الرفع — نحفظ الملزمة…'; });
+      showToast('✓ تم رفع الملزمة');
       invalidateProfDashboard();
       loadProfessorBooklets();
       loadProfessorOverview();
@@ -4509,17 +4512,11 @@
     const form = new FormData();
     form.append('file', file);
     try {
-      const res = await fetch(API_BASE_URL + '/api/professors/me/lectures/' + id + '/file', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + authToken},
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || 'فشل الرفع');
+      await uploadWithProgress('/api/professors/me/lectures/' + id + '/file', form, pct => { if (pct % 20 === 0) showToast(`جارٍ رفع الفيديو… ${pct}%`); });
       document.getElementById('lectureFileInput').value = '';
       await loadProfessorCourses();
       showToast('تم رفع الفيديو بنجاح');
-    } catch (e) { showToast(e.message || 'تعذّر رفع الفيديو', 'error'); }
+    } catch (e) { showToast(e.detail || e.message || 'تعذّر رفع الفيديو', 'error'); }
   }
 
   function promptAddCourse(){
@@ -5511,10 +5508,35 @@
 
   // ===== AI: generate questions / pearls from a file =====
   // multipart upload — apiFetch always sends JSON, so this has its own call.
+  // headers every upload needs: the session, the subject the doctor / representative / platform works in, and "view as"
+  function uploadHeaders(path){
+    return {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
+            ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}), ...viewAsHeader(path)};
+  }
+  // multipart upload with a progress callback (percent); rejects with {detail} like apiFetch
+  function uploadWithProgress(path, formData, onProgress){
+    return new Promise((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open('POST', API_BASE_URL + path); x.withCredentials = true;
+      const h = uploadHeaders(path); Object.keys(h).forEach(k => x.setRequestHeader(k, h[k]));
+      x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(100 * e.loaded / e.total)); };
+      x.onerror = () => reject({detail: 'انقطع الاتصال أثناء الرفع — تأكد من الإنترنت وأعد المحاولة'});
+      x.ontimeout = () => reject({detail: 'انتهت مهلة الرفع — جرّب ملفًا أصغر أو إنترنتًا أسرع'});
+      x.onload = () => {
+        let data = null; try { data = JSON.parse(x.responseText); } catch (e) { /* not JSON */ }
+        if (x.status >= 200 && x.status < 300) return resolve(data);
+        if (x.status === 401 && authToken){ doLogout(); }
+        const detail = data && typeof data.detail === 'string' ? data.detail
+          : x.status === 413 ? 'الملف كبير جدًا' : x.status >= 500 ? 'خطأ في الخادم — حاول مرة أخرى بعد قليل' : 'تعذّر الرفع';
+        reject({detail, status: x.status});
+      };
+      x.send(formData);
+    });
+  }
   async function apiForm(path, formData){
     const res = await fetch(API_BASE_URL + path, {
       method: 'POST', body: formData, credentials: 'include',
-      headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...viewAsHeader(path)},
+      headers: uploadHeaders(path),
     });
     let data = null; try { data = await res.json(); } catch (e) { /* no body */ }
     if (!res.ok){
