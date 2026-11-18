@@ -449,7 +449,7 @@ PEARLS_TOOL = {
 TYPE_NAMES = {"mcq": "اختيارات متعددة", "true_false": "صح/خطأ", "essay": "مقالي"}
 
 
-def normalize_questions(raw: list[dict], allowed: set[str]) -> tuple[list[dict], int]:
+def normalize_questions(raw: list[dict], allowed: set[str], bilingual: bool = False) -> tuple[list[dict], int]:
     """Converts the model's output into the platform's question shape and
     drops anything malformed — a bad question must never reach a doctor's
     'save' button looking valid."""
@@ -471,7 +471,7 @@ def normalize_questions(raw: list[dict], allowed: set[str]) -> tuple[list[dict],
             elif qtype == "true_false":
                 if not isinstance(q.get("answer_is_true"), bool):
                     raise ValueError
-                item["choices"] = [{"text": "صح" if q["answer_is_true"] else "خطأ", "is_correct": True}]
+                item["choices"] = [{"text": ("صح / True" if q["answer_is_true"] else "خطأ / False") if bilingual else ("صح" if q["answer_is_true"] else "خطأ"), "is_correct": True}]
             else:
                 ans = str(q.get("model_answer", "")).strip()
                 if not ans:
@@ -486,13 +486,17 @@ def normalize_questions(raw: list[dict], allowed: set[str]) -> tuple[list[dict],
 LANG_RULES = {
     "ar": "اكتب الأسئلة والخيارات والشرح بالعربية الفصحى الواضحة، مع إبقاء المصطلحات الطبية الإنجليزية كما هي بين قوسين عند الحاجة.",
     "en": "Write every question, option and explanation ENTIRELY in English (translate from the source material if it is in Arabic). Do not use Arabic.",
+    # one question carrying both languages at once (not two sets)
+    "both": ("كل سؤال يُكتب بلغتين في الوقت نفسه: في حقل text اكتب السؤال بالإنجليزية أولًا، ثم سطرًا جديدًا (\\n)، ثم نفس السؤال بالعربية الفصحى. "
+             "كل خيار من الخيارات يُكتب بالشكل: «English option / الخيار بالعربية» في سطر واحد (المصطلحات الطبية تبقى بالإنجليزية). "
+             "الشرح (rationale) أيضًا بالإنجليزية ثم العربية. النسختان لسؤال واحد بمعنى واحد، وليستا سؤالين."),
 }
 
 
 QUESTION_BATCH = 10      # per model call: short answers, and the progress bar moves often
 
 
-def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts, other_lang=None):
+def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, language, avoid, part, parts):
     wanted = "، ".join(TYPE_NAMES[t] for t in sorted(allowed))
     instruction = (
         f"المادة: {subject_name or 'غير محددة'}.\n"
@@ -501,47 +505,27 @@ def _generate_batch(blocks, subject_name, count, allowed, difficulty, notes, lan
         "لأسئلة الاختيارات: أربعة خيارات، واحد صحيح فقط، ومموّهات معقولة. لكل سؤال شرح موجز للإجابة الصحيحة.\n"
         + LANG_RULES.get(language, LANG_RULES["ar"])
     )
-    if other_lang:
-        # "both": two independent sets, not one set shown twice
-        instruction += (f"\nهذه المجموعة {'العربية' if language == 'ar' else 'الإنجليزية'} من مجموعتين مستقلتين (عربية وإنجليزية). "
-                        "اكتب أسئلة جديدة تمامًا عن نقاط مختلفة من المحتوى؛ ممنوع ترجمة أي سؤال من المجموعة الأخرى أو إعادة صياغته بلغة ثانية.")
     if parts > 1:
         instruction += f"\nهذه الدفعة {part} من {parts}: غطِّ أجزاء مختلفة من المحتوى ولا تكتفِ ببدايته."
     if avoid:
-        instruction += "\nلا تكرر هذه الأسئلة ولا أفكارها حتى لو كانت بلغة أخرى (سبق توليدها):\n- " + "\n- ".join(avoid)
+        instruction += "\nلا تكرر هذه الأسئلة (سبق توليدها):\n- " + "\n- ".join(avoid)
     if notes.strip():
         instruction += "\nتعليمات إضافية من الدكتور: " + notes.strip()[:500]
     content = list(blocks) + [{"type": "text", "text": instruction}]
     result = call_tool(GENERATOR_SYSTEM, content, QUESTIONS_TOOL)
-    qs, skipped = normalize_questions(result.get("questions"), allowed)
+    qs, skipped = normalize_questions(result.get("questions"), allowed, bilingual=(language == "both"))
     for q in qs:
-        q["lang"] = language if language in ("ar", "en") else "ar"
+        q["lang"] = language if language in ("ar", "en", "both") else "ar"
     return qs, skipped
 
 
 def generate_questions(blocks: list[dict], subject_name: str, count: int, types: list[str],
-                       difficulty: str, notes: str = "", language: str = "ar", progress=None, cancel=None,
-                       _other: list[str] | None = None) -> tuple[list[dict], int]:
+                       difficulty: str, notes: str = "", language: str = "ar", progress=None, cancel=None) -> tuple[list[dict], int]:
     """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
     model answer stays within its output limit, and later batches are told what
-    was already written. language: "ar", "en", or "both" (`count` in total: half Arabic
-    then half English, each tagged in `lang`). If a later batch fails, what was
+    was already written. language: "ar", "en", or "both" (each question carries the
+    English text and its Arabic version together). If a later batch fails, what was
     already generated is returned instead of throwing it away."""
-    if language == "both":
-        out, skipped = [], 0
-        # `count` is the TOTAL: half Arabic, half English (an odd one goes to Arabic)
-        halves = {"ar": (count + 1) // 2, "en": count // 2}
-        for lg in ("ar", "en"):
-            if not halves[lg]:
-                continue
-            base = len(out)
-            # the English set is told what the Arabic set already asked, so it is a different set, not a translation
-            qs, sk = generate_questions(blocks, subject_name, halves[lg], types, difficulty, notes, lg,
-                                        (lambda d, p=0, n=0, base=base, lg=lg: progress(base + d, p + (0 if lg == "ar" else n), n * 2)) if progress else None, cancel,
-                                        _other=[q["text"][:80] for q in out][-50:] if out else [])
-            out += qs
-            skipped += sk
-        return out, skipped
     allowed = {t for t in types if t in TYPE_NAMES} or {"mcq"}
     parts = (count + QUESTION_BATCH - 1) // QUESTION_BATCH
     out, skipped, part = [], 0, 0
@@ -552,9 +536,9 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
         if progress:
             progress(len(out), part, parts)
         n = min(QUESTION_BATCH, count - len(out))
-        avoid = ((_other or []) + [q["text"][:80] for q in out])[-60:]
+        avoid = [q["text"][:80] for q in out][-50:]
         try:
-            qs, sk = _generate_batch(blocks, subject_name, n, allowed, difficulty, notes, language, avoid, part, parts, other_lang=_other is not None)
+            qs, sk = _generate_batch(blocks, subject_name, n, allowed, difficulty, notes, language, avoid, part, parts)
         except (AIError, AIUnavailable):
             if not out:
                 raise
