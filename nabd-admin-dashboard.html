@@ -1826,6 +1826,8 @@
     {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'rep.codes'},
     {id:'p-questions', label:'بنك الأسئلة', icon:'pdf', perm:'prof.questions', group:'النشر باسمك'},
     {id:'p-booklets', label:'الملازم', icon:'pdf', perm:'prof.booklets'},
+    {id:'p-exams', label:'الامتحانات (كوزات)', icon:'exam', perm:'prof.exams'},
+    {id:'p-pearls', label:'لمحات سريرية', icon:'book', perm:'prof.pearls'},
   ];
   // The owner also sees the other roles' own dashboards (acting as a chosen account).
   const VIEWAS_NAV = [
@@ -2494,7 +2496,7 @@
     professor: 'دكتور: بنك أسئلته وامتحاناته وملازمه وكورساته وطلابه ومساعديه.',
     assistant: 'مساعد دكتور: يعمل ضمن مادة الدكتور بالصلاحيات التي يمنحها له.',
     reseller: 'مندوب: يأخذ أكواد التفعيل ويبيعها ضمن حصته.',
-    representative: 'ممثل عام: يرفع أسماء طلاب دفعته ويولّد أكواد التوثيق، وينزّل أسئلته وملازمه كالدكتور (باسمه، ضمن جامعته ومرحلته).',
+    representative: 'ممثل عام: يرفع أسماء طلاب دفعته ويولّد أكواد التوثيق، وينزّل أسئلته وملازمه وامتحاناته ولمحاته كالدكتور (باسمه، ضمن جامعته ومرحلته).',
     student: 'طالب: يستخدم التطبيق للدراسة.',
   };
   const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'store_manager', 'professor', 'assistant', 'reseller', 'representative', 'student'];
