@@ -24,3 +24,44 @@
 		health_interval 15s
 	}
 }
+
+# ---------------------------------------------------------------------------
+# beta.<domain>: the React rebuild of the platform (built into web/dist and
+# committed, so the server needs no Node). API paths go to the same backend as
+# the main site; /admin still serves the current dashboard until its React
+# version replaces it. Everything else is the single-page app.
+# ---------------------------------------------------------------------------
+{$BETA_DOMAIN::8081} {
+	encode zstd gzip
+
+	request_body {
+		max_size 160MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	@backend path /api/* /auth/* /media-files/* /static/* /health /favicon.ico /admin /admin/*
+	handle @backend {
+		reverse_proxy app:8000 {
+			lb_try_duration 10s
+			health_uri /health
+			health_interval 15s
+		}
+	}
+
+	handle {
+		root * /srv/beta
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

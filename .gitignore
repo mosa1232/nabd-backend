@@ -8,3 +8,5 @@ uploads/
 backups/
 .env.production
 models_in/
+
+web/node_modules/

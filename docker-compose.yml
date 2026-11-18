@@ -46,8 +46,10 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:-:80}
+      BETA_DOMAIN: ${BETA_DOMAIN:-:8081}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web/dist:/srv/beta:ro      # the React app (built with: cd web; npm run build)
       - caddy_data:/data          # the HTTPS certificates
       - caddy_config:/config
     depends_on:
