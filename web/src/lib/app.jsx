@@ -20,6 +20,7 @@ function detectDevice() {
 export function AppProvider({ children }) {
   const [user, setUserState] = useState(null);
   const [booted, setBooted] = useState(false);
+  const [banned, setBanned] = useState(false);   // a valid token whose account is banned: only the appeal screen is reachable
   const [lang, setLangState] = useState(() => { try { return localStorage.getItem('kiur_lang') || 'ar'; } catch { return 'ar'; } });
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('kiur_dark') === '1'; } catch { return false; } });
   const [device, setDevice] = useState(detectDevice);
@@ -84,6 +85,7 @@ export function AppProvider({ children }) {
     if (getToken()) apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     setToken(null);
     setUserState(null);
+    setBanned(false);
   }, []);
 
   useEffect(() => {
@@ -103,7 +105,7 @@ export function AppProvider({ children }) {
       else if (m2) pending.current.twofa = decodeURIComponent(m2[1]);
       else if (m) {
         setToken(decodeURIComponent(m[1]));
-        try { const me = await apiFetch('/auth/me'); setUserState(me); applyPrefs(me); } catch { setToken(null); }
+        try { const me = await apiFetch('/auth/me'); setUserState(me); applyPrefs(me); } catch (e) { if (e.status === 403) setBanned(true); else setToken(null); }
       } else {
         try { startSession(await post('/auth/session/restore')); } catch { /* signed out */ }
       }
@@ -112,9 +114,9 @@ export function AppProvider({ children }) {
   }, [applyPrefs, startSession]);
 
   const value = useMemo(() => ({
-    user, setUser, booted, lang, setLang, t, dark, toggleTheme, device, setDeviceMode,
+    user, setUser, booted, banned, lang, setLang, t, dark, toggleTheme, device, setDeviceMode,
     toast, toasts, startSession, refreshUser, logout, pending,
-  }), [user, setUser, booted, lang, setLang, t, dark, toggleTheme, device, setDeviceMode, toast, toasts, startSession, refreshUser, logout]);
+  }), [user, setUser, booted, banned, lang, setLang, t, dark, toggleTheme, device, setDeviceMode, toast, toasts, startSession, refreshUser, logout]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
