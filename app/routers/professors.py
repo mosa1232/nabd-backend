@@ -1183,7 +1183,7 @@ async def ai_generate_questions(
     subject_name = profile.subject.name if profile and profile.subject else ""
     _purge_jobs()
     job_id = uuid.uuid4().hex
-    total = count * (2 if language == "both" else 1)
+    total = count          # "both" splits it: half Arabic, half English
     job = {"user_id": user.id, "status": "running", "done": 0, "total": total, "created": time.time()}
     with _AI_JOBS_LOCK:
         _AI_JOBS[job_id] = job

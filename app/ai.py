@@ -524,15 +524,19 @@ def generate_questions(blocks: list[dict], subject_name: str, count: int, types:
                        _other: list[str] | None = None) -> tuple[list[dict], int]:
     """Up to ~100 questions: the work is split into batches of QUESTION_BATCH so each
     model answer stays within its output limit, and later batches are told what
-    was already written. language: "ar", "en", or "both" (`count` Arabic then
-    `count` English, each tagged in `lang`). If a later batch fails, what was
+    was already written. language: "ar", "en", or "both" (`count` in total: half Arabic
+    then half English, each tagged in `lang`). If a later batch fails, what was
     already generated is returned instead of throwing it away."""
     if language == "both":
         out, skipped = [], 0
+        # `count` is the TOTAL: half Arabic, half English (an odd one goes to Arabic)
+        halves = {"ar": (count + 1) // 2, "en": count // 2}
         for lg in ("ar", "en"):
+            if not halves[lg]:
+                continue
             base = len(out)
             # the English set is told what the Arabic set already asked, so it is a different set, not a translation
-            qs, sk = generate_questions(blocks, subject_name, count, types, difficulty, notes, lg,
+            qs, sk = generate_questions(blocks, subject_name, halves[lg], types, difficulty, notes, lg,
                                         (lambda d, p=0, n=0, base=base, lg=lg: progress(base + d, p + (0 if lg == "ar" else n), n * 2)) if progress else None, cancel,
                                         _other=[q["text"][:80] for q in out][-50:] if out else [])
             out += qs
