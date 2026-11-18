@@ -55,7 +55,8 @@ ROLE_DEFAULTS: dict[str, set[str]] = {
     "reseller": set(),          # everything a reseller can do is granted per reseller
     "professor": set(PROF_PERMS),
     "assistant": set(),         # granted per assistant by their professor
-    "representative": set(REP_PERMS),
+    # الممثل العام: أكواد التوثيق + ينزّل أسئلته وملازمه كالدكتور (ضمن جامعته ومرحلته)
+    "representative": set(REP_PERMS) | {"prof.questions", "prof.booklets"},
     "student": set(),
 }
 

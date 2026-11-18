@@ -125,6 +125,12 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
         if not parent or parent.role != models.Role.professor or parent.is_banned:
             raise HTTPException(403, "حساب المساعد غير مرتبط بدكتور فعّال")
         owner_id = parent.id
+    elif user.role == models.Role.representative and perm != "owner":
+        # A representative publishes like a doctor, under their own name, in a subject of their own college/stage.
+        held = user_permissions(user)
+        if not ((held & PROF_PERMS) if perm == "any" else (perm in held)):
+            raise HTTPException(403, "لا تملك صلاحية لهذا الإجراء")
+        return _rep_profile(db, user)
     elif user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
         # Staff publish in the platform's own name, in whichever subject they pick.
         if user.role != models.Role.owner and "content.manage" not in user_permissions(user):
@@ -151,6 +157,35 @@ def _get_own_profile(db: Session, user: models.User, perm: str = "owner") -> mod
     return profiles[0]
 
 
+def _rep_subjects(db: Session, user: models.User) -> list[models.Subject]:
+    """Subjects a representative may publish in: those of their university, narrowed to their department / stage."""
+    if not user.scope_university_id:
+        return []
+    q = db.query(models.Subject).join(models.Stage, models.Subject.stage_id == models.Stage.id).filter(models.Stage.university_id == user.scope_university_id)
+    if user.scope_stage_id:
+        q = q.filter(models.Stage.id == user.scope_stage_id)
+    elif user.scope_department_id:
+        q = q.filter(models.Stage.department_id == user.scope_department_id)
+    return q.order_by(models.Subject.name).all()
+
+
+def _rep_profile(db: Session, user: models.User) -> models.ProfessorProfile:
+    subs = _rep_subjects(db, user)
+    if not subs:
+        raise HTTPException(403, "لا توجد مواد ضمن نطاق الممثل — اطلب من الإدارة ضبط الجامعة والمرحلة")
+    wanted = getattr(user, "_active_subject_id", None)
+    subject = next((s for s in subs if s.id == wanted), None) if wanted else subs[0]
+    if not subject:
+        raise HTTPException(403, "هذه المادة خارج نطاقك كممثل")
+    p = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user.id, models.ProfessorProfile.subject_id == subject.id).first()
+    if not p:
+        p = models.ProfessorProfile(user_id=user.id, subject_id=subject.id, title="ممثل الدفعة", bio="")
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+    return p
+
+
 def _draft_profile(db: Session, user: models.User, perm: str):
     """Drafting (AI generation, file import) saves nothing, so the owner/admin may
     do it without picking a doctor; saving still needs one."""
@@ -165,6 +200,12 @@ def my_subjects(db: Session = Depends(get_db), user: models.User = Depends(get_c
     with the department it belongs to — drives the subject switcher."""
     if user.role in (models.Role.owner, models.Role.admin, models.Role.supervisor):
         return []   # the owner picks a doctor on the page; nothing to switch here
+    if user.role == models.Role.representative:
+        return [{
+            "subject_id": s.id, "subject_name": s.name, "stage_name": s.stage.name if s.stage else "",
+            "department_name": s.stage.department.name if s.stage and s.stage.department else "",
+            "university_name": s.stage.university.name if s.stage and s.stage.university else "",
+        } for s in _rep_subjects(db, user)]
     owner_id = user.id if user.role == models.Role.professor else user.parent_user_id
     if user.role not in (models.Role.professor, models.Role.assistant) or not owner_id:
         raise HTTPException(403, "هذه الواجهة مخصصة للدكاترة فقط")

@@ -1824,6 +1824,8 @@
   ];
   const REP_NAV = [
     {id:'rep-codes', label:'أكواد التوثيق', icon:'key', perm:'rep.codes'},
+    {id:'p-questions', label:'بنك الأسئلة', icon:'pdf', perm:'prof.questions', group:'النشر باسمك'},
+    {id:'p-booklets', label:'الملازم', icon:'pdf', perm:'prof.booklets'},
   ];
   // The owner also sees the other roles' own dashboards (acting as a chosen account).
   const VIEWAS_NAV = [
@@ -1954,12 +1956,35 @@
     closeSidebarMobile();
     viewAsSection = id;
     if ((currentRole === 'admin' || currentRole === 'owner' || currentRole === 'supervisor') && viewAsGroupOf(id)){ renderViewAsBar(id); return; }
+    if (currentRole === 'representative' && id.startsWith('p-')){ renderRepSubjectBar(id); return; }
     document.getElementById('viewAsBar').style.display = 'none';
     loadSection(id);
   }
 
   const VIEWAS_ROLE = {doctor: 'professor', reseller: 'reseller', rep: 'representative'};
   const VIEWAS_WORD = {doctor: 'دكتور', reseller: 'مندوب', rep: 'ممثل'};
+  // A representative publishes (questions, booklets) like a doctor, in a subject of their own college / stage.
+  async function renderRepSubjectBar(sectionId){
+    const bar = document.getElementById('viewAsBar');
+    bar.style.display = 'block';
+    let subs = [];
+    try { subs = await apiFetch('/api/professors/me/subjects'); } catch (e) { subs = []; }
+    if (!subs.length){
+      bar.innerHTML = '<div class="dash-card glass" style="padding:12px 16px;">لا توجد مواد ضمن نطاقك كممثل — اطلب من الإدارة ضبط جامعتك ومرحلتك.</div>';
+      return;
+    }
+    if (!subs.some(x => x.subject_id === activeSubjectId)) activeSubjectId = subs[0].subject_id;
+    const cur = subs.find(x => x.subject_id === activeSubjectId);
+    const lbl = x => `${x.subject_name}${x.department_name ? ' — ' + x.department_name : ''}${x.stage_name ? ' — ' + x.stage_name : ''}`;
+    bar.innerHTML = `<div class="dash-card glass" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px;">
+      <span style="font-weight:800; font-size:.86rem;">المادة التي تنشر فيها:</span>
+      <select style="flex:1; min-width:220px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="activeSubjectId=this.value; renderRepSubjectBar('${sectionId}')">
+        ${subs.map(x => `<option value="${esc(x.subject_id)}" ${x.subject_id === activeSubjectId ? 'selected' : ''}>${esc(lbl(x))}</option>`).join('')}
+      </select>
+      <span class="cell-sub">📍 ما تنشره يظهر للطلاب باسمك (ممثل الدفعة) في: ${esc(lbl(cur))}</span></div>`;
+    loadSection(sectionId);
+  }
+
   // "المنصة": content saved under the platform's own name — the default for staff,
   // who only choose the subject they publish in.
   const PLATFORM_PICK = '__platform__';
@@ -2469,7 +2494,7 @@
     professor: 'دكتور: بنك أسئلته وامتحاناته وملازمه وكورساته وطلابه ومساعديه.',
     assistant: 'مساعد دكتور: يعمل ضمن مادة الدكتور بالصلاحيات التي يمنحها له.',
     reseller: 'مندوب: يأخذ أكواد التفعيل ويبيعها ضمن حصته.',
-    representative: 'ممثل عام: يرفع أسماء طلاب دفعته ويولّد أكواد التوثيق.',
+    representative: 'ممثل عام: يرفع أسماء طلاب دفعته ويولّد أكواد التوثيق، وينزّل أسئلته وملازمه كالدكتور (باسمه، ضمن جامعته ومرحلته).',
     student: 'طالب: يستخدم التطبيق للدراسة.',
   };
   const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'store_manager', 'professor', 'assistant', 'reseller', 'representative', 'student'];
