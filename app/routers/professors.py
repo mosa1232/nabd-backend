@@ -8,6 +8,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from .. import ai, knowledge, models, qimport, schemas
@@ -179,13 +180,71 @@ def _rep_profile(db: Session, user: models.User) -> models.ProfessorProfile:
     subject = next((s for s in subs if s.id == wanted), None) if wanted else subs[0]
     if not subject:
         raise HTTPException(403, "هذه المادة خارج نطاقك كممثل")
-    p = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user.id, models.ProfessorProfile.subject_id == subject.id).first()
+    owner_id, title = user.id, "ممثل الدفعة"
+    teacher_id = getattr(user, "_active_teacher_id", None)
+    if teacher_id and teacher_id != user.id:
+        t = db.get(models.User, teacher_id)
+        if not t or t.created_by_id != user.id:
+            raise HTTPException(403, "هذا الدكتور ليس من إضافتك")
+        owner_id, title = t.id, "أستاذ"
+    p = db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == owner_id, models.ProfessorProfile.subject_id == subject.id).first()
     if not p:
-        p = models.ProfessorProfile(user_id=user.id, subject_id=subject.id, title="ممثل الدفعة", bio="")
+        p = models.ProfessorProfile(user_id=owner_id, subject_id=subject.id, title=title, bio="")
         db.add(p)
         db.commit()
         db.refresh(p)
     return p
+
+
+class TeacherIn(BaseModel):
+    name: str
+
+
+def _rep_only(user: models.User):
+    if user.role != models.Role.representative:
+        raise HTTPException(403, "هذه الميزة للممثل فقط")
+
+
+@router.get("/me/teachers")
+def my_teachers(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The doctors' names a representative has set up to publish under."""
+    _rep_only(user)
+    rows = db.query(models.User).filter(models.User.created_by_id == user.id, models.User.role == models.Role.professor).order_by(models.User.full_name).all()
+    return [{"id": t.id, "name": t.full_name} for t in rows]
+
+
+@router.post("/me/teachers")
+def add_teacher(body: TeacherIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """A teaching profile in a doctor's name: no password, nothing is ever sent to it.
+    Booklets and exams published under it show the doctor's name to students."""
+    _rep_only(user)
+    name = " ".join((body.name or "").split())
+    if len(name) < 2:
+        raise HTTPException(400, "اكتب اسم الدكتور")
+    if len(name) > 80:
+        raise HTTPException(400, "الاسم طويل")
+    same = db.query(models.User).filter(models.User.created_by_id == user.id, models.User.full_name == name).first()
+    if same:
+        return {"id": same.id, "name": same.full_name}
+    t = models.User(email=f"teacher-{uuid.uuid4().hex[:12]}@kiur.internal", full_name=name, role=models.Role.professor, password_hash=None, created_by_id=user.id)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return {"id": t.id, "name": t.full_name}
+
+
+@router.put("/me/teachers/{teacher_id}")
+def rename_teacher(teacher_id: str, body: TeacherIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    _rep_only(user)
+    t = db.get(models.User, teacher_id)
+    if not t or t.created_by_id != user.id:
+        raise HTTPException(404, "الدكتور غير موجود")
+    name = " ".join((body.name or "").split())
+    if len(name) < 2 or len(name) > 80:
+        raise HTTPException(400, "اسم غير صالح")
+    t.full_name = name
+    db.commit()
+    return {"id": t.id, "name": t.full_name}
 
 
 def _draft_profile(db: Session, user: models.User, perm: str):
@@ -283,7 +342,7 @@ def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_
 
     return {
         "professor": {
-            "id": profile.id, "name": user.full_name, "title": profile.title, "subject": profile.subject.name,
+            "id": profile.id, "name": profile.user.full_name if profile.user else user.full_name, "title": profile.title, "subject": profile.subject.name,
             "bio": profile.bio or "", "photo_url": profile.photo_url,
         },
         "booklet_count": len(booklets),

@@ -1228,6 +1228,7 @@
   }
 
   let activeSubjectId = null;   // doctor with several subjects: which one requests are for
+  let activeTeacherId = '';     // representative: publish under this doctor's name (one they made); '' = their own name
   // The owner can open a doctor's / reseller's / representative's own dashboard:
   // pick the account, and every call from those pages runs as that account.
   const VIEWAS_GROUPS = {doctor: ['p-'], reseller: ['r-'], rep: ['rep-']};
@@ -1294,6 +1295,7 @@
         'Content-Type': 'application/json',
         ...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
         ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}),
+        ...(activeTeacherId && path.startsWith('/api/professors/') && !path.startsWith('/api/professors/me/teachers') ? {'X-Teacher-Id': activeTeacherId} : {}),
         ...viewAsHeader(path),
         ...(options.headers || {}),
       },
@@ -1350,6 +1352,7 @@
       if (f.type === 'scope'){
         return `<div class="form-field">${labelHtml}${scopeFieldHtml('gm_' + f.id, f.tree, f.value)}</div>`;
       }
+      if (f.type === 'where'){ return `<div class="form-field">${whereFieldHtml(f)}</div>`; }
       if (f.type === 'file'){
         return `<div class="form-field">${labelHtml}<input id="gm_${f.id}" type="file" accept="${esc(f.accept || '')}" ${f.onchange ? `onchange="${f.onchange}"` : ''} style="width:100%; padding:12px; border:1.5px dashed var(--glass-border); border-radius:var(--radius-sm); background:var(--glass-bg-strong);" /></div>`;
       }
@@ -1389,6 +1392,7 @@
     const values = {};
     genericModalFieldsSpec.forEach(f => {
       if (f.type === 'scope'){ values[f.id] = scopeFieldValue('gm_' + f.id); return; }
+      if (f.type === 'where'){ values[f.id] = whereValue(); return; }
       if (f.type === 'file'){ const fe = document.getElementById('gm_' + f.id); values[f.id] = fe && fe.files ? fe.files[0] : null; return; }
       const el = document.getElementById('gm_' + f.id);
       values[f.id] = f.type === 'checks'
@@ -2001,13 +2005,41 @@
       <select style="flex:1; min-width:220px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="activeSubjectId=this.value; renderRepSubjectBar('${sectionId}')">
         ${subs.map(x => `<option value="${esc(x.subject_id)}" ${x.subject_id === activeSubjectId ? 'selected' : ''}>${esc(lbl(x))}</option>`).join('')}
       </select>
-      <span class="cell-sub">📍 ما تنشره يظهر للطلاب باسمك (ممثل الدفعة) في: ${esc(lbl(cur))}</span></div>`;
+      ${await repTeacherSelectHtml(sectionId)}
+      <span class="cell-sub">📍 ${activeTeacherId ? 'ما تنشره يظهر للطلاب باسم الدكتور المختار' : 'ما تنشره يظهر للطلاب باسمك (ممثل الدفعة)'} في: ${esc(lbl(cur))}</span></div>`;
     loadSection(sectionId);
+  }
+  // "publish as": the representative's own name, or a doctor's name they set up (no account, just a name on the content)
+  async function repTeacherSelectHtml(sectionId){
+    let teachers = [];
+    try { teachers = await apiFetch('/api/professors/me/teachers'); } catch (e) { teachers = []; }
+    if (activeTeacherId && !teachers.some(t => t.id === activeTeacherId)) activeTeacherId = '';
+    return `<select style="flex:1; min-width:200px; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="setActiveTeacher(this.value, '${sectionId}')">
+        <option value="" ${activeTeacherId ? '' : 'selected'}>النشر باسمي (ممثل الدفعة)</option>
+        ${teachers.map(t => `<option value="${esc(t.id)}" ${t.id === activeTeacherId ? 'selected' : ''}>باسم: ${esc(t.name)}</option>`).join('')}
+        <option value="__new__">＋ إضافة دكتور جديد…</option></select>`;
+  }
+  function reloadRepBar(sectionId){ if (currentRole === 'representative') renderRepSubjectBar(sectionId); else renderViewAsBar(sectionId); }
+  function setActiveTeacher(id, sectionId){
+    if (id === '__new__'){ promptAddTeacher(sectionId); reloadRepBar(sectionId); return; }
+    activeTeacherId = id; profDashboard = null; reloadRepBar(sectionId);
+  }
+  function promptAddTeacher(sectionId){
+    openGenericModal('إضافة دكتور', [
+      {id: 'name', label: 'اسم الدكتور كما يظهر للطلاب (مثال: د. أحمد الجبوري)', type: 'text'},
+    ], async (v) => {
+      if (!(v.name || '').trim()) throw {detail: 'اكتب اسم الدكتور'};
+      const t = await apiFetch('/api/professors/me/teachers', {method: 'POST', body: JSON.stringify({name: v.name.trim()})});
+      activeTeacherId = t.id; profDashboard = null;
+      showToast('✓ أُضيف — ما تنشره الآن يظهر باسمه');
+      reloadRepBar(sectionId);
+    });
   }
 
   // "المنصة": content saved under the platform's own name — the default for staff,
   // who only choose the subject they publish in.
   const PLATFORM_PICK = '__platform__';
+  let viewAsPickedRepChanged = '';
   let platformInfo = null, platformSubject = '';
   const platPick = {sec: '', uni: '', dept: '', stage: ''};
   async function renderViewAsBar(sectionId){
@@ -2069,7 +2101,9 @@
       let subs = [];
       try { subs = await apiFetch('/api/professors/me/subjects'); } catch (e) { subs = []; }
       if (!subs.some(x => x.subject_id === activeSubjectId)) activeSubjectId = subs[0] ? subs[0].subject_id : null;
+      if (viewAsPickedRepChanged !== viewAsPick.rep){ viewAsPickedRepChanged = viewAsPick.rep; activeTeacherId = ''; }
       const box = bar.querySelector('.dash-card');
+      if (box && subs.length) box.insertAdjacentHTML('beforeend', await repTeacherSelectHtml(sectionId));
       if (box && subs.length){
         box.insertAdjacentHTML('beforeend', `<select style="flex-basis:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;" onchange="activeSubjectId=this.value; loadSection('${sectionId}')">
           ${subs.map(x => `<option value="${esc(x.subject_id)}" ${x.subject_id === activeSubjectId ? 'selected' : ''}>${esc(x.subject_name)}${x.department_name ? ' — ' + esc(x.department_name) : ''}${x.stage_name ? ' — ' + esc(x.stage_name) : ''}</option>`).join('')}</select>`);
@@ -2189,6 +2223,7 @@
   });
 
   function loadSection(id){
+    if (id.startsWith('p-')) profDashboard = null;   // never show a copy fetched before the last upload / subject change
     const fn = sectionLoaders[id];
     if (fn) fn();
   }
@@ -3747,7 +3782,7 @@
     try {
       const res = await fetch(API_BASE_URL + (mine ? '/api/professors/me/questions/image' : '/api/admin/media/upload'), {
         method: 'POST', body: fd, credentials: 'include',
-        headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...(mine && activeSubjectId ? {'X-Subject-Id': activeSubjectId} : {}), ...(mine ? viewAsHeader('/api/professors/me/questions/image') : {})},
+        headers: {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}), ...(mine && activeSubjectId ? {'X-Subject-Id': activeSubjectId} : {}), ...(mine && activeTeacherId ? {'X-Teacher-Id': activeTeacherId} : {}), ...(mine ? viewAsHeader('/api/professors/me/questions/image') : {})},
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw {detail: data.detail || 'تعذّر رفع الصورة'};
@@ -4329,25 +4364,122 @@
 
   function invalidateProfDashboard(){ profDashboard = null; }
 
+
+  // ---------- "where does this go": college -> university -> department -> stage -> subject, inside the upload page ----------
+  let W = null;
+  const WSEL = 'width:100%; padding:10px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--glass-border); background:var(--glass-bg-strong); color:var(--ink); font:inherit;';
+  const wUniq = (arr, f) => { const m = new Map(); arr.forEach(x => { const v = f(x); if (v && !m.has(v.id)) m.set(v.id, v); }); return [...m.values()]; };
+  function whereFieldHtml(f){
+    W = {mode: f.mode, subs: f.subs || [], teachers: f.teachers || [], subject: f.subject || '', teacher: f.teacher || '', newName: '', pick: {sec: '', uni: '', dept: '', stage: ''}};
+    const s = W.mode === 'platform' ? W.subs.find(x => x.id === W.subject) : null;
+    if (s) W.pick = {sec: s.section && s.section.id || '', uni: s.university && s.university.id || '', dept: s.department && s.department.id || '', stage: s.stage && s.stage.id || ''};
+    return `<div id="gm_${f.id}">${whereInner()}</div>`;
+  }
+  function whereSelect(label, key, opts, cur, locked){
+    return `<label style="display:flex; flex-direction:column; gap:4px; font-size:.78rem; font-weight:700; margin-bottom:10px;">${label}
+      <select style="${WSEL}${locked ? ' opacity:.5;' : ''}" ${locked ? 'disabled' : ''} onchange="whereSet('${key}', this.value)"><option value="">اختر…</option>${opts.map(o => `<option value="${esc(o.id)}" ${o.id === cur ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>`;
+  }
+  function whereInner(){
+    const c = W; let h = '';
+    h += '<div style="font-weight:800; margin-bottom:8px;">📍 وين تريد تنشر الملزمة؟</div>';
+    if (c.mode === 'platform'){
+      let pool = c.subs, open = true;   // each level only opens once the one before it is chosen
+      [['sec', x => x.section, '① نوع الكلية'], ['uni', x => x.university, '② الجامعة'], ['dept', x => x.department, '③ القسم'], ['stage', x => x.stage, '④ المرحلة']].forEach(([k, get, label]) => {
+        const opts = open ? wUniq(pool, get) : [];
+        if (open && !c.pick[k] && opts.length === 1) c.pick[k] = opts[0].id;
+        h += whereSelect(label, k, opts, c.pick[k], !open);
+        if (open && c.pick[k]) pool = pool.filter(x => get(x) && get(x).id === c.pick[k]); else open = false;
+      });
+      const so = open ? pool.map(x => ({id: x.id, name: x.name})) : [];
+      if (open && !c.subject && so.length === 1) c.subject = so[0].id;
+      h += whereSelect('⑤ المادة', 'subject', so, c.subject, !open);
+      h += '<div class="cell-sub" style="margin-bottom:8px;">تظهر الملزمة للطلاب باسم المنصة.</div>';
+    } else {
+      if (!c.subject && c.subs.length === 1) c.subject = c.subs[0].id;
+      h += whereSelect('المادة', 'subject', c.subs, c.subject, false);
+    }
+    if (c.mode === 'rep'){
+      h += `<label style="display:flex; flex-direction:column; gap:4px; font-size:.78rem; font-weight:700; margin-bottom:10px;">النشر باسم
+        <select style="${WSEL}" onchange="whereSet('teacher', this.value)"><option value="">باسمي (ممثل الدفعة)</option>
+        ${c.teachers.map(t => `<option value="${esc(t.id)}" ${t.id === c.teacher ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+        <option value="__new__" ${c.teacher === '__new__' ? 'selected' : ''}>＋ دكتور جديد…</option></select></label>`;
+      if (c.teacher === '__new__') h += `<input type="text" style="${WSEL} margin-bottom:10px;" placeholder="اسم الدكتور (مثال: د. أحمد الجبوري)" value="${esc(c.newName)}" oninput="W.newName=this.value" />`;
+    }
+    return h;
+  }
+  function whereSet(k, v){
+    const order = ['sec', 'uni', 'dept', 'stage', 'subject'];
+    if (k === 'teacher') W.teacher = v;
+    else if (k === 'subject') W.subject = v;
+    else { W.pick[k] = v; order.slice(order.indexOf(k) + 1).forEach(x => { if (x === 'subject') W.subject = ''; else W.pick[x] = ''; }); }
+    document.getElementById('gm_where').innerHTML = whereInner();
+  }
+  function whereValue(){
+    return {mode: W.mode, subject: W.subject || '', teacher: W.teacher === '__new__' ? '' : (W.teacher || ''), wantsNew: W.teacher === '__new__', newName: (W.newName || '').trim()};
+  }
+  // what the upload page must ask: nothing for a doctor with one subject, the full chain for staff, subject + "publish as" for a representative
+  async function whereSpec(){
+    const staff = ['owner', 'admin', 'supervisor'].includes(currentRole);
+    const g = staff ? viewAsGroupOf(viewAsSection) : null;
+    const flat = subs => subs.map(s => ({id: s.subject_id, name: `${s.subject_name}${s.department_name ? ' — ' + s.department_name : ''}${s.stage_name ? ' — ' + s.stage_name : ''}`}));
+    if (staff && g === 'doctor' && viewAsPick.doctor === PLATFORM_PICK && platformInfo)
+      return {mode: 'platform', subs: platformInfo.subjects, subject: platformSubject};
+    if (currentRole === 'representative' || (staff && g === 'rep' && viewAsPick.rep)){
+      const [subs, teachers] = await Promise.all([apiFetch('/api/professors/me/subjects'), apiFetch('/api/professors/me/teachers')]);
+      return {mode: 'rep', subs: flat(subs), teachers, subject: activeSubjectId || '', teacher: activeTeacherId || ''};
+    }
+    if (currentRole === 'professor' || currentRole === 'assistant'){
+      const subs = mySubjects || await apiFetch('/api/professors/me/subjects');
+      if (subs.length > 1) return {mode: 'flat', subs: flat(subs), subject: activeSubjectId || subs[0].subject_id};
+    }
+    return null;
+  }
+
   const BOOKLET_MAX_MB = 80;
-  function promptAddBooklet(){
+  async function promptAddBooklet(){
     if (!liveMode){ showToast('سجّل دخول حقيقي أولاً'); return; }
+    let spec = null;
+    try { spec = await whereSpec(); } catch (e) { showToast(e.detail || 'تعذّر تحميل المواد', 'error'); return; }
     openGenericModal('رفع ملزمة', [
+      ...(spec ? [{id: 'where', type: 'where', ...spec}] : []),
       {id: 'file', label: `ملف الملزمة (PDF أو صورة — حتى ${BOOKLET_MAX_MB} ميغابايت)`, type: 'file', accept: 'application/pdf,image/*',
        onchange: "(function(i){ const f = i.files[0]; const t = document.getElementById('gm_title'); if (f && t && !t.value) t.value = f.name.replace(/\\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim(); })(this)"},
       {id: 'title', label: 'عنوان الملزمة (يؤخذ من اسم الملف إن تركته)', type: 'text'},
       {id: 'pages', label: 'عدد الصفحات (يُقرأ من الـ PDF تلقائيًا إن تركته فارغًا)', type: 'number', value: ''},
     ], async (v) => {
+      const hdr = {};
+      if (spec){
+        const w = v.where;
+        if (!w.subject) throw {detail: spec.mode === 'platform' ? 'حدّد المكان كاملًا: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة' : 'اختر المادة'};
+        hdr['X-Subject-Id'] = w.subject;
+        if (spec.mode === 'rep'){
+          if (w.wantsNew && !w.newName) throw {detail: 'اكتب اسم الدكتور أو اختر النشر باسمك'};
+        }
+      }
       if (!v.file) throw {detail: 'اختر ملف الملزمة أولًا'};
       if (v.file.size > BOOKLET_MAX_MB * 1024 * 1024) throw {detail: `الملف ${(v.file.size / 1048576).toFixed(0)} ميغابايت — الحد الأقصى ${BOOKLET_MAX_MB}. اضغط الـ PDF ثم أعد الرفع.`};
       const form = new FormData();
       form.append('file', v.file); form.append('title', (v.title || '').trim()); form.append('pages', String(parseInt(v.pages, 10) || 0));
       const msgEl = document.getElementById('genericModalMsg');
-      await uploadWithProgress('/api/professors/me/booklets/with-file', form, pct => { msgEl.style.display = 'block'; msgEl.style.color = 'var(--ink-faint)'; msgEl.textContent = pct < 100 ? `جارٍ الرفع… ${pct}%` : 'اكتمل الرفع — نحفظ الملزمة…'; });
+      if (spec && spec.mode === 'rep'){
+        let tid = v.where.teacher;
+        if (v.where.wantsNew){ const t = await apiFetch('/api/professors/me/teachers', {method: 'POST', body: JSON.stringify({name: v.where.newName})}); tid = t.id; }
+        hdr['X-Teacher-Id'] = tid || '';
+        activeTeacherId = tid || '';
+      }
+      await uploadWithProgress('/api/professors/me/booklets/with-file', form, pct => { msgEl.style.display = 'block'; msgEl.style.color = 'var(--ink-faint)'; msgEl.textContent = pct < 100 ? `جارٍ الرفع… ${pct}%` : 'اكتمل الرفع — نحفظ الملزمة…'; }, hdr);
       showToast('✓ تم رفع الملزمة');
       invalidateProfDashboard();
-      loadProfessorBooklets();
-      loadProfessorOverview();
+      if (spec){
+        // show the list of the place it was just saved in, so it is right there
+        activeSubjectId = v.where.subject;
+        if (spec.mode === 'platform'){
+          platformSubject = v.where.subject; Object.assign(platPick, W.pick);
+          try { localStorage.setItem('kiur_platform_subject', platformSubject); } catch (e) {}
+          renderViewAsBar(viewAsSection);
+        } else if (spec.mode === 'rep'){ reloadRepBar(viewAsSection); }
+        else { loadProfessorBooklets(); loadProfessorOverview(); }
+      } else { loadProfessorBooklets(); loadProfessorOverview(); }
     });
   }
   async function promptEditBooklet(id){
@@ -5511,14 +5643,15 @@
   // headers every upload needs: the session, the subject the doctor / representative / platform works in, and "view as"
   function uploadHeaders(path){
     return {...(authToken ? {'Authorization': 'Bearer ' + authToken} : {}),
-            ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}), ...viewAsHeader(path)};
+            ...(activeSubjectId && path.startsWith('/api/professors/') ? {'X-Subject-Id': activeSubjectId} : {}),
+            ...(activeTeacherId && path.startsWith('/api/professors/') ? {'X-Teacher-Id': activeTeacherId} : {}), ...viewAsHeader(path)};
   }
   // multipart upload with a progress callback (percent); rejects with {detail} like apiFetch
-  function uploadWithProgress(path, formData, onProgress){
+  function uploadWithProgress(path, formData, onProgress, extraHeaders){
     return new Promise((resolve, reject) => {
       const x = new XMLHttpRequest();
       x.open('POST', API_BASE_URL + path); x.withCredentials = true;
-      const h = uploadHeaders(path); Object.keys(h).forEach(k => x.setRequestHeader(k, h[k]));
+      const h = {...uploadHeaders(path), ...(extraHeaders || {})}; Object.keys(h).forEach(k => { if (h[k]) x.setRequestHeader(k, h[k]); });
       x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(100 * e.loaded / e.total)); };
       x.onerror = () => reject({detail: 'انقطع الاتصال أثناء الرفع — تأكد من الإنترنت وأعد المحاولة'});
       x.ontimeout = () => reject({detail: 'انتهت مهلة الرفع — جرّب ملفًا أصغر أو إنترنتًا أسرع'});

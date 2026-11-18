@@ -112,6 +112,8 @@ class User(Base):
     verified_name = Column(String, nullable=True)
     verify_failed_attempts = Column(Integer, default=0)
     verify_locked_until = Column(DateTime, nullable=True)
+    # a teaching profile made by a representative in a doctor's name (no sign-in): who made it
+    created_by_id = Column(String, nullable=True, index=True)
 
     university = relationship("University", foreign_keys=[university_id])
     stage = relationship("Stage", foreign_keys=[stage_id])

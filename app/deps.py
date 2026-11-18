@@ -55,6 +55,8 @@ def get_current_user_allow_banned(
     # A doctor who teaches several subjects (possibly in different departments)
     # says which one a request is for; see professors._get_own_profile.
     user._active_subject_id = request.headers.get("x-subject-id") or None
+    # A representative may publish under a doctor's name they made (X-Teacher-Id).
+    user._active_teacher_id = request.headers.get("x-teacher-id") or None
     return user
 
 
