@@ -50,9 +50,9 @@ export function AppProvider({ children }) {
 
   const t = useCallback((key) => (dict[lang] || dict.ar)[key] || dict.ar[key] || key, [lang]);
 
-  const toast = useCallback((message) => {
+  const toast = useCallback((message, type) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts(list => [...list, { id, message }]);
+    setToasts(list => [...list, { id, message, error: type === 'error' }]);
     setTimeout(() => setToasts(list => list.filter(x => x.id !== id)), 3200);
   }, []);
 

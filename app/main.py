@@ -298,7 +298,9 @@ def serve_student_app():
 
 
 @app.api_route("/admin", methods=["GET", "HEAD"])
+@app.api_route("/admin-legacy", methods=["GET", "HEAD"])
 def serve_admin_app():
+    # "/admin-legacy" stays reachable on the beta site (where /admin is the React dashboard)
     return FileResponse(FRONTEND_DIR / "nabd-admin-dashboard.html", headers=SPA_HEADERS)
 
 

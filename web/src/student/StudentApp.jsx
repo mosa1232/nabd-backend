@@ -6,7 +6,13 @@ import { BankSelect, BankSections, BankStudy, PageHead } from './pages/Bank.jsx'
 import { Quiz, QuizSummary } from './pages/Quiz.jsx';
 import { Landing, Login, TotpVerify, CompleteProfile, SetCredentials } from './pages/Auth.jsx';
 import { Forgot, Reset } from './pages/Recover.jsx';
-import './student.css';
+import { Account, AccountEdit } from './pages/Account.jsx';
+import { Exam, ExamResult } from './pages/Exam.jsx';
+import { Review, Leaderboard, StudentProfile } from './pages/Review.jsx';
+import { Professors, Professor } from './pages/Professors.jsx';
+import { Notifications, Support } from './pages/Inbox.jsx';
+import studentCss from './student.css?inline';
+import { useStyle } from '../lib/useStyle.js';
 
 // Pages still being moved over from the old app keep working there.
 function Moving({ title }) {
@@ -36,6 +42,7 @@ function Guard() {
 }
 
 export default function StudentApp() {
+  useStyle(studentCss);   // the student stylesheet is only in the page while the student app is shown
   const { t } = useApp();
   const soon = (key) => <Moving title={t(key)} />;
   return (
@@ -56,15 +63,20 @@ export default function StudentApp() {
         <Route path="/quiz/:subjectId" element={<Quiz />} />
         <Route path="/quiz-summary" element={<QuizSummary />} />
         <Route path="/anatomy" element={soon('anatomyTitle')} />
-        <Route path="/professors/*" element={soon('tileProf')} />
+        <Route path="/professors" element={<Professors />} />
+        <Route path="/professors/:id" element={<Professor />} />
+        <Route path="/exam/:examId" element={<Exam />} />
+        <Route path="/exam-result/:attemptId" element={<ExamResult />} />
+        <Route path="/students/:id" element={<StudentProfile />} />
         <Route path="/store/*" element={soon('tileStore')} />
-        <Route path="/review" element={soon('tileReview')} />
+        <Route path="/review" element={<Review />} />
         <Route path="/pearls" element={soon('pearlsTitle')} />
-        <Route path="/leaderboard" element={soon('tileLeaderboard')} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/ai/*" element={soon('aiNavTitle')} />
-        <Route path="/support" element={soon('supportTitle')} />
-        <Route path="/notifications" element={soon('notifications')} />
-        <Route path="/account/*" element={soon('accountTitle')} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/account/edit" element={<AccountEdit />} />
         <Route path="/academy/*" element={soon('tileVideo')} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

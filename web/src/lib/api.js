@@ -8,6 +8,10 @@ let onUnauthorized = null;
 export const getToken = () => token;
 export const setToken = t => { token = t || null; };
 export const setUnauthorizedHandler = fn => { onUnauthorized = fn; };
+// the dashboard adds X-Subject-Id / X-Teacher-Id / X-View-As per request path
+let headerHook = null;
+export const setHeaderHook = fn => { headerHook = fn; };
+const extraHeaders = path => (headerHook ? headerHook(path) || {} : {});
 
 export async function apiFetch(path, options = {}) {
   const res = await fetch(API_BASE_URL + path, {
@@ -16,6 +20,7 @@ export async function apiFetch(path, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...extraHeaders(path),
       ...(options.headers || {}),
     },
   });
@@ -39,3 +44,28 @@ export async function apiFetch(path, options = {}) {
 export const post = (path, body) => apiFetch(path, { method: 'POST', body: JSON.stringify(body ?? {}) });
 export const put = (path, body) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body ?? {}) });
 export const mediaUrl = u => (u ? (u.startsWith('http') ? u : API_BASE_URL + u) : '');
+
+export const del = (path) => apiFetch(path, { method: 'DELETE' });
+
+// multipart upload with a progress callback (percent); rejects with {detail, status} like apiFetch
+export function upload(path, formData, onProgress, extra) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', API_BASE_URL + path);
+    x.withCredentials = true;
+    const h = { ...(token ? { Authorization: 'Bearer ' + token } : {}), ...extraHeaders(path), ...(extra || {}) };
+    Object.keys(h).forEach(k => { if (h[k]) x.setRequestHeader(k, h[k]); });
+    x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(100 * e.loaded / e.total)); };
+    x.onerror = () => reject({ detail: 'انقطع الاتصال أثناء الرفع — تأكد من الإنترنت وأعد المحاولة' });
+    x.ontimeout = () => reject({ detail: 'انتهت مهلة الرفع — جرّب ملفًا أصغر أو إنترنتًا أسرع' });
+    x.onload = () => {
+      let data = null; try { data = JSON.parse(x.responseText); } catch { /* not JSON */ }
+      if (x.status >= 200 && x.status < 300) return resolve(data);
+      if (x.status === 401 && token && onUnauthorized) { token = null; onUnauthorized(''); }
+      const detail = data && typeof data.detail === 'string' ? data.detail
+        : x.status === 413 ? 'الملف كبير جدًا' : x.status >= 500 ? 'خطأ في الخادم — حاول مرة أخرى بعد قليل' : 'تعذّر الرفع';
+      reject({ detail, status: x.status });
+    };
+    x.send(formData);
+  });
+}

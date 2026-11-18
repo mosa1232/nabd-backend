@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { aiPage } from '../aiContext.js';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../lib/app.jsx';
 import { apiFetch, post, mediaUrl } from '../../lib/api.js';
@@ -47,6 +48,12 @@ export function Quiz() {
   const total = qs ? qs.length : 0;
   const q = qs && qs[qi];
   const done = q ? picked[q.id] : null;
+  useEffect(() => {
+    aiPage.set(q ? `سؤال من بنك الأسئلة يراه الطالب الآن:
+${q.text}
+${(q.choices || []).map((c, i) => `${i + 1}) ${c.text}`).join('\n')}` : '');
+    return () => aiPage.set('');
+  }, [q]);
 
   const finish = () => {
     const ok = log.current.filter(x => x.correct).length;

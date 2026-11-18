@@ -28,8 +28,8 @@
 # ---------------------------------------------------------------------------
 # beta.<domain>: the React rebuild of the platform (built into web/dist and
 # committed, so the server needs no Node). API paths go to the same backend as
-# the main site; /admin still serves the current dashboard until its React
-# version replaces it. Everything else is the single-page app.
+# the main site; /admin is the React dashboard (the current one stays at
+# /admin-legacy until every section is ported). Everything else is the SPA.
 # ---------------------------------------------------------------------------
 {$BETA_DOMAIN::8081} {
 	encode zstd gzip
@@ -47,7 +47,7 @@
 		-Server
 	}
 
-	@backend path /api/* /auth/* /media-files/* /static/* /health /favicon.ico /admin /admin/*
+	@backend path /api/* /auth/* /media-files/* /static/* /health /favicon.ico /admin-legacy
 	handle @backend {
 		reverse_proxy app:8000 {
 			lb_try_duration 10s

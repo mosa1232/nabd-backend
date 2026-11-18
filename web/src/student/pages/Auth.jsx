@@ -82,7 +82,7 @@ export function Login({ register = false }) {
 }
 
 // six boxes that mirror one code; paste/autofill spreads across them
-function OtpBoxes({ value, onChange, onComplete }) {
+export function OtpBoxes({ value, onChange, onComplete }) {
   const refs = useRef([]);
   const digits = Array.from({ length: 6 }, (_, i) => value[i] || '');
   const set = (arr) => { const code = arr.join(''); onChange(code); if (/^\d{6}$/.test(code)) onComplete?.(code); };
@@ -161,7 +161,7 @@ export function SetCredentials() {
   );
 }
 
-const deptName = st => st.department_name || 'القسم العام';
+export const deptName = st => st.department_name || 'القسم العام';
 
 export function CompleteProfile() {
   const { t, user, setUser, toast, booted } = useApp();
