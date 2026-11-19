@@ -106,8 +106,9 @@ export function Anatomy() {
       try { THREE = await ensureThree(); } catch { setLoading('fail'); return; }
       if (dead || !stageRef.current) return;
       const stage = stageRef.current;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const lowEnd = matchMedia('(pointer:coarse)').matches || innerWidth < 800;   // phones: no antialiasing, lower resolution
+      const renderer = new THREE.WebGLRenderer({ antialias: !lowEnd, alpha: false, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowEnd ? 1.5 : 2));
       renderer.setClearColor(0x10131c, 1);
       stage.appendChild(renderer.domElement);
       const scene = new THREE.Scene();
@@ -117,7 +118,7 @@ export function Anatomy() {
       const controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true; controls.dampingFactor = 0.09;
       controls.rotateSpeed = 0.8; controls.zoomSpeed = 0.9; controls.panSpeed = 0.7; controls.screenSpacePanning = true; controls.autoRotateSpeed = 1.6;
-      const v = { renderer, scene, camera, controls, obj: null, running: true, home: null, zoomTo: null, marker: null, hl: null };
+      const v = { renderer, scene, camera, controls, obj: null, running: true, home: null, zoomTo: null, marker: null, hl: null, active: performance.now(), idle: 0 };
       const resize = () => { const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); };
       v.resize = resize; mv.current = v;
       window.addEventListener('resize', resize);
@@ -137,7 +138,12 @@ export function Anatomy() {
           if (want.pos) { v.camera.position.lerp(want.pos, k); c.target.lerp(new THREEv.Vector3(), k); if (v.camera.position.distanceTo(want.pos) < want.dist * 0.004) { v.camera.position.copy(want.pos); c.target.set(0, 0, 0); v.zoomTo = null; } }
           else { const d = vec.length(), nd = d + (want.d - d) * k; vec.setLength(nd); v.camera.position.copy(tgt).add(vec); if (Math.abs(want.d - d) < want.d * 0.004) v.zoomTo = null; }
         }
-        v.controls.update(); v.renderer.render(v.scene, v.camera); v.raf = requestAnimationFrame(loop);
+        const moved = v.controls.update();
+        const now = performance.now();
+        if (moved || v.zoomTo || v.controls.autoRotate || down) v.active = now;
+        // while nothing moves, redraw only ~10 times a second (still catches highlights and loaded parts) instead of 60
+        if (now - (v.active || 0) < 1500 || ++v.idle % 6 === 0) v.renderer.render(v.scene, v.camera);
+        v.raf = requestAnimationFrame(loop);
       };
       resize(); loop();
       v.cleanup = () => {

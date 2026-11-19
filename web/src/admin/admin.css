@@ -10,7 +10,7 @@
     --track:rgba(76,95,224,.14); --track-strong:rgba(76,95,224,.28);
     --radius-lg:22px; --radius-md:16px; --radius-sm:12px;
     --shadow-soft:0 18px 40px -18px var(--glass-shadow);
-    color-scheme: light;
+    color-scheme: only light;
   }
   html.dark{
     --bg-1:#0A0F1E; --bg-2:#121A33; --bg-3:#1A1030;
@@ -427,3 +427,10 @@
   .signin-brand .kiur-logo{width:46px; height:46px; border-radius:13px;}
   .lp-dock-mark .kiur-logo{width:100%; height:100%; border-radius:inherit;}
   .lp-foot-mark .kiur-logo{width:24px; height:24px; border-radius:7px;}
+
+
+/* =================== phones: no blur layers, skip off-screen rows =================== */
+@media (max-width:820px), (hover:none) and (pointer:coarse){
+  *, *::before, *::after{backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
+  .item-card, .notif-card, .stu-row, .cat-card, .media-card{content-visibility:auto; contain-intrinsic-size:auto 110px;}
+}

@@ -1,30 +1,57 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useApp } from '../lib/app.jsx';
 import Shell from './Shell.jsx';
 import Home from './pages/Home.jsx';
-import { BankSelect, BankSections, BankStudy } from './pages/Bank.jsx';
-import { Quiz, QuizSummary } from './pages/Quiz.jsx';
-import { Login, TotpVerify, CompleteProfile, SetCredentials } from './pages/Auth.jsx';
-import { Forgot, Reset } from './pages/Recover.jsx';
-import { Account, AccountEdit } from './pages/Account.jsx';
-import { Exam, ExamResult } from './pages/Exam.jsx';
-import { Review, Leaderboard, StudentProfile } from './pages/Review.jsx';
-import { Professors, Professor } from './pages/Professors.jsx';
-import { Notifications, Support } from './pages/Inbox.jsx';
-import { AiList, AiChat } from './pages/AI.jsx';
-import { Pearls, Summer } from './pages/Misc.jsx';
-import { Anatomy } from './pages/Anatomy.jsx';
-import { Landing } from './pages/Landing.jsx';
-import { Banned } from './pages/Banned.jsx';
-import { Academy, Course } from './pages/Academy.jsx';
-import { StoreProvider, Store, Cart, Checkout, MyOrders } from './pages/Store.jsx';
-import studentCss from './student.css?inline';
-import { useStyle } from '../lib/useStyle.js';
+import { StoreProvider } from './storeCtx.jsx';
+import { useAreaStyle } from '../lib/useStyle.js';
+
+const loadStudentCss = () => (import.meta.env.PROD ? import('./student.css?url') : import('./student.css?inline'));
+
+// Every page except the home screen is its own chunk: a phone downloads and parses only the screen it opens.
+const page = (load, name) => lazy(() => load().then(m => ({ default: m[name] })));
+const BankSelect = page(() => import('./pages/Bank.jsx'), 'BankSelect');
+const BankSections = page(() => import('./pages/Bank.jsx'), 'BankSections');
+const BankStudy = page(() => import('./pages/Bank.jsx'), 'BankStudy');
+const Quiz = page(() => import('./pages/Quiz.jsx'), 'Quiz');
+const QuizSummary = page(() => import('./pages/Quiz.jsx'), 'QuizSummary');
+const Login = page(() => import('./pages/Auth.jsx'), 'Login');
+const TotpVerify = page(() => import('./pages/Auth.jsx'), 'TotpVerify');
+const CompleteProfile = page(() => import('./pages/Auth.jsx'), 'CompleteProfile');
+const SetCredentials = page(() => import('./pages/Auth.jsx'), 'SetCredentials');
+const Forgot = page(() => import('./pages/Recover.jsx'), 'Forgot');
+const Reset = page(() => import('./pages/Recover.jsx'), 'Reset');
+const Account = page(() => import('./pages/Account.jsx'), 'Account');
+const AccountEdit = page(() => import('./pages/Account.jsx'), 'AccountEdit');
+const Exam = page(() => import('./pages/Exam.jsx'), 'Exam');
+const ExamResult = page(() => import('./pages/Exam.jsx'), 'ExamResult');
+const Review = page(() => import('./pages/Review.jsx'), 'Review');
+const Leaderboard = page(() => import('./pages/Review.jsx'), 'Leaderboard');
+const StudentProfile = page(() => import('./pages/Review.jsx'), 'StudentProfile');
+const Professors = page(() => import('./pages/Professors.jsx'), 'Professors');
+const Professor = page(() => import('./pages/Professors.jsx'), 'Professor');
+const Notifications = page(() => import('./pages/Inbox.jsx'), 'Notifications');
+const Support = page(() => import('./pages/Inbox.jsx'), 'Support');
+const AiList = page(() => import('./pages/AI.jsx'), 'AiList');
+const AiChat = page(() => import('./pages/AI.jsx'), 'AiChat');
+const Pearls = page(() => import('./pages/Misc.jsx'), 'Pearls');
+const Summer = page(() => import('./pages/Misc.jsx'), 'Summer');
+const Anatomy = page(() => import('./pages/Anatomy.jsx'), 'Anatomy');
+const Landing = page(() => import('./pages/Landing.jsx'), 'Landing');
+const Academy = page(() => import('./pages/Academy.jsx'), 'Academy');
+const Course = page(() => import('./pages/Academy.jsx'), 'Course');
+const Store = page(() => import('./pages/Store.jsx'), 'Store');
+const Cart = page(() => import('./pages/Store.jsx'), 'Cart');
+const Checkout = page(() => import('./pages/Store.jsx'), 'Checkout');
+const MyOrders = page(() => import('./pages/Store.jsx'), 'MyOrders');
+const Banned = page(() => import('./pages/Banned.jsx'), 'Banned');
+
+const Loading = () => <div className="view active"><div className="empty-row" style={{ marginTop: 80 }}>…</div></div>;
 
 function Guard() {
   const { user, booted, pending, banned } = useApp();
-  if (!booted) return <div className="view active"><div className="empty-row" style={{ marginTop: 80 }}>…</div></div>;
-  if (banned) return <Banned />;
+  if (!booted) return <Loading />;
+  if (banned) return <Suspense fallback={<Loading />}><Banned /></Suspense>;
   if (!user) {
     // remember a shared exam link so sign-in can bring the student straight back to it
     try { if (/^\/exam\/[\w-]+$/.test(location.pathname)) sessionStorage.setItem('kiur_after_login', location.pathname); } catch { /* storage blocked */ }
@@ -40,9 +67,11 @@ function Guard() {
 }
 
 export default function StudentApp() {
-  useStyle(studentCss);   // the student stylesheet is only in the page while the student app is shown
+  const styled = useAreaStyle(loadStudentCss);   // the student stylesheet is only in the page while the student app is shown
+  if (!styled) return null;
   return (
     <StoreProvider>
+    <Suspense fallback={<Loading />}>
     <Routes>
       <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
@@ -84,6 +113,7 @@ export default function StudentApp() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
     </StoreProvider>
   );
 }

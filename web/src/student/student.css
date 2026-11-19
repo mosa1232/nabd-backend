@@ -12,7 +12,7 @@
     --shadow-soft:0 18px 40px -18px var(--glass-shadow);
     --shadow-lift:0 22px 44px -18px var(--glass-shadow);
     --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:24px; --space-6:32px;
-    color-scheme: light;
+    color-scheme: only light;
   }
   html.dark{
     --bg-1:#0A0F1E; --bg-2:#121A33; --bg-3:#1A1030;
@@ -1719,3 +1719,14 @@
 
 /* React port: let the page column shrink so wide rows (anatomy chips) scroll inside themselves */
 .shell > .app{min-width:0}
+
+
+/* =================== phone performance (html.is-phone) ===================
+   Soft decorative glows are repainted on every scroll frame on a phone's GPU; they are dropped there, and the
+   long study / exam lists skip layout and paint of whatever is off screen. */
+html.is-phone .hero::after, html.is-phone .daily-card::before, html.is-phone .daily-card::after{display:none !important;}
+html.is-phone .lp-plate::after, html.is-phone .lp-gate-lines, html.is-phone .lp-gate-lines *{filter:none !important;}
+html.is-phone *{scroll-behavior:auto !important;}
+.bst-q, .item-card, .notif-card{content-visibility:auto; contain-intrinsic-size:auto 132px;}
+/* no blur layer on phones, so the surfaces that float over content must be solid or the page shows through them */
+html.is-phone .bottom-nav, html.is-phone .ai-panel{background:var(--bg-1) !important;}

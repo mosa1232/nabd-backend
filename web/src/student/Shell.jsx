@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useApp, initials } from '../lib/app.jsx';
 import { apiFetch, mediaUrl } from '../lib/api.js';
 import { Ic } from '../lib/icons.jsx';
-import { AiFab } from './pages/AI.jsx';
+// the floating assistant button loads after the screen, not before it
+const AiFab = lazy(() => import('./pages/AI.jsx').then(m => ({ default: m.AiFab })));
 
 // Which sidebar / bottom-nav item lights up for each page
 const NAV = [
@@ -123,7 +124,7 @@ export default function Shell() {
               </button>
             </div>
           </div>
-          <Outlet />
+          <Suspense fallback={<div className="view active"><div className="empty-row" style={{ marginTop: 60 }}>…</div></div>}><Outlet /></Suspense>
         </div>
       </div>
 
@@ -134,7 +135,7 @@ export default function Shell() {
           </NavLink>
         ))}
       </nav>
-      <AiFab />
+      <Suspense fallback={null}><AiFab /></Suspense>
       <Toasts toasts={toasts} />
     </>
   );

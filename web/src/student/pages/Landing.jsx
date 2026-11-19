@@ -52,6 +52,7 @@ function useLandingEngine(rootRef, go) {
       const reduced = REDUCED.matches;
       const r0 = reduced ? 1 : Math.min(1, Math.max(0, (t - .45) / 1.9));
       const reveal = 1 - Math.pow(1 - r0, 3), revealX = reveal * (W + 40);
+      const phone = W < 900;   // phones: coarser curve, no canvas shadow blur, fewer motes, ~30 fps (see frame())
       const baseY = LP.bandY, A = LP.bandH * .46, period = Math.max(240, W * .24);
       const hr = hero.getBoundingClientRect();
       const px = LP.ptr.x - hr.left, py = LP.ptr.y - hr.top;
@@ -64,7 +65,7 @@ function useLandingEngine(rootRef, go) {
       };
       const scroll = reduced ? 0 : t * 34;
       ctx.beginPath();
-      for (let x = 0; x <= Math.min(W, revealX); x += 3) {
+      for (let x = 0; x <= Math.min(W, revealX); x += phone ? 6 : 3) {
         const y = baseY - LP.bandH * .42 + LP.sm.y * 6 + yAt(x + LP.sm.x * 22, period * .37 + scroll * .6, A * .5, 1);
         x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
       }
@@ -73,7 +74,7 @@ function useLandingEngine(rootRef, go) {
       const trail = W * .5, speed = Math.max(220, W * .19);
       const head = reduced ? W * .62 : ((t * speed) % (W + trail));
       const pts = [];
-      for (let x = 0; x <= Math.min(W, revealX); x += 2) pts.push(x, baseY + yAt(x, scroll, A, 1));
+      for (let x = 0; x <= Math.min(W, revealX); x += phone ? 5 : 2) pts.push(x, baseY + yAt(x, scroll, A, 1));
       if (pts.length > 4) {
         const grad = ctx.createLinearGradient(0, 0, W, 0);
         const floor = rgba(LP.c.a, .32), lit = rgba(LP.c.dark ? LP.c.b : LP.c.a, 1);
@@ -84,7 +85,9 @@ function useLandingEngine(rootRef, go) {
         if (s1 < 1) grad.addColorStop(Math.min(1, s1 + .002), floor);
         grad.addColorStop(1, floor);
         const path = () => { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); };
-        ctx.save(); ctx.shadowColor = rgba(LP.c.b, .55); ctx.shadowBlur = 18;
+        ctx.save();
+        if (phone) { ctx.globalAlpha = .22; ctx.strokeStyle = grad; ctx.lineWidth = 7; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; path(); ctx.stroke(); ctx.globalAlpha = 1; }   // a wider faint stroke instead of shadowBlur
+        else { ctx.shadowColor = rgba(LP.c.b, .55); ctx.shadowBlur = 18; }
         ctx.strokeStyle = grad; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; path(); ctx.stroke(); ctx.restore();
         ctx.strokeStyle = grad; ctx.lineWidth = 1.1; path(); ctx.stroke();
         if (head <= Math.min(W, revealX)) {
@@ -95,8 +98,8 @@ function useLandingEngine(rootRef, go) {
         }
       }
       if (reduced) return;
-      const cap = W < 900 ? 70 : 150;
-      LP.spawnAcc += dt * (W < 900 ? 14 : 30);
+      const cap = W < 900 ? 24 : 150;
+      LP.spawnAcc += dt * (W < 900 ? 5 : 30);
       while (LP.spawnAcc > 1 && LP.motes.length < cap) {
         LP.spawnAcc -= 1;
         LP.motes.push({ x: Math.random() * W, y: H * (.35 + Math.random() * .75), vx: (Math.random() - .5) * 8, vy: -(6 + Math.random() * 18), life: 0, max: 4 + Math.random() * 6, s: 3 + Math.pow(Math.random(), 2.2) * 9, ph: Math.random() * 6.28 });
@@ -160,7 +163,9 @@ function useLandingEngine(rootRef, go) {
     const frame = now => {
       if (!LP.running) return;
       LP.raf = requestAnimationFrame(frame);
-      if (document.hidden) return;
+      if (document.hidden || LP.inView === false) return;
+      if (innerWidth < 900 && now - (LP.lastDraw || 0) < 32) return;   // ~30 fps on phones is smooth and halves the work
+      LP.lastDraw = now;
       const dt = LP.last ? Math.min((now - LP.last) / 1000, .05) : .016; LP.last = now;
       const t = (now - LP.t0) / 1000;
       LP.sm.x += (LP.ptr.cx - LP.sm.x) * .055; LP.sm.y += (LP.ptr.cy - LP.sm.y) * .055;
@@ -210,6 +215,9 @@ function useLandingEngine(rootRef, go) {
       for (const en of entries) { if (en.isIntersecting) LP.dock.forEach(d => d.el.classList.toggle('is-active', d.el.dataset.section === en.target.id)); }
     }, { rootMargin: '-45% 0px -50% 0px' });
     ['lpHero', 'lpFeatures', 'lpPearls', 'lpSummer'].forEach(id => { const el = root.querySelector('#' + id); if (el) io.observe(el); });
+    // the pulse canvas is only drawn while the hero is on screen
+    const vis = new IntersectionObserver(es => { LP.inView = es[es.length - 1].isIntersecting; });
+    vis.observe(hero);
 
     // replay the entrance every time the landing is shown
     root.classList.remove('lp-ready', 'lp-intro-done');
@@ -224,7 +232,7 @@ function useLandingEngine(rootRef, go) {
 
     return () => {
       LP.running = false; cancelAnimationFrame(LP.raf); cancelAnimationFrame(r1); clearTimeout(introTimer);
-      mo.disconnect(); ro.disconnect(); io.disconnect();
+      mo.disconnect(); ro.disconnect(); io.disconnect(); vis.disconnect();
       root.removeEventListener('click', onClick); window.removeEventListener('pointermove', onMove); document.removeEventListener('pointerleave', onLeave);
       liquidOff.forEach(f => f());
     };

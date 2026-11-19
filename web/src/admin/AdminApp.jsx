@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app.jsx';
 import { apiFetch, post } from '../lib/api.js';
-import { useStyle } from '../lib/useStyle.js';
-import adminCss from './admin.css?inline';
+import { useAreaStyle } from '../lib/useStyle.js';
+
+const loadAdminCss = () => (import.meta.env.PROD ? import('./admin.css?url') : import('./admin.css?inline'));
 import { ax, installHeaders, clearHeaders } from './state.js';
 import { ROLE_LABELS, NAV_GROUP, itemsFor, isDashboardRole, viewAsGroupOf, permsOf, VIEWAS_WORD, VIEWAS_VIEW_GROUPS } from './nav.js';
 import { Icon, DialogProvider, useDialogs } from './ui.jsx';
@@ -309,13 +310,13 @@ function Moving({ label }) {
 }
 
 export default function AdminApp() {
-  useStyle(adminCss);
+  const styled = useAreaStyle(loadAdminCss);
   const { user, booted, logout } = useApp();
   const nav = useNavigate();
   useEffect(() => { document.documentElement.lang = 'ar'; document.documentElement.dir = 'rtl'; }, []);
   // a student session found here is signed out: this dashboard is for staff only
   useEffect(() => { if (booted && user && !isDashboardRole(user.role)) logout(); }, [booted, user, logout]);
-  if (!booted) return <div className="empty-row" style={{ marginTop: 80 }}>…</div>;
+  if (!booted || !styled) return null;
   return (
     <DialogProvider>
       {user && isDashboardRole(user.role) ? <ShellRoutes nav={nav} /> : <AdminLogin />}
