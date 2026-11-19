@@ -12,18 +12,18 @@ const examIcon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 // The class representative's page: the subjects of the student's stage, then (after picking one) the booklets,
 // exams and question banks the representative published for it.
 export function Representative() {
-  const { subjectId } = useParams();
+  const { repId, subjectId } = useParams();
   const { t, toast } = useApp();
   const nav = useNavigate();
-  const [data] = useLoad(() => apiFetch('/api/professors/representative'), []);
+  const [data] = useLoad(() => apiFetch('/api/professors/representatives/' + repId), [repId]);
   const subjects = data?.subjects || [];
   const subject = subjectId ? subjects.find(s => s.subject_id === subjectId) : null;
-  const reps = data?.representatives || [];
+  const rep = data?.representative;
   const recordView = (cid) => post('/auth/me/recent-view', { content_type: 'booklet', content_id: cid }).catch(() => {});
 
   const head = (
-    <PageHead title={subject ? subject.subject_name : t('repTitle')} sub={subject ? (reps.map(r => r.name).join('، ') || '') : t('repSub')}
-      back={subject ? '/representative' : '/professors'} />
+    <PageHead title={subject ? subject.subject_name : (rep?.name || t('repTitle'))} sub={subject ? (rep?.name || '') : (rep ? t('repTitle') + (rep.scope ? ' · ' + rep.scope : '') : t('repSub'))}
+      back={subject ? '/representative/' + repId : '/professors'} />
   );
   if (data === undefined) return <div className="view active">{head}<Empty>{t('loading')}</Empty></div>;
   if (data === null || data.needs_stage) return <div className="view active">{head}<Empty>{t('repNoStage')}</Empty></div>;
@@ -79,11 +79,10 @@ export function Representative() {
   return (
     <div className="view active">
       {head}
-      {!reps.length && <Empty>{t('repNone')}</Empty>}
-      {reps.length > 0 && !subjects.length && <Empty>{t('repNoSubjects')}</Empty>}
+      {!subjects.length && <Empty>{t('repNoSubjects')}</Empty>}
       <div className="prof-list">
         {subjects.map(s => (
-          <button key={s.subject_id} className="prof-card glass" onClick={() => nav('/representative/' + s.subject_id)}>
+          <button key={s.subject_id} className="prof-card glass" onClick={() => nav('/representative/' + repId + '/' + s.subject_id)}>
             <div className="prof-avatar" style={{ background: 'linear-gradient(145deg, #4C5FE0, var(--accent-2))' }}><Ic n="bankQ" color="#fff" /></div>
             <div className="prof-info">
               <div className="prof-name">{s.subject_name}</div>

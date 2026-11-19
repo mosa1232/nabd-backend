@@ -18,11 +18,10 @@ export function Professors() {
   const { t } = useApp();
   const nav = useNavigate();
   const [list] = useLoad(loadProfessors, []);
-  const [rep] = useLoad(() => apiFetch('/api/professors/representative').catch(() => null), []);   // the class representative sits with the doctors
+  const [rep] = useLoad(() => apiFetch('/api/professors/representatives').catch(() => null), []);   // each class representative: one card, with the doctors
   const [filter, setFilter] = useState('all');
   const all = Array.isArray(list) ? list : [];
   const reps = rep && !rep.needs_stage ? rep.representatives : [];
-  const repBooklets = rep && !rep.needs_stage ? rep.subjects.reduce((n, s) => n + s.booklets.length, 0) : 0;
   const subjects = ['all', ...new Set(all.map(p => p.subject_name).filter(Boolean))];
   const shown = filter === 'all' ? all : all.filter(p => p.subject_name === filter);
   return (
@@ -32,17 +31,19 @@ export function Professors() {
         {subjects.map(s => <button key={s} className={'filter-chip' + (s === filter ? ' active' : '')} onClick={() => setFilter(s)}>{s === 'all' ? t('filterAll') : s}</button>)}
       </div>
       <div className="prof-list">
-        {reps.length > 0 && filter === 'all' && (
-          <button className="prof-card glass" onClick={() => nav('/representative')}>
-            <div className="prof-avatar" style={{ background: 'linear-gradient(145deg, #1FAE72, var(--accent-2))' }}><Ic n="user" color="#fff" /></div>
+        {filter === 'all' && reps.map(r => (
+          <button key={r.id} className="prof-card glass" onClick={() => nav('/representative/' + r.id)}>
+            <div className="prof-avatar" style={{ background: 'linear-gradient(145deg, #1FAE72, var(--accent-2))', overflow: 'hidden' }}>
+              {r.photo_url ? <img src={mediaUrl(r.photo_url)} alt={r.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(r.name)}
+            </div>
             <div className="prof-info">
-              <div className="prof-name">{t('tileRep')}</div>
-              <div className="prof-meta">{reps.map(r => r.name).join('، ')}</div>
-              <div className="prof-stats"><span>{pdfIcon}{repBooklets} ملزمة</span></div>
+              <div className="prof-name">{r.name}</div>
+              <div className="prof-meta">{t('tileRep')}{r.scope ? ' · ' + r.scope : ''}</div>
+              <div className="prof-stats"><span>{pdfIcon}{r.booklets} ملزمة</span><span>{examIcon}{r.exams} امتحان</span>{r.banks ? <span>{bankIcon}{r.banks} {r.banks === 1 ? 'بنك' : 'بنوك'}</span> : null}</div>
             </div>
             <span className="prof-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)" /></svg></span>
           </button>
-        )}
+        ))}
         {list === undefined ? <Empty>{t('loading')}</Empty> : !shown.length ? (reps.length > 0 && filter === 'all' ? null : <Empty>{t('noProfessorsYet')}</Empty>) : shown.map(p => {
           const color = COLORS[all.indexOf(p) % COLORS.length];
           return (

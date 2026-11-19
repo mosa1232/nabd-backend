@@ -93,8 +93,9 @@ export default function StudentApp() {
         <Route path="/summer" element={<Summer />} />
         <Route path="/professors" element={<Professors />} />
         <Route path="/professors/:id" element={<Professor />} />
-        <Route path="/representative" element={<Representative />} />
-        <Route path="/representative/:subjectId" element={<Representative />} />
+        <Route path="/representative/:repId" element={<Representative />} />
+        <Route path="/representative/:repId/:subjectId" element={<Representative />} />
+        <Route path="/representative" element={<Navigate to="/professors" replace />} />
         <Route path="/exam/:examId" element={<Exam />} />
         <Route path="/exam-result/:attemptId" element={<ExamResult />} />
         <Route path="/students/:id" element={<StudentProfile />} />
