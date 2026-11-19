@@ -157,13 +157,15 @@ export function Accounts() {
   const A = useAdmin();
   const { accounts, error, reload, profBy } = usePeople();
   const f = useUserForms(A, reload);
-  const [role, setRole] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(100);
+  const [role, setRole] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(100); const [openId, setOpenId] = useState(null);
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return (accounts || []).filter(a => (role === 'all' || a.role === role) && (!s || a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s) || (a.phone || '').includes(s)));
   }, [accounts, role, q]);
   if (error) return <Card>{error}</Card>;
   if (!accounts) return <Loading />;
+  const openAcct = openId && accounts.find(x => x.id === openId);
+  if (openAcct) return <AccountPage a={openAcct} back={() => setOpenId(null)} f={f} reload={reload} />;
   return (
     <>
       <div className="filter-chips" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -174,7 +176,7 @@ export function Accounts() {
         <Table head={['المستخدم', 'الهاتف', 'الدور', 'الحالة', 'التواريخ', '']} empty="لا يوجد نتائج">
           {list.slice(0, shown).map(a => (
             <tr key={a.id}>
-              <td><div className="cell-user"><div className="cell-avatar" style={{ background: 'var(--accent)' }}>{initialsOf(a.full_name)}</div><div><div className="cell-name">{a.full_name}</div><div className="cell-sub mono">{a.email}</div></div></div></td>
+              <td style={{ cursor: 'pointer' }} onClick={() => setOpenId(a.id)}><div className="cell-user"><div className="cell-avatar" style={{ background: 'var(--accent)' }}>{initialsOf(a.full_name)}</div><div><div className="cell-name">{a.full_name}</div><div className="cell-sub mono">{a.email}</div></div></div></td>
               <td className="mono" dir="ltr" style={{ textAlign: 'end' }}>{a.phone || '—'}</td>
               <td><RoleBadge role={a.role} />{a.verified_at ? <> <Badge kind="active">✓ موثّق</Badge></> : null}
                 {a.role === 'professor' && (profBy[a.id]?.subject_name ? <div className="cell-sub">{profBy[a.id].subject_name}</div>
@@ -232,3 +234,125 @@ function PeopleCards({ role, word }) {
 }
 export const Doctors = () => <PeopleCards role="professor" word="دكتور" />;
 export const Reps = () => <PeopleCards role="representative" word="ممثل" />;
+
+// ------------------------------------------------------------------ one account, in full
+const fmtDT = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z'); if (isNaN(d)) return '—';
+  return <bdi dir="ltr">{d.toLocaleDateString('en-GB')} {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</bdi>;
+};
+const fmtIQD = (n) => (n || 0).toLocaleString('en-US') + ' د.ع';
+const Row = ({ label, children, mono }) => (
+  <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--glass-border)', fontSize: '.86rem', alignItems: 'center' }}>
+    <span style={{ width: 130, color: 'var(--ink-faint)', flex: 'none' }}>{label}</span>
+    <span style={{ flex: 1, wordBreak: 'break-all', ...(mono ? { fontFamily: 'monospace', direction: 'ltr', textAlign: 'end' } : null) }}>{children}</span>
+  </div>
+);
+
+// college -> university -> department -> stage, for moving a student
+function PlacementField({ tree, value, onChange }) {
+  const [v, setV] = useState(() => {
+    const out = { sec: '', uni: value.uni || '', dept: '', stage: value.stage || '' };
+    const s0 = tree.find(s => s.unis.some(u => u.id === out.uni)); if (s0) out.sec = s0.id;
+    const u0 = s0 && s0.unis.find(u => u.id === out.uni); const st0 = u0 && u0.stages.find(x => x.id === out.stage); if (st0 && st0.dept) out.dept = st0.dept;
+    return out;
+  });
+  const set = (k, val) => { const n = { ...v, [k]: val }; if (k === 'sec') n.uni = n.dept = n.stage = ''; if (k === 'uni') n.dept = n.stage = ''; if (k === 'dept') n.stage = ''; setV(n); onChange({ uni: n.uni, stage: n.stage }); };
+  const sec = tree.find(x => x.id === v.sec); const uni = sec && sec.unis.find(x => x.id === v.uni);
+  const stages = uni ? uni.stages.filter(st => !v.dept || st.dept === v.dept) : [];
+  const Sel = ({ label, k, opts, locked }) => (
+    <><label style={{ fontSize: '.72rem', color: 'var(--ink-faint)', display: 'block', margin: '8px 0 4px' }}>{label}</label>
+      <select style={SEL} disabled={locked} value={v[k]} onChange={e => set(k, e.target.value)}><option value="">—</option>{opts.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></>
+  );
+  return <div><Sel label="الكلية" k="sec" opts={tree} /><Sel label="الجامعة" k="uni" opts={sec ? sec.unis : []} locked={!sec} /><Sel label="القسم" k="dept" opts={uni ? uni.depts : []} locked={!uni} /><Sel label="المرحلة" k="stage" opts={stages} locked={!uni} /></div>;
+}
+
+function AccountPage({ a, back, f, reload }) {
+  const A = useAdmin();
+  const owner = A.user && A.user.role === 'owner'; const adminLike = owner || (A.user && A.user.role === 'admin');
+  const ov = useData(() => apiFetch('/api/admin/users/' + a.id + '/overview').catch(() => null), [a.id, a.is_banned, a.totp_enabled]);
+  const names = useData(() => apiFetch('/api/admin/catalog').then(rows => Object.fromEntries(rows.filter(r => r.id).map(r => [r.id, r.name]))).catch(() => ({})), []);
+  const nm = (id) => (id && names.data && names.data[id]) || '—';
+  const [pw, setPw] = useState(null);
+  const o = ov.data;
+  const showPw = async () => {
+    try { const r = await apiFetch('/api/admin/users/' + a.id + '/password'); setPw(r.password || ''); } catch (e) { A.toast(e.detail || 'تعذّر الإظهار', 'error'); }
+  };
+  const copy = async (t) => { try { await navigator.clipboard.writeText(t); A.toast('نُسخت'); } catch { A.toast('تعذّر النسخ', 'error'); } };
+  const place = async () => {
+    let tree = []; try { tree = await loadScopeTree(); } catch { /* empty */ }
+    A.dialogs.form({ title: 'نقل الطالب — ' + a.full_name, fields: [{ id: 'p', type: 'custom', value: { uni: a.university_id || '', stage: a.stage_id || '' }, render: ({ value, setValue }) => <PlacementField tree={tree} value={value || {}} onChange={setValue} /> }],
+      onSubmit: async (v) => { const p = v.p || { uni: a.university_id || '', stage: a.stage_id || '' }; await put('/api/admin/users/' + a.id + '/placement', { university_id: p.uni || null, stage_id: p.stage || null }); reload(); } });
+  };
+  const heldPerms = a.role === 'admin' ? (a.effective_permissions || []).filter(x => ALL_STAFF_PERMS.includes(x)) : (a.extra_permissions || []);
+  const isStaff = ['supervisor', 'store_manager', 'admin'].includes(a.role);
+  const badges = (list) => list.length ? list.map(p => <span key={p} className="badge badge-active" style={{ margin: 2 }}>{PERM_LABELS[p] || p}</span>) : <span className="cell-sub">لا توجد</span>;
+  return (
+    <>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        <button className="btn btn-ghost" onClick={back}>→ الحسابات</button>
+        <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}><button className="btn" onClick={() => f.editUser(a)}>تعديل</button></span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+        <div className="cell-avatar" style={{ background: 'var(--accent)', width: 60, height: 60, fontSize: '1.3rem' }}>{a.photo_url ? <img src={a.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : initialsOf(a.full_name)}</div>
+        <div><div style={{ fontSize: '1.3rem', fontWeight: 800 }}>{a.full_name}</div>{(a.caption || (o && o.caption)) ? <div className="cell-sub">{a.caption || o.caption}</div> : null}
+          <div style={{ marginTop: 4 }}><RoleBadge role={a.role} /> {a.is_banned ? <Badge kind="disabled">محظور</Badge> : <Badge kind="active">نشط</Badge>}</div></div>
+      </div>
+      <div className="acct-cols">
+        <div className="acct-col">
+          <Card title="البيانات الشخصية" style={{ marginBottom: 14 }}>
+            <Row label="الاسم الكامل">{a.full_name}</Row><Row label="البريد الإلكتروني" mono>{a.email}</Row>
+            <Row label="اسم المستخدم (للدخول)" mono={!!a.username}>{a.username || <span className="cell-sub">غير محدد</span>}</Row>
+            <Row label="رقم الهاتف" mono={!!a.phone}>{a.phone || 'لم يُدخل'}</Row><Row label="الدور">{ROLE_NAME[a.role] || a.role}</Row>
+          </Card>
+          {a.role === 'student' && <Card title="الدراسة" actions={<SmallBtn onClick={place}>نقل / تعديل</SmallBtn>} style={{ marginBottom: 14 }}>
+            <Row label="الكلية">{nm(a.section_id)}</Row><Row label="الجامعة">{nm(a.university_id)}</Row><Row label="المرحلة">{a.is_graduate ? 'متخرج' : nm(a.stage_id)}</Row>
+          </Card>}
+          {a.role === 'assistant' && <Card title="العمل" style={{ marginBottom: 14 }}><Row label="يعمل مع الدكتور">{(names.data && names.data[a.parent_user_id]) || a.parent_user_id || '—'}</Row></Card>}
+          {a.role === 'reseller' && <Card title="المندوب" style={{ marginBottom: 14 }}>
+            <Row label="حصة الأكواد">{a.code_quota == null ? 'بلا حد' : a.code_quota}</Row><Row label="الصلاحيات">{badges(a.extra_permissions || [])}</Row>
+            <div style={{ marginTop: 12 }}><button className="btn btn-ghost" onClick={() => A.go('resellers')}>فتح صفحة المندوب (الأكواد والتوليد)</button></div></Card>}
+          {a.role === 'representative' && <Card title="نطاق الممثل" style={{ marginBottom: 14 }}>
+            <Row label="يمثّل">{nm(a.scope_university_id)}</Row><Row label="القسم">{a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام'}</Row><Row label="المرحلة">{a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'}</Row></Card>}
+          {isStaff && <Card title={a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية'} style={{ marginBottom: 14 }}>{badges(heldPerms)}</Card>}
+          {o && o.teaches && o.teaches.length > 0 && <Card title="المواد التي يدرّسها" style={{ marginBottom: 14 }}>{o.teaches.map((t, i) => <span key={i} className="cat-chip">{t.subject}</span>)}</Card>}
+        </div>
+        <div className="acct-col">
+          <Card title="الحساب والأمان" style={{ marginBottom: 14 }}>
+            <Row label="كلمة المرور">{a.has_password ? <>معيّنة{a.password_changed_at ? <> — آخر تغيير {fmtDT(a.password_changed_at)}</> : null}</> : 'غير معيّنة (يدخل عبر Google)'}
+              {adminLike && a.has_password && <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <SmallBtn onClick={showPw}>إظهار كلمة المرور</SmallBtn>
+                {pw != null && (pw ? <><span className="mono" dir="ltr" style={{ fontSize: '1.05rem', fontWeight: 800, userSelect: 'all' }}>{pw}</span><SmallBtn onClick={() => copy(pw)}>نسخ</SmallBtn></>
+                  : <span className="cell-sub">غير متوفرة بعد — تظهر بعد أن يسجّل دخوله مرة أخرى أو تعيّن له كلمة جديدة من «تعديل».</span>)}</div>}</Row>
+            {o && <Row label="ربط Google">{o.has_google ? 'مربوط' : 'غير مربوط'}</Row>}
+            <Row label="التحقق بخطوتين">{a.totp_enabled ? 'مفعّل' : 'غير مفعّل'}</Row>
+            <Row label="الحالة">{a.is_banned ? <Badge kind="disabled">محظور</Badge> : <Badge kind="active">نشط</Badge>}</Row>
+            {a.role === 'student' && <Row label="التوثيق">{a.verified_at ? <>موثّق باسم «{a.verified_name || ''}» — {fmtDT(a.verified_at)}</> : 'غير موثّق'}</Row>}
+            <Row label="تاريخ الانضمام">{fmtDT(a.created_at)}</Row><Row label="آخر دخول">{fmtDT(a.last_login)}</Row>
+            {o && <Row label="اللغة / المظهر">{(o.language || '—') + ' / ' + (o.theme || '—')}</Row>}
+          </Card>
+          {(a.is_banned || a.totp_enabled || !['admin', 'owner'].includes(a.role)) && <Card title="إجراءات" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {a.is_banned ? <button className="btn btn-ghost" onClick={() => f.unban(a)}>رفع الحظر</button> : (['admin', 'owner'].includes(a.role) ? null : <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => f.ban(a)}>حظر</button>)}
+              {a.totp_enabled && <button className="btn btn-ghost" onClick={() => f.reset2fa(a)}>إعادة تعيين 2FA</button>}
+            </div></Card>}
+        </div>
+      </div>
+      {ov.loading && !o ? <Loading /> : o && (
+        <Card title="النشاط">
+          {a.role === 'student' && <><Row label="الأسئلة المجابة">{o.answered}{o.accuracy != null ? ` — دقة ${o.accuracy}%` : ''}</Row><Row label="الامتحانات المنجزة">{o.exams_done}{o.exam_pct != null ? ` — معدل ${o.exam_pct}%` : ''}</Row></>}
+          <Row label="الطلبات">{o.orders.count} طلب — {fmtIQD(o.orders.total)}</Row>
+          <div style={{ marginTop: 10, fontWeight: 700, fontSize: '.82rem' }}>الاشتراكات</div>
+          {o.subscriptions.length ? o.subscriptions.map((s, i) => <div className="activity-row" key={i}><span className="activity-dot" /><span className="activity-text">{s.subject}</span><span className="activity-time">{s.expires_at ? 'حتى ' + fmtDate(s.expires_at) : 'بلا انتهاء'}</span></div>) : <div className="cell-sub">لا توجد اشتراكات مفعّلة</div>}
+          <div style={{ marginTop: 12, fontWeight: 700, fontSize: '.82rem' }}>الأجهزة وعناوين IP</div>
+          <div className="cell-sub" style={{ marginBottom: 8 }}>{o.devices_total} تسجيل دخول — {o.distinct_devices} جهاز مختلف — {o.distinct_ips} عنوان IP</div>
+          {o.devices.length ? o.devices.map((d, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px,1.2fr) minmax(110px,1fr) minmax(120px,1fr) 70px', gap: 10, alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--glass-border)', fontSize: '.82rem' }}>
+              <span>{d.label}</span><span style={{ textAlign: 'start', fontFamily: 'monospace' }}><bdi dir="ltr">{d.ip || '—'}</bdi></span><span>{fmtDT(d.at)}</span><span>{d.active ? <Badge kind="active">نشط</Badge> : null}</span></div>)) : <div className="cell-sub">لا يوجد</div>}
+          {o.bans.length > 0 && <><div style={{ marginTop: 12, fontWeight: 700, fontSize: '.82rem' }}>سجل الحظر</div>{o.bans.map((b, i) => <div className="activity-row" key={i}><span className="activity-dot" /><span className="activity-text">{b.reason} <span className="cell-sub">({b.status})</span></span><span className="activity-time">{fmtDate(b.at)}</span></div>)}</>}
+          {o.activity.length > 0 && <><div style={{ marginTop: 12, fontWeight: 700, fontSize: '.82rem' }}>آخر الإجراءات</div>{o.activity.map((l, i) => <div className="activity-row" key={i}><span className="activity-dot" /><span className="activity-text">{l.action}</span><span className="activity-time">{fmtDate(l.at)}</span></div>)}</>}
+        </Card>
+      )}
+    </>
+  );
+}

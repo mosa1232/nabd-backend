@@ -7,6 +7,8 @@ import { Overview as StatsOverview } from './Overview.jsx';
 import { Support, MyProfile } from './Support.jsx';
 import { RepCodes, ResellerOverview, ResellerSales, ResellerCodes } from './Codes.jsx';
 
+import { Store, Summer, Media, ImportExport, Resellers } from './Shop.jsx';
+
 // section id -> component. Anything not listed here shows the "being moved" card.
 const SECTIONS = {
   'p-overview': Overview,
@@ -34,5 +36,10 @@ const SECTIONS = {
   'r-overview': ResellerOverview,
   'r-sales': ResellerSales,
   'r-codes': ResellerCodes,
+  store: Store,
+  summer: Summer,
+  media: Media,
+  importexport: ImportExport,
+  resellers: Resellers,
 };
 export default SECTIONS;

@@ -220,10 +220,23 @@ export function Shell() {
   const isOpen = (g) => openGroups.has(g) || (items.find(i => i.id === navId) || {})._g === g || (!localStorage.getItem('kiur_nav_open') && grouped[0] === g);
   const toggleGroup = (g) => { const next = new Set(openGroups); if (isOpen(g)) next.delete(g); else next.add(g); setOpenGroups(next); try { localStorage.setItem('kiur_nav_open', JSON.stringify([...next])); } catch { /* ignore */ } };
 
+  // unread support conversations: a red badge on «الدعم» (and on its group while that is closed)
+  const [unread, setUnread] = useState(0);
+  const canSupport = permsOf(user).has('support.manage');
+  useEffect(() => {
+    if (!canSupport) return undefined;
+    let dead = false;
+    const tick = () => apiFetch('/api/admin/support/unread').then(r => { if (!dead) setUnread((r && r.threads) || 0); }).catch(() => {});
+    tick(); const t = setInterval(tick, 25000);
+    return () => { dead = true; clearInterval(t); };
+  }, [canSupport]);
+  const badgeText = unread > 99 ? '99+' : String(unread);
+
   const Section = SECTIONS[sectionId];
   const NavBtn = ({ it }) => (
     <button className={'nav-item' + (it.id === navId ? ' active' : '')} onClick={() => nav('/admin/' + it.id)}>
-      <Icon n={NAV_ICONS.includes(it.icon) ? it.icon : 'grid'} /><span>{it.label}</span></button>
+      <Icon n={NAV_ICONS.includes(it.icon) ? it.icon : 'grid'} /><span>{it.label}</span>
+      {it.id === 'support' && unread > 0 ? <span className="nav-badge">{badgeText}</span> : null}</button>
   );
   if (!navItem) return <div className="shell active"><div className="main"><div className="dash-content"><div className="dash-card glass">لا توجد صلاحيات مفعّلة لحسابك بعد — تواصل مع مسؤولك</div></div></div></div>;
 
@@ -244,7 +257,7 @@ export function Shell() {
                 const open = isOpen(g);
                 return (
                   <div key={g}>
-                    <button className={'nav-group' + (open ? '' : ' closed')} onClick={() => toggleGroup(g)}><span>{g}</span><span className="nav-g-badge" />
+                    <button className={'nav-group' + (open ? '' : ' closed')} onClick={() => toggleGroup(g)}><span>{g}</span><span className="nav-g-badge" style={unread > 0 && !open && items.some(it => it._g === g && it.id === 'support') ? { display: 'flex' } : undefined}>{unread > 0 && !open && items.some(it => it._g === g && it.id === 'support') ? badgeText : ''}</span>
                       <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></button>
                     <div className={'nav-group-body' + (open ? '' : ' closed')}>{items.filter(it => it._g === g).map(it => <NavBtn key={it.id} it={it} />)}</div>
                   </div>

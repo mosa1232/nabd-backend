@@ -75,8 +75,46 @@ export function Catalog() {
     }
     A.toast(`أُضيف ${names.length} قسم مع ${stages.length} مراحل`); reload();
   } });
+  // copy a university / department / stage (structure only) once or many times, optionally into another parent
+  const PARENT_PICK = { university: ['section', 'داخل الكلية'], department: ['university', 'داخل الجامعة'], stage: ['department', 'داخل القسم'] };
+  const duplicate = (type, id) => {
+    const row = byId[id]; if (!row) return;
+    const pk = PARENT_PICK[type]; const fields = [];
+    if (pk) {
+      const options = rows.filter(r => r.type === pk[0] && r.id).map(r => ({ value: r.id, label: r.name }));
+      const parentIdx = rows.findIndex(r => r.id === id); let parent = '';
+      for (let i = parentIdx - 1; i >= 0; i--) if (rows[i].type === pk[0]) { parent = rows[i].id; break; }
+      fields.push({ id: 'parent', label: pk[1], type: 'select', value: parent || (options[0] && options[0].value) || '', options });
+    }
+    fields.push({ id: 'names', label: 'اسم كل نسخة في سطر منفصل', type: 'textarea', rows: 7, value: `${row.name} (نسخة)` });
+    A.dialogs.form({ title: `نسخ ${TYPE_LABEL[type]}: ${row.name}`, fields, onSubmit: async (v) => {
+      const names = v.names.split('\n'); if (!names.some(n => n.trim())) throw { detail: 'اكتب اسماً واحداً على الأقل' };
+      const res = await post('/api/admin/catalog/duplicate', { type, id, new_names: names, target_parent_id: v.parent || null });
+      const bits = []; if (res.universities) bits.push(`${res.universities} جامعة`); if (res.departments) bits.push(`${res.departments} قسم`); if (res.stages) bits.push(`${res.stages} مرحلة`); if (res.subjects) bits.push(`${res.subjects} مادة`);
+      A.toast(`تم إنشاء ${res.copies.length} نسخة${bits.length ? ' — ' + bits.join(' و') : ''}` + (res.skipped.length ? ` · وتم تجاهل ${res.skipped.length} موجودة مسبقاً` : '')); reload();
+    } });
+  };
+  // paste a whole indented tree (college / university / department / stage / subject); preview first, then confirm
+  const IMPORT_EXAMPLE = 'طب بشري\n  جامعة بغداد\n    قسم التشريح\n      المرحلة الأولى\n        التشريح العام\n        الكيمياء الطبية\n      المرحلة الثانية\n        التشريح\n    قسم الفسلجة\n      المرحلة الثانية\n        الفسلجة\n  جامعة البصرة\n    قسم التشريح\n      المرحلة الأولى\n        التشريح العام';
+  const importTree = () => A.dialogs.form({
+    title: 'استيراد منهج كامل', submitLabel: 'معاينة', note: 'الصق المنهج بمسافات بادئة: كلية ← جامعة ← قسم ← مرحلة ← مادة. تظهر لك معاينة قبل أي إضافة.',
+    fields: [{ id: 'text', type: 'textarea', rows: 12, placeholder: IMPORT_EXAMPLE }],
+    onSubmit: async (v) => {
+      if (!v.text.trim()) throw { detail: 'اكتب أو الصق المنهج أولاً' };
+      const pre = await post('/api/admin/catalog/import', { text: v.text, preview: true });
+      const c = pre.created, rr = pre.reused;
+      const reused = rr.sections + rr.universities + (rr.departments || 0) + rr.stages + rr.subjects;
+      const problems = (pre.problems || []).map(p => '⚠ ' + p).join('\n');
+      if (!pre.total_created) throw { detail: 'لا يوجد شيء جديد لإنشائه' + (reused ? ` (موجود مسبقاً: ${reused})` : '') + (problems ? '\n' + problems : '') };
+      const sum = `سيُنشأ: ${c.sections} كلية، ${c.universities} جامعة، ${c.departments} قسم، ${c.stages} مرحلة، ${c.subjects} مادة` + (reused ? ` — وموجود مسبقاً: ${reused}` : '') + (problems ? '\n' + problems : '');
+      if (!await A.dialogs.confirm(sum + '\n\nتأكيد الاستيراد؟')) return;
+      const res = await post('/api/admin/catalog/import', { text: v.text, preview: false });
+      A.toast(`تم استيراد ${res.total_created} عنصر`); reload();
+    },
+  });
   const menu = (type, id) => A.dialogs.form({ title: (TYPE_LABEL[type] || '') + (byId[id] ? ': ' + byId[id].name : ''), submitLabel: 'إغلاق', fields: [{ id: 'm', type: 'custom', render: () => (
     <div><button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px', marginBottom: 10 }} onClick={() => { document.querySelector('.page-layer .page-back')?.click(); rename(type, id); }}>تعديل الاسم</button>
+      {PARENT_PICK[type] && <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px', marginBottom: 10 }} onClick={() => { document.querySelector('.page-layer .page-back')?.click(); duplicate(type, id); }}>نسخ مع كل ما تحته</button>}
       <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', padding: '14px 18px', color: 'var(--danger)' }} onClick={() => { document.querySelector('.page-layer .page-back')?.click(); remove(type, id); }}>حذف</button></div>) }], onSubmit: async () => {} });
 
   if (!tree.length) return <Card title="المناهج"><div className="empty-row">لا يوجد منهج بعد<br /><button className="btn" style={{ marginTop: 12 }} onClick={() => askAdd('root', null, 'إضافة كليات', 'طب بشري\nطب أسنان\nصيدلة')}>+ أضف أول كلية</button></div></Card>;
@@ -113,7 +151,7 @@ export function Catalog() {
       {!dept.stages.length && <div className="empty-row">اختر المراحل من الأسفل</div>}
       {missing.length > 0 && <div className="cat-presets"><span className="cat-count" style={{ alignSelf: 'center' }}>إضافة مرحلة:</span>{missing.map(n => <button key={n} onClick={() => bulk('department', dept.id, [n])}>+ {n.replace('المرحلة ', '')}</button>)}</div>}</>;
   }
-  return <Card title="المناهج" actions={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={quick}>⚡ إعداد سريع</button></div>}>{body}</Card>;
+  return <Card title="المناهج" actions={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={quick}>⚡ إعداد سريع</button><button className="btn btn-ghost" onClick={importTree}>📥 استيراد منهج</button></div>}>{body}</Card>;
 }
 
 // ------------------------------------------------------------------ students register
