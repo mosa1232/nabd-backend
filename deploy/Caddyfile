@@ -38,7 +38,13 @@
 		root * /srv/beta
 		@hashed path /assets/*
 		header @hashed Cache-Control "public, max-age=31536000, immutable"
-		header /index.html Cache-Control "no-cache"
+		# every page of the app is index.html (also for "/" and deep links): never cached, so a deploy is
+		# picked up at once and a stale copy can't point at hashed files that were replaced
+		@page not path /assets/*
+		header @page Cache-Control "no-cache"
+		header @page Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'self'"
+		header @page Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		header @page Cross-Origin-Opener-Policy "same-origin-allow-popups"
 		try_files {path} /index.html
 		file_server
 	}
