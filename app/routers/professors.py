@@ -90,7 +90,12 @@ def list_professors(db: Session = Depends(get_db), user: models.User = Depends(g
         # and the class representative has a page of their own
         stage = _student_stage(db, user)
         uni_id = user.university_id or (stage.university_id if stage else None)
-        q = q.join(models.User, models.User.id == models.ProfessorProfile.user_id).filter(models.User.role != models.Role.representative)
+        # everything a representative publishes (under their own name or under a doctor's name they added) is
+        # one profile on the representative page, so neither shows up as a separate doctor here
+        rep_ids = db.query(models.User.id).filter(models.User.role == models.Role.representative).scalar_subquery()
+        q = (q.join(models.User, models.User.id == models.ProfessorProfile.user_id)
+              .filter(models.User.role != models.Role.representative)
+              .filter(models.User.created_by_id.is_(None) | models.User.created_by_id.notin_(rep_ids)))
         if stage:
             q = q.join(models.Subject, models.Subject.id == models.ProfessorProfile.subject_id).filter(models.Subject.stage_id == stage.id)
         elif uni_id:   # no stage chosen (e.g. a graduate): the doctors of their college
@@ -128,9 +133,13 @@ def my_representative(db: Session = Depends(get_db), user: models.User = Depends
             and (not r.scope_department_id or r.scope_department_id == stage.department_id)]
     subjects = db.query(models.Subject).filter(models.Subject.stage_id == stage.id).order_by(models.Subject.name).all()
     by_subject: dict[str, dict] = {s.id: {"subject_id": s.id, "subject_name": s.name, "booklets": [], "exams": [], "banks": []} for s in subjects}
-    profs = (_profile_query(db).filter(models.ProfessorProfile.user_id.in_([r.id for r in reps] or [""]),
-                                       models.ProfessorProfile.subject_id.in_(list(by_subject) or [""])).all())
+    rep_ids = [r.id for r in reps] or [""]
+    # one profile: what the representative published as themselves, and under the names of the doctors they added
+    profs = (_profile_query(db).join(models.User, models.User.id == models.ProfessorProfile.user_id)
+             .filter(models.ProfessorProfile.user_id.in_(rep_ids) | models.User.created_by_id.in_(rep_ids),
+                     models.ProfessorProfile.subject_id.in_(list(by_subject) or [""])).all())
     ids = [p.id for p in profs]
+    via = {p.id: p.user_id not in rep_ids for p in profs}   # published under a doctor's name
     booklets = db.query(models.Booklet).filter(models.Booklet.professor_id.in_(ids or [""])).order_by(models.Booklet.created_at.desc()).all()
     exams = db.query(models.Exam).filter(models.Exam.professor_id.in_(ids or [""])).all()
     banks = _banks_of(db, ids)
@@ -138,11 +147,11 @@ def my_representative(db: Session = Depends(get_db), user: models.User = Depends
     by = {p.id: p.user.full_name for p in profs}
     for b in booklets:
         d = by_subject[sub_of[b.professor_id]]
-        d["booklets"].append({"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None, "by": by[b.professor_id]})
+        d["booklets"].append({"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None, "by": by[b.professor_id] if via[b.professor_id] else ""})
     for e in exams:
-        by_subject[sub_of[e.professor_id]]["exams"].append(schemas.ExamOut.model_validate(e).model_dump())
+        by_subject[sub_of[e.professor_id]]["exams"].append({**schemas.ExamOut.model_validate(e).model_dump(), "by": by[e.professor_id] if via[e.professor_id] else ""})
     for pid, lst in banks.items():
-        by_subject[sub_of[pid]]["banks"] += [{**b, "subject_id": sub_of[pid]} for b in lst]
+        by_subject[sub_of[pid]]["banks"] += [{**b, "subject_id": sub_of[pid], "by": by[pid] if via[pid] else ""} for b in lst]
     return {"needs_stage": False, "representatives": [{"id": r.id, "name": r.full_name, "photo_url": r.photo_url} for r in reps],
             "subjects": list(by_subject.values())}
 

@@ -42,7 +42,7 @@ export function Representative() {
             {subject.booklets.map(b => (
               <div className="item-card glass" key={b.id}>
                 <div className="item-icon pdf">{pdfIcon}</div>
-                <div className="item-body"><div className="item-title">{b.title}</div><div className="item-meta">{b.pages} {t('pagesWord')} · PDF</div></div>
+                <div className="item-body"><div className="item-title">{b.title}</div><div className="item-meta">{b.pages} {t('pagesWord')} · PDF{b.by ? ` · ${b.by}` : ''}</div></div>
                 {b.file_url
                   ? <a className="btn btn-ghost item-action" href={mediaUrl(b.file_url)} target="_blank" rel="noopener noreferrer" onClick={() => recordView(b.id)}>{t('open')}</a>
                   : <button className="btn btn-ghost item-action" style={{ opacity: .6 }} onClick={() => toast(t('noFileYet'))}>{t('open')}</button>}
@@ -55,7 +55,7 @@ export function Representative() {
             {subject.exams.map(e => (
               <div className="item-card glass" key={e.id}>
                 <div className="item-icon exam">{examIcon}</div>
-                <div className="item-body"><div className="item-title">{e.title}</div><div className="item-meta">{e.question_count} {t('questionsWord')} · {e.duration_minutes} {t('minutesWord')}</div></div>
+                <div className="item-body"><div className="item-title">{e.title}</div><div className="item-meta">{e.question_count} {t('questionsWord')} · {e.duration_minutes} {t('minutesWord')}{e.by ? ` · ${e.by}` : ''}</div></div>
                 <button className="btn item-action" onClick={() => nav('/exam/' + e.id)}>{t('start')}</button>
               </div>))}
           </div>
@@ -66,7 +66,7 @@ export function Representative() {
             {subject.banks.map(b => (
               <div className="item-card glass" key={b.id}>
                 <div className="item-icon exam">{bankIcon}</div>
-                <div className="item-body"><div className="item-title">{b.name}</div><div className="item-meta">{b.count} {t('questionsWord')} · {subject.subject_name}</div></div>
+                <div className="item-body"><div className="item-title">{b.name}</div><div className="item-meta">{b.count} {t('questionsWord')} · {subject.subject_name}{b.by ? ` · ${b.by}` : ''}</div></div>
                 <button className="btn item-action" onClick={() => nav('/bank/' + subject.subject_id + '/study/' + encodeURIComponent('bank:' + b.id), { state: { title: b.name, name: subject.subject_name } })}>{t('studyBtn')}</button>
               </div>))}
           </div>
