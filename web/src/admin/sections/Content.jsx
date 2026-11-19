@@ -379,7 +379,7 @@ export function Pearls() {
     <>
       <Card title="لمحاتي السريرية" actions={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn btn-ghost" onClick={() => setAi(true)}>✨ توليد بالذكاء الاصطناعي</button><AddBtn onClick={() => form(null)}>إضافة لمحة</AddBtn></div>}>
         <div className="item-meta" style={{ marginBottom: 12 }}>تظهر اللمحة لطلاب قسمك (الكلية) فقط. العنوان يراه الزائر قبل تسجيل الدخول، أما التفاصيل والتشخيص فلا تظهر إلا بعد الدخول.</div>
-        <Table head={['التصنيف', 'العنوان', 'التفاصيل', '']} empty="لا توجد لمحات بعد — أضف واحدة أو ولّدها بالذكاء الاصطناعي">
+        <Table search="ابحث في اللمحات..." head={['التصنيف', 'العنوان', 'التفاصيل', '']} empty="لا توجد لمحات بعد — أضف واحدة أو ولّدها بالذكاء الاصطناعي">
           {list.map(p => (
             <tr key={p.id}><td>{p.tag ? <Badge kind="active">{p.tag}</Badge> : '—'}</td><td><div className="cell-name">{p.title}</div></td>
               <td><div className="cell-sub" style={{ maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.body || '—'}</div></td>
@@ -414,7 +414,7 @@ export function Assistants() {
   return (
     <Card title="مساعدو الدكتور" actions={<AddBtn onClick={add}>إضافة مساعد</AddBtn>}>
       <div className="item-meta" style={{ marginBottom: 12 }}>أنت تنشئ حساب المساعد وتحدّد له ما يستطيع فعله داخل مادتك — ويمكنك تغيير ذلك أو حذف الحساب في أي وقت.</div>
-      <Table head={['المساعد', 'الصلاحيات', '']} empty="لا يوجد مساعدون — اضغط «إضافة مساعد»">
+      <Table search="ابحث باسم المساعد..." head={['المساعد', 'الصلاحيات', '']} empty="لا يوجد مساعدون — اضغط «إضافة مساعد»">
         {list.map(a => (
           <tr key={a.id}>
             <td><div className="cell-user"><div className="cell-avatar" style={{ background: 'var(--accent-2)' }}>{initialsOf(a.full_name)}</div><div><div className="cell-name">{a.full_name}</div><div className="cell-sub mono">{a.email}</div></div></div></td>

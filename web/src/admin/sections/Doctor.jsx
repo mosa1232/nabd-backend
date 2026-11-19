@@ -157,7 +157,7 @@ export function Booklets() {
       <StKpis items={[['الملازم', numAr(list.length)], ['مجموع الصفحات', numAr(list.reduce((a, x) => a + (x.pages || 0), 0))], ['بدون ملف مرفوع', numAr(list.filter(x => !x.file_url).length), list.some(x => !x.file_url) ? 'ارفع ملفها ليراها الطلاب' : '']]} />
       <Card title="ملازمي" actions={<AddBtn onClick={add}>رفع ملزمة جديدة</AddBtn>}>
         <input ref={input} type="file" accept="application/pdf,image/*" style={{ display: 'none' }} onChange={e => replaceFile(e.target.files[0])} />
-        <Table head={['العنوان', 'الصفحات', 'الملف', '']} empty="لا توجد ملازم بعد">
+        <Table search="ابحث في عناوين الملازم..." head={['العنوان', 'الصفحات', 'الملف', '']} empty="لا توجد ملازم بعد">
           {list.map(b => (
             <tr key={b.id}>
               <td><div className="cell-name">{b.title}</div></td><td>{b.pages}</td>
@@ -230,7 +230,7 @@ export function Exams() {
     <>
       <StKpis items={[['الامتحانات', numAr(list.length)], ['نظري', numAr(list.filter(x => x.exam_type !== 'practical').length)], ['عملي (صور)', numAr(list.filter(x => x.exam_type === 'practical').length)], ['مجموع الأسئلة', numAr(list.reduce((a, x) => a + (x.question_count || 0), 0))]]} />
       <Card title="امتحاناتي" actions={<AddBtn onClick={() => form(null)}>إنشاء امتحان</AddBtn>}>
-        <Table head={['العنوان', 'النوع', 'عدد الأسئلة', 'المدة', '']} empty="لا توجد امتحانات بعد">
+        <Table search="ابحث في عناوين الامتحانات..." head={['العنوان', 'النوع', 'عدد الأسئلة', 'المدة', '']} empty="لا توجد امتحانات بعد">
           {list.map(e => (
             <tr key={e.id}>
               <td><div className="cell-name">{e.title}</div>{e.bank_ids && e.bank_ids.length ? <div className="cell-sub">من {e.bank_ids.length} {e.bank_ids.length === 1 ? 'بنك' : 'بنوك'} محددة</div> : null}</td>
@@ -281,7 +281,7 @@ export function Courses() {
     <>
       <StKpis items={[['الكورسات', numAr(courses.length)], ['المحاضرات', numAr(allLec.length)], ['بدون فيديو', numAr(allLec.filter(l => !l.video_url).length), allLec.some(l => !l.video_url) ? 'ارفع الفيديو ليظهر للطلاب' : ''], ['المدة الكلية', ((s) => s >= 3600 ? (s / 3600).toFixed(1) + ' ساعة' : Math.round(s / 60) + ' دقيقة')(allLec.reduce((a, l) => a + (l.duration_seconds || 0), 0))]]} />
       <Card title="كورساتي" style={{ marginBottom: 16 }} actions={<AddBtn onClick={() => courseForm(null)}>إضافة كورس</AddBtn>}>
-        <Table head={['العنوان', 'عدد المحاضرات', '']} empty="لا توجد كورسات بعد">
+        <Table search="ابحث في الكورسات..." head={['العنوان', 'عدد المحاضرات', '']} empty="لا توجد كورسات بعد">
           {courses.map(c => (
             <tr key={c.id}><td><div className="cell-name">{c.title}</div></td><td>{c.lectures.length}</td>
               <RowActions><SmallBtn onClick={() => setOpen(c.id)}>المحاضرات</SmallBtn><SmallBtn onClick={() => courseForm(c)}>تعديل</SmallBtn><TrashBtn label="حذف الكورس" onClick={() => delCourse(c)} /></RowActions></tr>

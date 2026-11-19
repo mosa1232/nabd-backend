@@ -3,6 +3,7 @@ import { apiFetch } from '../../lib/api.js';
 import { useAdmin } from '../ctx.js';
 import { ALL_STAFF_PERMS, PERM_LABELS } from '../nav.js';
 import { Card, Loading, Badge, numAr, useData } from '../ui.jsx';
+import { useUserForms, FIND_WORD } from './People.jsx';
 
 const ROLE_NAME = { owner: 'المالك', admin: 'أدمن (مدير المنصة)', supervisor: 'مشرف', store_manager: 'مدير المتجر', professor: 'دكتور', assistant: 'مساعد دكتور', reseller: 'مندوب', representative: 'ممثل عام', student: 'طالب' };
 const ROLE_DESC = {
@@ -21,9 +22,9 @@ const initialsOf = (n) => (n || '').trim().split(/\s+/).map(w => w[0]).slice(0, 
 const RoleBadge = ({ role }) => <span className={'badge badge-' + role}>{ROLE_NAME[role] || role}</span>;
 const fmtDT = (iso) => (iso ? new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + 'Z').toLocaleString('ar-IQ', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
-function PersonCard({ a, sub }) {
+function PersonCard({ a, sub, onOpen }) {
   return (
-    <div className="cat-card">
+    <div className="cat-card" onClick={onOpen}>
       <div className="cat-avatar">{initialsOf(a.full_name)}</div>
       <div className="cat-card-name">{a.full_name}</div>
       <div className="cat-card-sub" dir="auto">{sub !== undefined ? sub : (a.caption || a.email)}</div>
@@ -33,7 +34,9 @@ function PersonCard({ a, sub }) {
 }
 
 export function Roles() {
-  const { data: accounts } = useData(() => apiFetch('/api/admin/users'), []);
+  const A = useAdmin();
+  const { data: accounts, reload } = useData(() => apiFetch('/api/admin/users'), []);
+  const f = useUserForms(A, reload);
   const { data: roles } = useData(() => apiFetch('/api/admin/roles').catch(() => []), []);
   const [open, setOpen] = useState(null);
   if (!accounts || !roles) return <Loading />;
@@ -55,12 +58,12 @@ export function Roles() {
   return (
     <Card>
       <button className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={() => setOpen(null)}>→ الأدوار</button>
-      <div className="cat-title2">{ROLE_NAME[open]}</div>
+      <div className="cat-title2" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{ROLE_NAME[open]}{FIND_WORD[open] && <button className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => f.addUser(open)}>+ إضافة</button>}</div>
       <div className="item-meta" style={{ marginBottom: 12, lineHeight: 1.8 }}>{ROLE_DESC[open]}</div>
       <div style={{ fontWeight: 800, fontSize: '.84rem', marginBottom: 6 }}>الصلاحيات الافتراضية</div>
       <div style={{ marginBottom: 18 }}>{info.permissions.length ? info.permissions.map(p => <span key={p} className="badge badge-active" style={{ margin: 2 }}>{PERM_LABELS[p] || p}</span>) : <span className="cell-sub">لا صلاحيات افتراضية — تُمنح لكل حساب على حدة</span>}</div>
       <div style={{ fontWeight: 800, fontSize: '.84rem', marginBottom: 8 }}>الحسابات ({numAr(members.length)})</div>
-      <div className="cat-grid">{members.slice(0, 200).map(a => <PersonCard key={a.id} a={a} />)}{!members.length && <div className="empty-row">لا توجد حسابات بهذا الدور</div>}</div>
+      <div className="cat-grid">{members.slice(0, 200).map(a => <PersonCard key={a.id} a={a} onOpen={() => A.go('accounts?open=' + a.id + '&from=roles')} />)}{!members.length && <div className="empty-row">لا توجد حسابات بهذا الدور</div>}</div>
       {members.length > 200 && <div className="cell-sub">يُعرض أول 200 فقط — استخدم صفحة الحسابات للبحث.</div>}
     </Card>
   );
@@ -73,17 +76,19 @@ function permSummary(a) {
   return held.length ? `${held.length} من ${ALL_STAFF_PERMS.length} صلاحيات` : 'بدون صلاحيات';
 }
 export function Admins() {
-  const { data: accounts } = useData(() => apiFetch('/api/admin/users'), []);
+  const A = useAdmin();
+  const { data: accounts, reload } = useData(() => apiFetch('/api/admin/users'), []);
+  const f = useUserForms(A, reload);
   const [q, setQ] = useState('');
   if (!accounts) return <Loading />;
   const s = q.trim().toLowerCase();
   const groups = [['owner', 'المالك'], ['admin', 'الأدمن'], ['supervisor', 'المشرف'], ['store_manager', 'مدراء المتجر']];
   const out = groups.map(([role, title]) => {
     const list = accounts.filter(a => a.role === role && (!s || a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s)));
-    return list.length ? <div key={role}><div style={{ fontWeight: 800, margin: '6px 0 10px' }}>{title} <span className="cell-sub">· {numAr(list.length)}</span></div><div className="cat-grid">{list.map(a => <PersonCard key={a.id} a={a} sub={permSummary(a)} />)}</div></div> : null;
+    return list.length ? <div key={role}><div style={{ fontWeight: 800, margin: '6px 0 10px' }}>{title} <span className="cell-sub">· {numAr(list.length)}</span></div><div className="cat-grid">{list.map(a => <PersonCard key={a.id} a={a} sub={permSummary(a)} onOpen={() => A.go('accounts?open=' + a.id + '&from=admins')} />)}</div></div> : null;
   }).filter(Boolean);
   return (
-    <Card title="الأدمنية">
+    <Card title="الأدمنية" actions={<span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button className="btn" onClick={() => f.addUser('admin')}>+ أدمن</button><button className="btn btn-ghost" onClick={() => f.addUser('supervisor')}>+ مشرف</button><button className="btn btn-ghost" onClick={() => f.addUser('store_manager')}>+ مدير متجر</button></span>}>
       <div className="ops-filters"><input type="text" className="q" placeholder="ابحث بالاسم أو البريد..." value={q} onChange={e => setQ(e.target.value)} /></div>
       {out.length ? out : <div className="empty-row">لا توجد نتائج</div>}
     </Card>

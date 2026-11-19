@@ -3,6 +3,7 @@ import { apiFetch, post, put, del, upload, getToken, mediaUrl } from '../../lib/
 import { useAdmin } from '../ctx.js';
 import { PERM_LABELS } from '../nav.js';
 import { Card, AddBtn, StKpis, Table, Badge, SmallBtn, TrashBtn, Loading, numAr, useData } from '../ui.jsx';
+import { findAccountFlow } from './People.jsx';
 
 // store, summer training, files, import/export and resellers management
 const fmtIQD = (n) => (n || 0).toLocaleString('en-US') + ' د.ع';
@@ -392,7 +393,7 @@ function ResellerPage({ r, back, reloadList }) {
     <>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <button className="btn btn-ghost" onClick={back}>→ المندوبون</button>
-        {A.perms.has('users.manage') && <button className="btn btn-ghost" style={{ marginInlineStart: 'auto' }} onClick={() => A.go('accounts')}>صفحة الحسابات</button>}
+        {A.perms.has('users.manage') && <button className="btn btn-ghost" style={{ marginInlineStart: 'auto' }} onClick={() => A.go('accounts?open=' + r.id + '&from=resellers')}>فتح صفحة الحساب الكاملة</button>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
         <div className="cell-avatar" style={{ background: 'var(--accent)', width: 60, height: 60, fontSize: '1.3rem' }}>{initialsOf(r.full_name)}</div>
@@ -429,7 +430,8 @@ export function Resellers() {
   const { data, loading, error, reload } = useData(() => apiFetch('/api/admin/resellers'), []);
   const [open, setOpen] = useState(null); const [q, setQ] = useState('');
   const all = data || [];
-  const add = () => A.dialogs.form({
+  const add = () => (A.perms.has('users.manage') ? findAccountFlow(A, 'reseller', { reload, createNew: createForm }) : createForm());
+  const createForm = () => A.dialogs.form({
     title: 'مندوب جديد',
     fields: [
       { id: 'fullName', label: 'الاسم الكامل', type: 'text' },

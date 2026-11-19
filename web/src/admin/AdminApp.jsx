@@ -8,6 +8,7 @@ import { ax, installHeaders, clearHeaders } from './state.js';
 import { ROLE_LABELS, NAV_GROUP, itemsFor, isDashboardRole, viewAsGroupOf, permsOf, VIEWAS_WORD, VIEWAS_VIEW_GROUPS } from './nav.js';
 import { Icon, DialogProvider, useDialogs } from './ui.jsx';
 import { AdminCtx } from './ctx.js';
+import AiAssistant from './AiAssistant.jsx';
 import SECTIONS from './sections/index.jsx';
 
 const NAV_ICONS = ['grid', 'users', 'book', 'student', 'ban', 'media', 'log', 'importexport', 'pdf', 'exam', 'key', 'chat', 'bell'];
@@ -291,6 +292,7 @@ export function Shell() {
             </section>
           </div>
         </div>
+        <AiAssistant user={user} pageTitle={navItem.label} />
       </div>
     </AdminCtx.Provider>
   );

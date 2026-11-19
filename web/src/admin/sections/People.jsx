@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { apiFetch, post, put } from '../../lib/api.js';
 import { useAdmin } from '../ctx.js';
 import { ALL_STAFF_PERMS, PERM_LABELS } from '../nav.js';
@@ -65,8 +66,9 @@ function usePeople() {
   return { accounts, error, reload, profBy, nameBy };
 }
 
-function useUserForms(A, reload) {
-  const addUser = async (presetRole) => {
+export function useUserForms(A, reload) {
+  const addUser = async (presetRole, skipSearch) => {
+    if (!skipSearch && FIND_WORD[presetRole]) return findAccountFlow(A, presetRole, { reload, createNew: () => addUser(presetRole, true) });
     let subjects = []; let tree = []; let professors = [];
     try { subjects = await subjectOptions(); } catch { /* shown below */ }
     try { tree = await loadScopeTree(); } catch { /* only for representatives */ }
@@ -157,7 +159,10 @@ export function Accounts() {
   const A = useAdmin();
   const { accounts, error, reload, profBy } = usePeople();
   const f = useUserForms(A, reload);
-  const [role, setRole] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(100); const [openId, setOpenId] = useState(null);
+  const [role, setRole] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(100);
+  const loc = useLocation(); const qp = new URLSearchParams(loc.search); const from = qp.get('from');
+  const [openId, setOpenId] = useState(qp.get('open'));
+  useEffect(() => { setOpenId(new URLSearchParams(loc.search).get('open')); }, [loc.search]);
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return (accounts || []).filter(a => (role === 'all' || a.role === role) && (!s || a.full_name.toLowerCase().includes(s) || a.email.toLowerCase().includes(s) || (a.phone || '').includes(s)));
@@ -165,7 +170,7 @@ export function Accounts() {
   if (error) return <Card>{error}</Card>;
   if (!accounts) return <Loading />;
   const openAcct = openId && accounts.find(x => x.id === openId);
-  if (openAcct) return <AccountPage a={openAcct} back={() => setOpenId(null)} f={f} reload={reload} />;
+  if (openAcct) return <AccountPage a={openAcct} back={() => { if (from) A.go(from); else { setOpenId(null); if (qp.get('open')) A.go('accounts'); } }} backLabel={from ? '→ رجوع' : '→ الحسابات'} f={f} reload={reload} />;
   return (
     <>
       <div className="filter-chips" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -184,6 +189,7 @@ export function Accounts() {
               <td>{a.is_banned ? <Badge kind="disabled">محظور</Badge> : <Badge kind="active">نشط</Badge>}</td>
               <td><div className="cell-sub">انضم {fmtDate(a.created_at)}</div><div className="cell-sub">آخر دخول {fmtDate(a.last_login)}</div></td>
               <RowActions>
+                <SmallBtn onClick={() => setOpenId(a.id)}>التفاصيل</SmallBtn>
                 {a.totp_enabled && <SmallBtn onClick={() => f.reset2fa(a)} title="يلغي التحقق بخطوتين عن هذا الحساب">إعادة تعيين 2FA</SmallBtn>}
                 {a.is_banned ? <SmallBtn onClick={() => f.unban(a)}>رفع الحظر</SmallBtn> : <SmallBtn danger onClick={() => f.ban(a)}>حظر</SmallBtn>}
                 <SmallBtn onClick={() => f.editUser(a)}>تعديل</SmallBtn>
@@ -220,7 +226,7 @@ function PeopleCards({ role, word }) {
       <div className="ops-filters"><input type="text" className="q" placeholder={`ابحث عن ${word}...`} value={q} onChange={e => setQ(e.target.value)} /></div>
       <div className="cat-grid">
         {list.map(a => (
-          <div key={a.id} className="cat-card" onClick={() => f.editUser(a)}>
+          <div key={a.id} className="cat-card" onClick={() => A.go(`accounts?open=${a.id}&from=${role === 'professor' ? 'doctors' : 'reps'}`)}>
             <div className="cat-avatar">{a.photo_url ? <img src={a.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : initialsOf(a.full_name)}</div>
             <div className="cat-card-name">{a.full_name}</div>
             <div className="cat-card-sub">{sub(a)}</div>
@@ -267,7 +273,7 @@ function PlacementField({ tree, value, onChange }) {
   return <div><Sel label="الكلية" k="sec" opts={tree} /><Sel label="الجامعة" k="uni" opts={sec ? sec.unis : []} locked={!sec} /><Sel label="القسم" k="dept" opts={uni ? uni.depts : []} locked={!uni} /><Sel label="المرحلة" k="stage" opts={stages} locked={!uni} /></div>;
 }
 
-function AccountPage({ a, back, f, reload }) {
+function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload }) {
   const A = useAdmin();
   const owner = A.user && A.user.role === 'owner'; const adminLike = owner || (A.user && A.user.role === 'admin');
   const ov = useData(() => apiFetch('/api/admin/users/' + a.id + '/overview').catch(() => null), [a.id, a.is_banned, a.totp_enabled]);
@@ -290,7 +296,7 @@ function AccountPage({ a, back, f, reload }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost" onClick={back}>→ الحسابات</button>
+        <button className="btn btn-ghost" onClick={back}>{backLabel}</button>
         <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}><button className="btn" onClick={() => f.editUser(a)}>تعديل</button></span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
@@ -355,4 +361,79 @@ function AccountPage({ a, back, f, reload }) {
       )}
     </>
   );
+}
+
+// ------------------------------------------------------------------ add: search an existing account first
+export const FIND_WORD = { professor: 'دكتور', representative: 'ممثل', reseller: 'مندوب', admin: 'أدمن', supervisor: 'مشرف', store_manager: 'مدير متجر' };
+const SECTION_OF_ROLE = { professor: 'doctors', representative: 'reps', reseller: 'resellers', admin: 'admins', supervisor: 'admins', store_manager: 'admins' };
+
+function FindAccountList({ accounts, role, onPick, onNew }) {
+  const [q, setQ] = useState('');
+  const staff = ['admin', 'supervisor', 'store_manager'].includes(role);
+  const s = q.trim().toLowerCase();
+  const list = s ? accounts.filter(a => a.role !== role && a.role !== 'owner' && (staff || a.role !== 'admin') && [a.full_name, a.email, a.phone, a.username].some(v => (v || '').toLowerCase().includes(s))).slice(0, 30) : [];
+  return (
+    <div>
+      <input type="text" autoComplete="off" placeholder="اكتب اسم أو بريد..." value={q} onChange={e => setQ(e.target.value)} autoFocus style={{ width: '100%', marginBottom: 12 }} />
+      {!s && <div className="cell-sub" style={{ padding: '8px 2px' }}>ابدأ الكتابة لتظهر النتائج</div>}
+      {list.map(a => (
+        <div key={a.id} onClick={() => onPick(a)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', marginBottom: 8, borderRadius: 14, border: '1px solid var(--glass-border)', background: 'var(--glass-bg-strong)', cursor: 'pointer' }}>
+          <div className="cell-avatar" style={{ background: 'var(--accent)' }}>{initialsOf(a.full_name)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700 }}>{a.full_name}</div><div className="cell-sub mono" dir="ltr" style={{ textAlign: 'start' }}>{a.email}</div></div>
+          <RoleBadge role={a.role} />
+        </div>))}
+      {s && !list.length && <div className="empty-row">لا توجد حسابات مطابقة</div>}
+      <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 14 }} onClick={onNew}>لا أجده — إنشاء حساب جديد</button>
+    </div>
+  );
+}
+
+// "add a doctor / representative / reseller / admin…": first look for an account that already exists (a student who
+// signed up, say) and turn it into that role; only if there is none, create a fresh account.
+export async function findAccountFlow(A, role, { reload, createNew }) {
+  let accounts = []; try { accounts = await apiFetch('/api/admin/users'); } catch { /* shown as "no matches" */ }
+  const word = FIND_WORD[role];
+  const closeTop = () => document.querySelector('.page-layer .page-back')?.click();
+  const pick = async (a) => {
+    closeTop();
+    const common = `${a.full_name}${a.role !== 'student' ? ' — يتحول من ' + (ROLE_NAME[a.role] || a.role) : ''}`;
+    const save = async (extra, after) => {
+      await put('/api/admin/users/' + a.id, { email: a.email, full_name: a.full_name, role, ...extra });
+      if (after) await after();
+      A.toast(`صار ${a.full_name} ${word}`); reload && reload(); A.go(SECTION_OF_ROLE[role]);
+    };
+    if (role === 'professor') {
+      let subjects = []; try { subjects = await subjectOptions(); } catch { /* handled below */ }
+      if (!subjects.length) return A.toast('أضف مادة في "المناهج" أولاً', 'error');
+      A.dialogs.form({ title: 'تعيين دكتور: ' + common, fields: [
+        { id: 'subjectId', type: 'select', label: 'المادة التي يدرّسها', value: subjects[0].value, options: subjects },
+        { id: 'title', label: 'اللقب العلمي', value: 'أستاذ مساعد' }],
+      onSubmit: (v) => save({}, () => put('/api/admin/professors/' + a.id, { subject_id: v.subjectId, title: (v.title || '').trim() || 'أستاذ مساعد' })) });
+    } else if (role === 'reseller') {
+      A.dialogs.form({ title: 'تعيين مندوب: ' + common, fields: [
+        { id: 'perms', type: 'checks', label: 'ماذا يستطيع هذا المندوب أن يفعل؟', value: ['codes.view', 'codes.generate'], options: RESELLER_PERMS },
+        { id: 'quota', type: 'number', label: 'أقصى عدد أكواد يحملها (فارغ = بلا حد)', value: '' }],
+      onSubmit: (v) => save({ permissions: v.perms, code_quota: v.quota === '' ? null : parseInt(v.quota, 10) }) });
+    } else if (['admin', 'supervisor', 'store_manager'].includes(role)) {
+      const initial = role === 'admin' ? ALL_STAFF_PERMS.slice() : role === 'supervisor' ? ['dashboard.analytics', 'users.ban', 'content.manage', 'catalog.manage'] : ['store.manage', 'resellers.manage'];
+      A.dialogs.form({ title: 'تعيين ' + word + ': ' + common, fields: [
+        { id: 'perms', type: 'checks', label: role === 'admin' ? 'صلاحيات هذا الأدمن (وحدك كمالك تغيّرها لاحقًا)' : 'الصلاحيات', value: initial, options: STAFF_PERM_OPTIONS }],
+      onSubmit: (v) => save({ permissions: v.perms }) });
+    } else {
+      let tree = []; try { tree = await loadScopeTree(); } catch { /* handled below */ }
+      if (!tree.length) return A.toast('أضف كلية وجامعة في "المناهج" أولاً', 'error');
+      A.dialogs.form({ title: 'تعيين ممثل: ' + common, fields: [
+        { id: 'scope', type: 'custom', value: {}, render: ({ setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها: اختر نوع الكلية ثم الجامعة (والقسم والمرحلة اختياري)</label><ScopeField tree={tree} value={{}} onChange={setValue} /></div> }],
+      onSubmit: async (v) => {
+        const sc = v.scope || {}; if (!sc.uni) throw { detail: 'اختر نوع الكلية ثم الجامعة التي يمثّلها' };
+        await save({ scope_university_id: sc.uni, scope_department_id: sc.dept || null, scope_stage_id: sc.stage || null });
+      } });
+    }
+  };
+  A.dialogs.form({
+    title: 'إضافة ' + word, submitLabel: 'إغلاق',
+    note: `ابحث عن حساب موجود (طالب سجّل بالمنصة مثلًا) بالاسم أو البريد أو الهاتف أو اسم المستخدم، واختره ليصير ${word}.`,
+    fields: [{ id: 'f', type: 'custom', render: () => <FindAccountList accounts={accounts} role={role} onPick={pick} onNew={() => { closeTop(); createNew(); }} /> }],
+    onSubmit: async () => {},
+  });
 }

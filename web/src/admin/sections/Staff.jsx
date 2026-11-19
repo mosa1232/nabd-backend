@@ -186,7 +186,7 @@ export function Students() {
         {d && <>
           <div className="stu-row stu-head"><span>الطالب</span><span>الجامعة · المرحلة</span><span>الإجابات</span><span>الدقة</span><span>آخر ظهور</span><span>الحالة</span></div>
           {d.items.map(x => (
-            <div key={x.id} className="stu-row" onClick={() => A.go('accounts')}>
+            <div key={x.id} className="stu-row" onClick={() => (A.perms.has('users.manage') ? A.go('accounts?open=' + x.id + '&from=students') : A.toast('فتح صفحة الحساب يحتاج صلاحية إدارة الحسابات'))}>
               <span style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}><span className="cell-avatar" style={{ background: 'var(--accent-2)', flex: 'none' }}>{initialsOf(x.name)}</span><span style={{ minWidth: 0 }}><b style={{ display: 'block' }}>{x.name}</b><span className="cell-sub" dir="ltr" style={{ display: 'block', textAlign: 'start', overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.email}</span></span></span>
               <span>{x.university || '—'}<span className="cell-sub" style={{ display: 'block' }}>{x.graduate ? 'متخرج' : x.stage || '—'}</span></span>
               <span className="mono">{numAr(x.answers)}</span><span><AccPill v={x.accuracy} /></span><span className="cell-sub">{ago(x.last_seen)}</span>

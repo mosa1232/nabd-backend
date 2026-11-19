@@ -43,10 +43,23 @@ export const KpiGrid = ({ items, cols }) => (
 export const StKpis = ({ items }) => (
   <div className="st-kpis">{items.map(([label, value, sub], i) => <div key={i} className="st-kpi"><div className="l">{label}</div><div className="v mono">{value}</div>{sub ? <div className="s">{sub}</div> : null}</div>)}</div>
 );
-export const Table = ({ head, children, empty, cols }) => (
-  <div className="table-wrap"><table className="dash-table"><thead><tr>{head.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
-    <tbody>{children && (Array.isArray(children) ? children.length : true) ? children : <tr><td colSpan={cols || head.length} className="empty-row">{empty || 'لا توجد بيانات'}</td></tr>}</tbody></table></div>
-);
+// `search="placeholder…"` adds a box above the table that hides the rows whose text does not match
+export function Table({ head, children, empty, cols, search }) {
+  const [q, setQ] = useState('');
+  const wrap = useRef(null);
+  useEffect(() => {
+    if (!search || !wrap.current) return;
+    const s = q.trim().toLowerCase();
+    wrap.current.querySelectorAll('tbody tr').forEach(r => { r.style.display = !s || r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+  });
+  return (
+    <>
+      {search && <div className="ops-filters"><input type="text" className="q" placeholder={search} value={q} onChange={e => setQ(e.target.value)} /></div>}
+      <div className="table-wrap" ref={wrap}><table className="dash-table"><thead><tr>{head.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+        <tbody>{children && (Array.isArray(children) ? children.length : true) ? children : <tr><td colSpan={cols || head.length} className="empty-row">{empty || 'لا توجد بيانات'}</td></tr>}</tbody></table></div>
+    </>
+  );
+}
 export const Badge = ({ kind = 'idle', children }) => <span className={'badge badge-' + kind}>{children}</span>;
 export const RowActions = ({ children }) => <td style={{ textAlign: 'end' }}><div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>{children}</div></td>;
 export const SmallBtn = ({ onClick, children, danger, title }) => <button className="btn btn-ghost" title={title} style={{ padding: '6px 14px', fontSize: '.72rem', ...(danger ? { color: 'var(--danger)' } : null) }} onClick={onClick}>{children}</button>;

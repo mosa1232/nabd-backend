@@ -58,7 +58,7 @@ export function RepCodes() {
         {msg && <div style={{ fontSize: '.8rem', marginTop: 10, color: msg.err ? 'var(--danger)' : 'var(--ink)' }}>{msg.t}</div>}
       </Card>
       <Card title="الدفعات المرفوعة">
-        <Table head={['الملف', 'المرحلة', 'الأسماء', 'وُثّق', 'التاريخ', '']} empty="لا توجد دفعات بعد — ارفع أول ملف أسماء">
+        <Table search="ابحث في الدفعات..." head={['الملف', 'المرحلة', 'الأسماء', 'وُثّق', 'التاريخ', '']} empty="لا توجد دفعات بعد — ارفع أول ملف أسماء">
           {batches.map(b => (
             <tr key={b.id}><td className="cell-name">{b.filename || '—'}</td><td>{b.stage}</td><td>{b.total}</td><td>{b.used} <span className="cell-sub">من {b.total}</span></td><td>{fmtDate(b.created_at)}</td>
               <RowActions><button className="btn" style={{ padding: '6px 12px', fontSize: '.7rem' }} onClick={() => dl('/api/rep/batches/' + b.id + '/download', 'أكواد التوثيق.xlsx')}>تنزيل Excel</button><SmallBtn onClick={() => show(b)}>عرض الأكواد</SmallBtn><SmallBtn danger onClick={() => remove(b)}>حذف</SmallBtn></RowActions></tr>
@@ -115,7 +115,7 @@ export function ResellerSales() {
   const sold = codes.filter(c => c.sold_at);
   return (
     <Card title="سجل المبيعات">
-      <Table head={['الكود', 'الحالة', 'تاريخ البيع']} empty="لا توجد أكواد مباعة بعد">
+      <Table search="ابحث بالكود..." head={['الكود', 'الحالة', 'تاريخ البيع']} empty="لا توجد أكواد مباعة بعد">
         {sold.map(c => <tr key={c.code}><td className="mono">{c.code}</td><td><Badge kind={c.status === 'active' ? 'active' : 'idle'}>{c.status === 'active' ? 'مفعّل' : 'غير مفعّل'}</Badge></td><td>{fmtDate(c.sold_at)}</td></tr>)}
       </Table>
     </Card>
@@ -144,7 +144,7 @@ export function ResellerCodes() {
       {me && <div className="item-meta" style={{ marginBottom: 10 }}>{me.code_quota == null ? `لديك ${me.codes_held} كود — بدون حد أقصى` : `لديك ${me.codes_held} كود من أصل ${me.code_quota} — المتبقي لك ${me.quota_left}`}</div>}
       {can('codes.generate') && <button className="btn" style={{ marginBottom: 12 }} onClick={take}>+ أخذ كود</button>}
       <div className="dash-card-head"><span className="dash-card-title">الأكواد</span></div>
-      <Table head={['الكود', 'المادة', 'الحالة', 'تاريخ البيع']} empty={can('codes.view') ? 'لا توجد أكواد بعد — اضغط "أخذ كود"' : 'لا تملك صلاحية عرض الأكواد — يمكنك فقط أخذ أكواد جديدة'}>
+      <Table search="ابحث بالكود أو المادة..." head={['الكود', 'المادة', 'الحالة', 'تاريخ البيع']} empty={can('codes.view') ? 'لا توجد أكواد بعد — اضغط "أخذ كود"' : 'لا تملك صلاحية عرض الأكواد — يمكنك فقط أخذ أكواد جديدة'}>
         {codes.map(c => <tr key={c.code}><td className="mono">{c.code}</td><td>{c.subject_name}</td><td><Badge kind={c.status === 'idle' ? 'idle' : c.status === 'active' ? 'active' : 'disabled'}>{label[c.status] || c.status}</Badge></td><td>{c.sold_at ? fmtDate(c.sold_at) : '—'}</td></tr>)}
       </Table>
     </Card>
