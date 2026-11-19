@@ -67,6 +67,21 @@
 	import react_site
 }
 
+# One address per language: the same React app; the address decides the language
+# (kiur.online = Arabic, en.kiur.online = English, ku.kiur.online = Kurdish).
+# Set LANG_DOMAINS in .env to "en.kiur.online, ku.kiur.online, ar.kiur.online" once their DNS records
+# point at this server; left unset, nothing extra is served.
+{$LANG_DOMAINS::8082} {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	import react_site
+}
+
 # beta.<domain>: the same React app, kept out of search engines. Leave
 # BETA_DOMAIN unset to keep it internal-only (:8081).
 {$BETA_DOMAIN::8081} {

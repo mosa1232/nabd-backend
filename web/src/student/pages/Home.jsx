@@ -158,7 +158,7 @@ export default function Home() {
   const acc = stats?.accuracy_pct;
 
   return (
-    <div className="view active">
+    <div className="view active" id="view-home">   {/* the id the home-screen styles hang on */}
       <div className="home-main">
         <div className="hero glass">
           <div className="hero-top">

@@ -3,12 +3,16 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AppProvider } from './lib/app.jsx';
 import StudentApp from './student/StudentApp.jsx';
+import { initialLang, loadLang, applyLangToPage } from './i18n/index.js';
 
 // the dashboard is a separate chunk: students never download it
 const AdminApp = lazy(() => import('./admin/AdminApp.jsx').then(m => ({ default: m.default })));
 const AdminShell = lazy(() => import('./admin/AdminApp.jsx').then(m => ({ default: m.default })));
 
-createRoot(document.getElementById('root')).render(
+// the strings of the language being shown load first (a small file for that language only), so nothing flashes untranslated
+const lang = initialLang();
+applyLangToPage(lang);
+loadLang(lang).catch(() => {}).then(() => createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppProvider>
@@ -22,4 +26,4 @@ createRoot(document.getElementById('root')).render(
       </AppProvider>
     </BrowserRouter>
   </React.StrictMode>,
-);
+));

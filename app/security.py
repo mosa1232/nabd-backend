@@ -103,6 +103,11 @@ SESSION_COOKIE_PATH = "/auth/session"
 
 
 def set_session_cookie(response, token: str) -> None:
+    domain = settings.session_cookie_domain or None
+    if domain:
+        # drop the old host-only copy so it can't shadow the shared one
+        response.delete_cookie(key=settings.session_cookie_name, httponly=True, samesite="lax",
+                               secure=not settings.debug, path=SESSION_COOKIE_PATH)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=token,
@@ -111,17 +116,21 @@ def set_session_cookie(response, token: str) -> None:
         samesite="lax",
         secure=not settings.debug,  # plain http on localhost during dev
         path=SESSION_COOKIE_PATH,
+        domain=domain,
     )
 
 
 def clear_session_cookie(response) -> None:
-    response.delete_cookie(
-        key=settings.session_cookie_name,
-        httponly=True,
-        samesite="lax",
-        secure=not settings.debug,
-        path=SESSION_COOKIE_PATH,
-    )
+    domain = settings.session_cookie_domain or None
+    for d in {None, domain}:   # the host-only copy and the shared one
+        response.delete_cookie(
+            key=settings.session_cookie_name,
+            httponly=True,
+            samesite="lax",
+            secure=not settings.debug,
+            path=SESSION_COOKIE_PATH,
+            domain=d,
+        )
 
 
 def decode_access_token(token: str) -> dict | None:

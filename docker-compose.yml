@@ -47,6 +47,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-:80}
       BETA_DOMAIN: ${BETA_DOMAIN:-:8081}
+      LANG_DOMAINS: ${LANG_DOMAINS:-:8082}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web/dist:/srv/beta:ro      # the React app (built with: cd web; npm run build)

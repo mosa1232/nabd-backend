@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, post, put, setToken, getToken, setUnauthorizedHandler } from './api.js';
-import { dict } from '../i18n/dict.js';
+import { loadLang, translate, hostLang, langUrl, initialLang, applyLangToPage } from '../i18n/index.js';
 
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
@@ -21,7 +21,7 @@ export function AppProvider({ children }) {
   const [user, setUserState] = useState(null);
   const [booted, setBooted] = useState(false);
   const [banned, setBanned] = useState(false);   // a valid token whose account is banned: only the appeal screen is reachable
-  const [lang, setLangState] = useState(() => { try { return localStorage.getItem('kiur_lang') || 'ar'; } catch { return 'ar'; } });
+  const [lang, setLangState] = useState(initialLang);   // its strings file is loaded before the app is drawn (main.jsx)
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('kiur_dark') === '1'; } catch { return false; } });
   const [device, setDevice] = useState(detectDevice);
   const [toasts, setToasts] = useState([]);
@@ -29,10 +29,8 @@ export function AppProvider({ children }) {
 
   // ---- language / theme / device -> <html>
   useEffect(() => {
-    const rtl = lang !== 'en';
-    document.documentElement.dir = rtl ? 'rtl' : 'ltr';
-    document.documentElement.lang = lang === 'ku' ? 'ckb' : lang;
-    try { localStorage.setItem('kiur_lang', lang); } catch { /* ignore */ }
+    applyLangToPage(lang);
+    if (!hostLang()) { try { localStorage.setItem('kiur_lang', lang); } catch { /* ignore */ } }
   }, [lang]);
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -49,7 +47,7 @@ export function AppProvider({ children }) {
     d.classList.toggle('is-desktop', device !== 'phone');
   }, [device]);
 
-  const t = useCallback((key) => (dict[lang] || dict.ar)[key] || dict.ar[key] || key, [lang]);
+  const t = useCallback((key) => translate(lang, key), [lang]);
 
   const toast = useCallback((message, type) => {
     const id = Math.random().toString(36).slice(2);
@@ -60,7 +58,17 @@ export function AppProvider({ children }) {
   const savePreference = useCallback((patch) => {
     if (getToken()) put('/auth/me/preferences', patch).catch(() => {});
   }, []);
-  const setLang = useCallback((l) => { setLangState(l); savePreference({ language: l }); }, [savePreference]);
+  // load the language's strings first, then switch (no flash of untranslated keys)
+  const showLang = useCallback(async (l) => { await loadLang(l); setLangState(l); }, []);
+  const setLang = useCallback(async (l) => {
+    if (hostLang()) {
+      // each language has its own address: remember the choice, then go there (same page, same session)
+      if (getToken()) await Promise.race([put('/auth/me/preferences', { language: l }).catch(() => {}), new Promise(r => setTimeout(r, 600))]);
+      if (hostLang() !== l) location.assign(langUrl(l) + location.pathname + location.search);
+      return;
+    }
+    showLang(l); savePreference({ language: l });
+  }, [savePreference, showLang]);
   const toggleTheme = useCallback(() => { setDark(d => { savePreference({ theme: d ? 'light' : 'dark' }); return !d; }); }, [savePreference]);
   const setDeviceMode = useCallback((m) => {
     try { if (m === 'auto') localStorage.removeItem('kiur_device'); else localStorage.setItem('kiur_device', m); } catch { /* ignore */ }
@@ -71,9 +79,9 @@ export function AppProvider({ children }) {
   const setUser = useCallback((u) => setUserState(u), []);
   const applyPrefs = useCallback((u) => {
     if (!u) return;
-    if (u.language) setLangState(u.language);
+    if (u.language && !hostLang()) showLang(u.language);   // on kiur.online the address decides the language
     if (u.theme) setDark(u.theme === 'dark');
-  }, []);
+  }, [showLang]);
   const startSession = useCallback((data) => {
     setToken(data.access_token);
     setUserState(data.user);

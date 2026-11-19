@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     debug: bool = False
 
     session_cookie_name: str = "nabd_session"
+    # One language per sub-domain (kiur.online, en.kiur.online, ku.kiur.online): set this
+    # to ".kiur.online" so a student stays signed in when switching language. Empty = this host only.
+    session_cookie_domain: str = ""
 
     # ------------------------------------------------------------- email
     # Password reset needs to actually deliver a link, so it stays switched
