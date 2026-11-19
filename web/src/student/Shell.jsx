@@ -12,6 +12,7 @@ const NAV = [
   { to: '/bank', key: 'tileBank', icon: 'bank' },
   { to: '/anatomy', key: 'anatomyTitle', icon: 'anatomy' },
   { to: '/professors', key: 'tileProf', icon: 'prof' },
+  { to: '/representative', key: 'tileRep', icon: 'user' },
   { to: '/store', key: 'tileStore', icon: 'store' },
   { to: '/review', key: 'tileReview', icon: 'review', group: 'navGroupRecord' },
   { to: '/leaderboard', key: 'tileLeaderboard', icon: 'trophy' },

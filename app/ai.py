@@ -14,6 +14,8 @@ uploads a file to the generator.
 from __future__ import annotations
 
 import base64
+import logging
+import random
 import re
 import threading
 import time
@@ -116,41 +118,65 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:ge
 GEMINI_FALLBACKS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"]
 
 
+_log = logging.getLogger("kiur.ai")
+_MODEL_COOLDOWN: dict[str, float] = {}   # model -> skip it until then (its free quota is used up)
+
+
 def _gemini_post(body: dict) -> dict:
     """The one place that talks to Gemini (tests replace it). Free-tier models
-    are often busy (503) or rate-limited (429) and each has its own quota, so
-    on those errors the next model in the chain is tried."""
+    are often busy (503, usually for a few seconds) or out of quota (429) and
+    each has its own quota. A busy model is retried after a short pause; one
+    that is out of quota is skipped for a while; then the next model is tried."""
     models_to_try = []
     for m in [settings.gemini_model] + GEMINI_FALLBACKS:
         if m and m not in models_to_try:
             models_to_try.append(m)
-    last = "رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)"
-    for model in models_to_try:
-        try:
-            r = httpx.post(
-                GEMINI_URL.format(model=model), json=body,
-                headers={"x-goog-api-key": settings.gemini_api_key, "content-type": "application/json"},
-                timeout=min(settings.ai_timeout_seconds, 60),
-            )
-        except httpx.TimeoutException:
-            last = "انتهت مهلة الاتصال بالمساعد الذكي — حاول مرة أخرى (أو جرّب ملفًا أصغر)"
-            continue
-        except httpx.HTTPError:
-            last = "تعذّر الاتصال بخدمة الذكاء الاصطناعي"
-            continue
-        if r.status_code == 200:
-            return r.json()
-        if r.status_code in (400, 401, 403) and "API key" in r.text:
-            raise AIError("مفتاح الذكاء الاصطناعي على الخادم غير صالح")
-        if r.status_code == 429:
-            last = "وصلنا للحد المجاني لخدمة الذكاء الاصطناعي الآن — حاول بعد دقيقة (أو غدًا إن انتهت حصة اليوم)"
-            continue
-        if r.status_code in (404, 500, 502, 503, 504):
-            last = "خدمة الذكاء الاصطناعي مشغولة الآن — حاول بعد دقيقة"
-            continue
-        # 400 etc.: the request itself was refused (e.g. file too large) — another model won't help
-        raise AIError("رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)")
-    raise AIError(last)
+    now = time.time()
+    usable = [m for m in models_to_try if _MODEL_COOLDOWN.get(m, 0) <= now] or models_to_try
+    deadline = now + max(60, settings.ai_timeout_seconds) * 1.5
+    seen: list = []          # what went wrong, per attempt
+    for model in usable:
+        for attempt in (1, 2, 3):
+            left = deadline - time.time()
+            if left < 5:
+                break
+            try:
+                r = httpx.post(
+                    GEMINI_URL.format(model=model), json=body,
+                    headers={"x-goog-api-key": settings.gemini_api_key, "content-type": "application/json"},
+                    timeout=min(settings.ai_timeout_seconds, left),
+                )
+            except httpx.TimeoutException:
+                seen.append("timeout"); _log.warning("gemini %s: timeout", model)
+                break
+            except httpx.HTTPError:
+                seen.append("network"); _log.warning("gemini %s: network error", model)
+                break
+            if r.status_code == 200:
+                return r.json()
+            _log.warning("gemini %s: HTTP %s %s", model, r.status_code, r.text[:200].replace("\n", " "))
+            if r.status_code in (400, 401, 403) and "API key" in r.text:
+                raise AIError("مفتاح الذكاء الاصطناعي على الخادم غير صالح")
+            if r.status_code == 429:
+                seen.append(429)
+                _MODEL_COOLDOWN[model] = time.time() + (3600 if "PerDay" in r.text else 60)
+                break
+            if r.status_code in (500, 502, 503, 504):
+                seen.append(503)
+                time.sleep(min(2.5 * attempt, max(0, deadline - time.time() - 5)))   # a busy spell is usually short
+                continue
+            if r.status_code == 404:
+                seen.append(404)
+                break
+            # 400 etc.: the request itself was refused (e.g. file too large) — another model won't help
+            raise AIError("رفضت خدمة الذكاء الاصطناعي الطلب (قد يكون الملف كبيرًا أو غير مدعوم)")
+    if seen and all(s == 429 for s in seen):
+        raise AIError("وصلنا للحد المجاني لخدمة الذكاء الاصطناعي الآن — حاول بعد دقيقة (أو غدًا إن انتهت حصة اليوم)")
+    if "timeout" in seen and 503 not in seen:
+        raise AIError("انتهت مهلة الاتصال بالمساعد الذكي — حاول مرة أخرى (أو جرّب ملفًا أصغر)")
+    if seen and all(s == "network" for s in seen):
+        raise AIError("تعذّر الاتصال بخدمة الذكاء الاصطناعي")
+    raise AIError("خدمة الذكاء الاصطناعي مشغولة الآن — حاول بعد دقيقة")
 
 
 def _gemini_parts(content) -> list[dict]:
@@ -194,6 +220,30 @@ def complete(system: str, messages: list[dict], max_tokens: int = 1200) -> str:
     return _text_of(resp)
 
 
+def _loads_lenient(raw: str):
+    """JSON from a model answer: tolerates a ```json fence and an answer cut off
+    mid-way (keeps everything that was complete). None if nothing can be read."""
+    import json as _json
+    s = (raw or "").strip()
+    if s.startswith("```"):
+        s = s.strip("`").strip()
+        s = s[4:].lstrip() if s.lower().startswith("json") else s
+    try:
+        return _json.loads(s)
+    except ValueError:
+        pass
+    # cut back to an earlier "}" and close what is still open
+    ends = [m.end() for m in re.finditer(r"\}", s)]
+    for end in reversed(ends[-40:]):
+        head = s[:end]
+        for tail in ("]}", "]", "}", "]}}", "}]}"):
+            try:
+                return _json.loads(head + tail)
+            except ValueError:
+                continue
+    return None
+
+
 def call_tool(system: str, content: list[dict], tool: dict, max_tokens: int = 8000) -> dict:
     """Forces the model to answer through `tool`'s JSON schema, which is far
     more reliable than asking for JSON in prose."""
@@ -203,14 +253,17 @@ def call_tool(system: str, content: list[dict], tool: dict, max_tokens: int = 80
         content = list(content) + [{"type": "text", "text":
                                     "أجب بكائن JSON واحد فقط (بدون أي نص آخر) يطابق هذا الـ JSON Schema:\n" + schema}]
         raw = _gemini_generate(system, [{"role": "user", "content": content}], max_tokens, json_mode=True)
-        raw = raw.strip()
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            raw = raw[4:] if raw.lower().startswith("json") else raw
-        try:
-            data = _json.loads(raw)
-        except ValueError:
+        data = _loads_lenient(raw)
+        if data is None:
+            _log.warning("gemini: unreadable answer (%d chars): %s", len(raw), raw[:200].replace("\n", " "))
             raise AIError("لم يُرجع المساعد نتيجة مفهومة — حاول مرة أخرى")
+        key = next(iter(tool["input_schema"]["properties"]))      # "questions" / "pearls"
+        if isinstance(data, list):                                # some models answer with the bare list
+            data = {key: data}
+        elif isinstance(data, dict) and key not in data:
+            inner = next((v for v in data.values() if isinstance(v, dict) and key in v), None)   # {"submit_questions": {...}}
+            lst = next((v for v in data.values() if isinstance(v, list)), None)                  # {"items": [...]}
+            data = inner if inner is not None else ({key: lst} if lst is not None else data)
         return data if isinstance(data, dict) else {}
     resp = _post({
         "model": settings.ai_model, "max_tokens": max_tokens, "system": system,
@@ -456,24 +509,46 @@ def normalize_questions(raw: list[dict], allowed: set[str], bilingual: bool = Fa
     out, skipped = [], 0
     for q in raw or []:
         try:
-            qtype, text = q.get("qtype"), str(q.get("text", "")).strip()
+            if not isinstance(q, dict):
+                raise ValueError
+            text = str(_pick(q, "text", "question", "q", "stem") or "").strip()
+            qtype = _qtype_of(q)
             if qtype not in allowed or len(text) < 5:
                 raise ValueError
-            item = {"qtype": qtype, "text": text, "rationale": str(q.get("rationale", "")).strip(),
-                    "eyebrow": str(q.get("topic", "")).strip()[:60], "model_answer": "", "choices": []}
+            item = {"qtype": qtype, "text": text, "rationale": str(_pick(q, "rationale", "explanation", "reason") or "").strip(),
+                    "eyebrow": str(_pick(q, "topic", "eyebrow", "tag") or "").strip()[:60], "model_answer": "", "choices": []}
             if qtype == "mcq":
-                opts = [str(c).strip() for c in (q.get("choices") or []) if str(c).strip()]
-                idx = q.get("correct_index")
+                raw_opts = _pick(q, "choices", "options", "answers") or []
+                opts, idx = [], _as_int(_pick(q, "correct_index", "correct_answer_index", "answer_index", "correct_option_index"))
+                for i, c in enumerate(raw_opts):
+                    if isinstance(c, dict):                     # {"text": ..., "is_correct": true}
+                        if c.get("is_correct") is True and idx is None:
+                            idx = len(opts)
+                        c = _pick(c, "text", "option", "label") or ""
+                    c = str(c).strip()
+                    if c:
+                        opts.append(c)
+                if all(_LETTER_PREFIX.match(o) for o in opts) and opts:
+                    opts = [_LETTER_PREFIX.sub("", o, count=1).strip() for o in opts]
+                if idx is None:                                  # "correct_answer": "the option text"
+                    ans = str(_pick(q, "correct_answer", "answer", "correct") or "").strip().lower()
+                    idx = next((i for i, o in enumerate(opts) if ans and o.lower() == ans), None)
+                    if idx is None and len(ans) == 1 and ans.upper() in "ABCDEF":       # "correct_answer": "B"
+                        idx = "ABCDEF".index(ans.upper())
                 if not (2 <= len(opts) <= 6) or len(set(o.lower() for o in opts)) != len(opts) \
-                        or not isinstance(idx, int) or not (0 <= idx < len(opts)):
+                        or idx is None or not (0 <= idx < len(opts)):
                     raise ValueError
-                item["choices"] = [{"text": o, "is_correct": i == idx} for i, o in enumerate(opts)]
+                order = list(range(len(opts)))
+                if not any(_ALL_NONE.search(o) for o in opts):   # models love putting the answer second or third: mix the positions
+                    random.shuffle(order)
+                item["choices"] = [{"text": opts[i], "is_correct": i == idx} for i in order]
             elif qtype == "true_false":
-                if not isinstance(q.get("answer_is_true"), bool):
+                val = _as_bool(_pick(q, "answer_is_true", "is_true", "answer", "correct_answer", "correct"))
+                if val is None:
                     raise ValueError
-                item["choices"] = [{"text": ("صح / True" if q["answer_is_true"] else "خطأ / False") if bilingual else ("صح" if q["answer_is_true"] else "خطأ"), "is_correct": True}]
+                item["choices"] = [{"text": ("صح / True" if val else "خطأ / False") if bilingual else ("صح" if val else "خطأ"), "is_correct": True}]
             else:
-                ans = str(q.get("model_answer", "")).strip()
+                ans = str(_pick(q, "model_answer", "answer", "correct_answer") or "").strip()
                 if not ans:
                     raise ValueError
                 item["model_answer"] = ans
@@ -481,6 +556,56 @@ def normalize_questions(raw: list[dict], allowed: set[str], bilingual: bool = Fa
         except ValueError:
             skipped += 1
     return out, skipped
+
+
+# ---- tolerant reading of what the model returned (field names and types vary between models)
+_LETTER_PREFIX = re.compile(r"^\s*(?:\(?[A-Fa-f]\s*[\.\):\-]|\(?[أبجدهو]\s*[\.\):\-])\s+")
+_ALL_NONE = re.compile(r"(all|none|both)\s+of\s+(the\s+)?(above|these)|كل\s+ما\s+سبق|جميع\s+ما\s+سبق|لا\s+شيء\s+مما\s+سبق|جميع\s+الإجابات|كل\s+الإجابات|a\s+and\s+b|أ\s+و\s*ب", re.I)
+_QTYPES = {"mcq": "mcq", "multiple_choice": "mcq", "multiple-choice": "mcq", "multiplechoice": "mcq", "choice": "mcq", "اختيارات": "mcq",
+           "true_false": "true_false", "true-false": "true_false", "truefalse": "true_false", "true/false": "true_false", "tf": "true_false", "boolean": "true_false", "صح/خطأ": "true_false",
+           "essay": "essay", "short_answer": "essay", "short-answer": "essay", "open": "essay", "مقالي": "essay"}
+
+
+def _pick(d: dict, *names):
+    for n in names:
+        if d.get(n) not in (None, ""):
+            return d[n]
+    return None
+
+
+def _qtype_of(q: dict) -> str | None:
+    t = _pick(q, "qtype", "type", "question_type")
+    if t is not None:
+        return _QTYPES.get(str(t).strip().lower().replace(" ", "_"))
+    if _pick(q, "choices", "options"):                       # type missing: infer it
+        return "mcq"
+    if _as_bool(_pick(q, "answer_is_true", "is_true")) is not None:
+        return "true_false"
+    return "essay" if _pick(q, "model_answer") else None
+
+
+def _as_int(v):
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and v == int(v):
+        return int(v)
+    if isinstance(v, str) and v.strip().lstrip("-").isdigit():
+        return int(v.strip())
+    return None
+
+
+def _as_bool(v):
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("true", "t", "yes", "صح", "صحيح", "صح / true"):
+            return True
+        if s in ("false", "f", "no", "خطأ", "خاطئ", "خطأ / false"):
+            return False
+    return None
 
 
 LANG_RULES = {

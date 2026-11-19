@@ -169,7 +169,7 @@ function AiGen({ mode, onClose, onSaved, banks = [], defaultBank = '' }) {
       let res = await upload(path, fd);
       if (res && res.job_id) res = await waitForJob(res.job_id, res.total);
       const items = mode === 'pearls' ? res.pearls : res.questions;
-      setDrafts({ items, skipped: res.skipped || 0, errors: res.errors || [] });
+      setDrafts({ items, skipped: res.skipped || 0, errors: res.errors || [], note: res.note || '' });
       setPicked(Object.fromEntries(items.map((d, i) => [i, !d.duplicate_of])));
       setMsg(null); setJob(null);
     } catch (e) { setMsg({ t: e.detail || e.message || 'تعذّر التوليد', err: true }); }
@@ -232,6 +232,7 @@ function AiGen({ mode, onClose, onSaved, banks = [], defaultBank = '' }) {
           <div className="item-meta" style={{ marginBottom: 8 }}>
             {mode === 'import' ? `تمت قراءة ${drafts.items.length} سؤال` : `تم توليد ${drafts.items.length} ${mode === 'questions' ? 'سؤال' : 'لمحة'}`}{drafts.skipped ? ` (استُبعد ${drafts.skipped} غير صالح)` : ''}{drafts.errors.length ? ` — ${drafts.errors.length} سطر به مشكلة (تحت)` : ''} — ألغِ تحديد ما لا تريده، ويمكنك تعديل أي شيء بعد الحفظ.
           </div>
+          {drafts.note && <div className="ai-draft" style={{ display: 'block', borderColor: 'var(--warn, #d4a017)' }}><div className="cell-name">⚠ {drafts.note}</div></div>}
           {drafts.errors.length > 0 && <div className="ai-draft" style={{ display: 'block', borderColor: 'var(--danger)' }}><div className="cell-name" style={{ color: 'var(--danger)' }}>⚠ لم تُقرأ هذه الأسطر — صحّحها في الملف وأعد رفعه إن أردتها</div>{drafts.errors.map((er, i) => <div key={i} className="cell-sub" style={{ marginTop: 4 }}><b>{er.where}:</b> {er.message}</div>)}</div>}
           {drafts.items.map((d, i) => (
             <label key={i} className="ai-draft">

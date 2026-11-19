@@ -1,5 +1,6 @@
 from urllib.parse import quote
 
+import logging
 import re
 import threading
 from pathlib import Path
@@ -77,9 +78,25 @@ def _profile_query(db: Session):
     )
 
 
+def _student_stage(db: Session, user: models.User) -> models.Stage | None:
+    return db.get(models.Stage, user.stage_id) if user.stage_id else None
+
+
 @router.get("", response_model=list[schemas.ProfessorOut])
 def list_professors(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    profs = _profile_query(db).all()
+    q = _profile_query(db)
+    if user.role == models.Role.student:
+        # a student sees the doctors of their own stage only (not every doctor on the platform),
+        # and the class representative has a page of their own
+        stage = _student_stage(db, user)
+        uni_id = user.university_id or (stage.university_id if stage else None)
+        q = q.join(models.User, models.User.id == models.ProfessorProfile.user_id).filter(models.User.role != models.Role.representative)
+        if stage:
+            q = q.join(models.Subject, models.Subject.id == models.ProfessorProfile.subject_id).filter(models.Subject.stage_id == stage.id)
+        elif uni_id:   # no stage chosen (e.g. a graduate): the doctors of their college
+            q = (q.join(models.Subject, models.Subject.id == models.ProfessorProfile.subject_id)
+                  .join(models.Stage, models.Stage.id == models.Subject.stage_id).filter(models.Stage.university_id == uni_id))
+    profs = q.all()
     prof_ids = [p.id for p in profs]
 
     # Two grouped queries for the whole page instead of two per professor.
@@ -95,6 +112,39 @@ def list_professors(db: Session = Depends(get_db), user: models.User = Depends(g
         _to_out(p, booklets_by_prof.get(p.id, []), exams_by_prof.get(p.id, []), banks_by_prof.get(p.id, []))
         for p in profs
     ]
+
+
+@router.get("/representative")
+def my_representative(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """The student's class-representative page: the subjects of their stage, and under each
+    what the representative published (booklets first, then exams and question banks)."""
+    stage = _student_stage(db, user)
+    if not stage:
+        return {"needs_stage": True, "representatives": [], "subjects": []}
+    reps = [r for r in db.query(models.User).filter(
+                models.User.role == models.Role.representative, models.User.scope_university_id == stage.university_id,
+                models.User.is_banned.isnot(True)).order_by(models.User.full_name).all()
+            if (not r.scope_stage_id or r.scope_stage_id == stage.id)
+            and (not r.scope_department_id or r.scope_department_id == stage.department_id)]
+    subjects = db.query(models.Subject).filter(models.Subject.stage_id == stage.id).order_by(models.Subject.name).all()
+    by_subject: dict[str, dict] = {s.id: {"subject_id": s.id, "subject_name": s.name, "booklets": [], "exams": [], "banks": []} for s in subjects}
+    profs = (_profile_query(db).filter(models.ProfessorProfile.user_id.in_([r.id for r in reps] or [""]),
+                                       models.ProfessorProfile.subject_id.in_(list(by_subject) or [""])).all())
+    ids = [p.id for p in profs]
+    booklets = db.query(models.Booklet).filter(models.Booklet.professor_id.in_(ids or [""])).order_by(models.Booklet.created_at.desc()).all()
+    exams = db.query(models.Exam).filter(models.Exam.professor_id.in_(ids or [""])).all()
+    banks = _banks_of(db, ids)
+    sub_of = {p.id: p.subject_id for p in profs}
+    by = {p.id: p.user.full_name for p in profs}
+    for b in booklets:
+        d = by_subject[sub_of[b.professor_id]]
+        d["booklets"].append({"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None, "by": by[b.professor_id]})
+    for e in exams:
+        by_subject[sub_of[e.professor_id]]["exams"].append(schemas.ExamOut.model_validate(e).model_dump())
+    for pid, lst in banks.items():
+        by_subject[sub_of[pid]]["banks"] += [{**b, "subject_id": sub_of[pid]} for b in lst]
+    return {"needs_stage": False, "representatives": [{"id": r.id, "name": r.full_name, "photo_url": r.photo_url} for r in reps],
+            "subjects": list(by_subject.values())}
 
 
 @router.get("/{professor_id}", response_model=schemas.ProfessorOut)
@@ -1266,10 +1316,15 @@ def _run_question_job(job: dict, blocks, subject_name, count, wanted, difficulty
         elif not qs:
             job.update(status="error", error="لم يستطع المساعد توليد أسئلة صالحة من هذا الملف — جرّب ملفًا أوضح أو عددًا أقل")
         else:
-            job.update(status="done", done=len(qs), questions=qs, skipped=skipped)
+            note = ""
+            if len(qs) < count:   # a later batch failed (service busy / out of quota): keep what was written and say so
+                note = f"تم توليد {len(qs)} من {count} سؤال فقط — توقفت الخدمة قبل الإكمال. احفظ ما يناسبك ثم ولّد الباقي بعد دقيقة."
+            job.update(status="done", done=len(qs), questions=qs, skipped=skipped, note=note)
     except (ai.AIUnavailable, ai.AIError) as e:
+        logging.getLogger("kiur.ai").warning("question generation failed: %s", e)
         job.update(status="error", error=str(e))
     except Exception:
+        logging.getLogger("kiur.ai").exception("question generation crashed")
         job.update(status="error", error="حدث خطأ غير متوقع أثناء التوليد — حاول مرة أخرى")
 
 
@@ -1288,7 +1343,7 @@ def ai_job_status(job_id: str, db: Session = Depends(get_db), user: models.User 
         qs = job["questions"]
         for q in qs:
             q["duplicate_of"] = knowledge.find_similar(db, profile.subject_id, q["text"]) if profile else None
-        out.update(questions=qs, skipped=job.get("skipped", 0))
+        out.update(questions=qs, skipped=job.get("skipped", 0), note=job.get("note", ""))
     return out
 
 

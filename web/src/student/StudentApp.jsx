@@ -30,6 +30,7 @@ const Leaderboard = page(() => import('./pages/Review.jsx'), 'Leaderboard');
 const StudentProfile = page(() => import('./pages/Review.jsx'), 'StudentProfile');
 const Professors = page(() => import('./pages/Professors.jsx'), 'Professors');
 const Professor = page(() => import('./pages/Professors.jsx'), 'Professor');
+const Representative = page(() => import('./pages/Representative.jsx'), 'Representative');
 const Notifications = page(() => import('./pages/Inbox.jsx'), 'Notifications');
 const Support = page(() => import('./pages/Inbox.jsx'), 'Support');
 const AiList = page(() => import('./pages/AI.jsx'), 'AiList');
@@ -92,6 +93,8 @@ export default function StudentApp() {
         <Route path="/summer" element={<Summer />} />
         <Route path="/professors" element={<Professors />} />
         <Route path="/professors/:id" element={<Professor />} />
+        <Route path="/representative" element={<Representative />} />
+        <Route path="/representative/:subjectId" element={<Representative />} />
         <Route path="/exam/:examId" element={<Exam />} />
         <Route path="/exam-result/:attemptId" element={<ExamResult />} />
         <Route path="/students/:id" element={<StudentProfile />} />
