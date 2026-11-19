@@ -61,7 +61,7 @@ function AdminLogin() {
 }
 
 // ------------------------------------------------------------------ "view as" / "publish in" bar
-function ContextBar({ sectionId, group, ctx, onReady }) {
+function ContextBar({ sectionId, group, ctx, onReady, ready }) {
   const { user } = useApp();
   const role = user.role;
   const staff = ['owner', 'admin', 'supervisor'].includes(role);
@@ -101,7 +101,25 @@ function ContextBar({ sectionId, group, ctx, onReady }) {
     } else if (staff && g === 'reseller') { ax.viewAs = cur; ax.subject = ''; ax.teacher = ''; onReady(!!cur); }
     else if (asRep) { ax.viewAs = staff ? pick.rep : ''; ax.subject = ctx.subject; ax.teacher = ctx.teacher; onReady(role === 'representative' ? !!ctx.subject : (!!pick.rep && !!ctx.subject) || sectionId === 'rep-codes'); }
     else if (staff && g === 'rep') { ax.viewAs = pick.rep; onReady(!!pick.rep); }
+    else if (sectionId === 'p-questions') { ax.viewAs = ''; ax.subject = ''; ax.teacher = ''; onReady(true); }   // a doctor: only the bank step
   }); // eslint-disable-line
+
+  // the last step of the question bank: which bank the questions go into (new or existing)
+  const showBank = sectionId === 'p-questions' && !!ready;
+  const [banks, setBanks] = useState([]);
+  useEffect(() => {
+    if (!showBank) { setBanks([]); return undefined; }
+    let off = false;
+    apiFetch('/api/professors/me/banks').then(r => { if (!off) setBanks((r && r.banks) || []); }).catch(() => { if (!off) setBanks([]); });
+    return () => { off = true; };
+  }, [showBank, ctx.version, ctx.bankVer, ctx.subject, plat.subject, pick.doctor, pick.rep]); // eslint-disable-line
+  const newBank = () => dlg.form({ title: 'بنك جديد', fields: [{ id: 'name', label: 'اسم البنك', placeholder: 'مثال: بنك الفصل الأول' }],
+    onSubmit: async (v) => {
+      if (!(v.name || '').trim()) throw { detail: 'اكتب اسم البنك' };
+      const r = await post('/api/professors/me/banks', { name: v.name.trim() });
+      ctx.refreshBanks(); ctx.setBank(r.id); ctx.toast('تم إنشاء البنك');
+    } });
+  const chooseBank = (v) => { if (v === '__new') newBank(); else ctx.setBank(v); };
 
   const changePick = (v) => { setPick(p => ({ ...p, [g]: v })); ctx.bump(); };
   const sel = SELECT;
@@ -137,7 +155,7 @@ function ContextBar({ sectionId, group, ctx, onReady }) {
     },
   });
 
-  if (!g && role !== 'representative') return null;
+  if (!g && role !== 'representative' && sectionId !== 'p-questions') return null;
   if (role === 'representative' && !sectionId.startsWith('p-')) return null;
   const curSub = subs.find(x => x.subject_id === ctx.subject);
   return (
@@ -168,6 +186,18 @@ function ContextBar({ sectionId, group, ctx, onReady }) {
             <option value="">النشر باسمي (ممثل الدفعة)</option>{teachers.map(t => <option key={t.id} value={t.id}>باسم: {t.name}</option>)}<option value="__new__">＋ إضافة دكتور جديد…</option></select>
         </>}
         {asRep && !subs.length && (role === 'representative' || pick.rep) && <div className="dash-card glass" style={{ padding: '12px 16px' }}>لا توجد مواد ضمن نطاقك كممثل — اطلب من الإدارة ضبط جامعتك ومرحلتك.</div>}
+        {showBank && <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 800, fontSize: '.86rem' }}>{usePlatform ? '⑥ البنك' : 'البنك'}: هل تريد إنشاء بنك جديد؟</span>
+          <select style={{ ...sel, flex: 1, minWidth: 220 }} value={ctx.bank} onChange={e => chooseBank(e.target.value)}>
+            <option value="">اختر…</option>
+            <option value="__new">نعم — ＋ إنشاء بنك جديد…</option>
+            {banks.length > 0 && <optgroup label="لا — استخدم بنكاً موجوداً">
+              {banks.map(b => <option key={b.id} value={b.id}>{b.name} ({b.count})</option>)}
+            </optgroup>}
+            <option value="__none">لا — بدون بنك (أسئلة عامة)</option>
+            <option value="__all">عرض كل الأسئلة</option>
+          </select>
+        </div>}
         <span className="cell-sub">
           {usePlatform ? (plat.subject ? `📍 النشر في: ${(pSubs.find(x => x.id === plat.subject) || {}).path || ''} — يظهر للطلاب باسم المنصة.` : '⚠ حدّد: نوع الكلية ← الجامعة ← القسم ← المرحلة ← المادة — لن يُنشر شيء قبل تحديد المكان.')
             : asRep ? (curSub ? `📍 ${ctx.teacher ? 'ما تنشره يظهر للطلاب باسم الدكتور المختار' : 'ما تنشره يظهر للطلاب باسمك (ممثل الدفعة)'} في: ${subLabel(curSub)}` : '')
@@ -191,12 +221,15 @@ export function Shell() {
   const sectionId = alias || navId;
   const staff = ['owner', 'admin', 'supervisor'].includes(user.role);
   const group = staff ? viewAsGroupOf(sectionId, alias ? 'rep' : null) : null;
-  const usesBar = (staff && group) || (user.role === 'representative' && sectionId && sectionId.startsWith('p-'));
+  const usesBar = (staff && group) || (user.role === 'representative' && sectionId && sectionId.startsWith('p-')) || sectionId === 'p-questions';
 
   const [pick, setPick] = useState({ doctor: '', reseller: '', rep: '' });
   const [plat, setPlat] = useState(() => { let s = ''; try { s = localStorage.getItem('kiur_platform_subject') || ''; } catch { /* ignore */ } return { sec: '', uni: '', dept: '', stage: '', subject: s }; });
   const [subject, setSubject] = useState(''); const [teacher, setTeacher] = useState('');
   const [version, setVersion] = useState(0);
+  const [bank, setBank] = useState('');               // question bank step: '' not chosen yet | '__all' | '__none' | a bank id
+  const [bankVer, setBankVer] = useState(0);
+  const refreshBanks = useCallback(() => setBankVer(v => v + 1), []);
   const [ready, setReady] = useState(!usesBar);
   const [sbOpen, setSbOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem('kiur_nav_open') || 'null') || []); } catch { return new Set(); } });
@@ -205,12 +238,14 @@ export function Shell() {
   const setTeacherX = useCallback((v) => { setTeacher(v); ax.teacher = v; }, []);
 
   useEffect(() => { installHeaders(); return () => clearHeaders(); }, []);
+  // a different place (account, subject, doctor) means the bank has to be chosen again
+  useEffect(() => { setBank(''); }, [sectionId, pick.doctor, pick.rep, plat.subject, subject, teacher]);
   useEffect(() => { setReady(!usesBar); if (!usesBar) { ax.viewAs = ''; ax.subject = ''; ax.teacher = ''; } }, [sectionId, usesBar]);
   useEffect(() => { document.body.classList.toggle('sb-lock', sbOpen); return () => document.body.classList.remove('sb-lock'); }, [sbOpen]);
   useEffect(() => { setSbOpen(false); window.scrollTo(0, 0); }, [navId]);
 
-  const ctx = useMemo(() => ({ user, perms: permsOf(user), pick, setPick, plat, setPlat, subject, setSubject: setSubjectX, teacher, setTeacher: setTeacherX, version, bump, dialogs: dlg, toast, go: (id) => nav('/admin/' + id) }),
-    [user, pick, plat, subject, teacher, version, bump, dlg, toast, nav, setSubjectX, setTeacherX]);
+  const ctx = useMemo(() => ({ user, perms: permsOf(user), pick, setPick, plat, setPlat, subject, setSubject: setSubjectX, teacher, setTeacher: setTeacherX, bank, setBank, bankVer, refreshBanks, version, bump, dialogs: dlg, toast, go: (id) => nav('/admin/' + id) }),
+    [user, pick, plat, subject, teacher, bank, bankVer, refreshBanks, version, bump, dlg, toast, nav, setSubjectX, setTeacherX]);
 
   // sidebar groups
   const grouped = useMemo(() => {
@@ -287,7 +322,7 @@ export function Shell() {
             </div>
           </div>
           <div className="dash-content" id="dashContent">
-            {usesBar && <ContextBar sectionId={sectionId} group={group} ctx={ctx} onReady={setReady} />}
+            {usesBar && <ContextBar sectionId={sectionId} group={group} ctx={ctx} onReady={setReady} ready={ready} />}
             <section className="dash-section active" id={'sec-' + sectionId}>
               {ready ? (Section ? <Section key={sectionId + '|' + version + '|' + (alias ? 'rep' : '')} /> : <Moving id={sectionId} label={navItem.label} />) : null}
             </section>
