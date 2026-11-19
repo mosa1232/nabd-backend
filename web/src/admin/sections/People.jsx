@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { apiFetch, post, put } from '../../lib/api.js';
+import { apiFetch, post, put, del } from '../../lib/api.js';
 import { useAdmin } from '../ctx.js';
 import { ALL_STAFF_PERMS, PERM_LABELS } from '../nav.js';
 import { Card, AddBtn, Table, Badge, RowActions, SmallBtn, Loading, fmtDate, useData } from '../ui.jsx';
@@ -155,7 +155,13 @@ export function useUserForms(A, reload) {
       reload();
     } });
   };
-  return { addUser, editUser, ban, unban, reset2fa, assignSubject };
+  // permanent deletion: only for an account with no activity or content (a duplicate, a mistake); otherwise the server refuses and says why
+  const remove = async (a, done) => {
+    if (!await A.dialogs.confirm(`حذف حساب «${a.full_name}» نهائياً؟ لا يمكن التراجع. يُحذف فقط إذا لم يكن له نشاط أو محتوى، وإلا يُرفض الحذف (واستخدم الحظر بدلاً منه).`)) return;
+    try { await del('/api/admin/users/' + a.id); A.toast('تم حذف الحساب'); reload(); if (done) done(); }
+    catch (e) { A.toast(e.detail || 'تعذّر حذف الحساب', 'error'); }
+  };
+  return { addUser, editUser, ban, unban, reset2fa, assignSubject, remove };
 }
 
 // ------------------------------------------------------------------ accounts table
@@ -405,10 +411,11 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
             <Row label="تاريخ الانضمام">{fmtDT(a.created_at)}</Row><Row label="آخر دخول">{fmtDT(a.last_login)}</Row>
             {o && <Row label="اللغة / المظهر">{(o.language || '—') + ' / ' + (o.theme || '—')}</Row>}
           </Card>
-          {(a.is_banned || a.totp_enabled || !['admin', 'owner'].includes(a.role)) && <Card title="إجراءات" style={{ marginBottom: 14 }}>
+          {(a.is_banned || a.totp_enabled || a.role !== 'owner') && <Card title="إجراءات" style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {a.is_banned ? <button className="btn btn-ghost" onClick={() => f.unban(a)}>رفع الحظر</button> : (['admin', 'owner'].includes(a.role) ? null : <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => f.ban(a)}>حظر</button>)}
               {a.totp_enabled && <button className="btn btn-ghost" onClick={() => f.reset2fa(a)}>إعادة تعيين 2FA</button>}
+              {a.role !== 'owner' && a.id !== A.user.id && <button className="btn btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => f.remove(a, back)}>حذف الحساب</button>}
             </div></Card>}
         </div>
       </div>

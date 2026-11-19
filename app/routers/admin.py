@@ -577,6 +577,69 @@ def unban_user(user_id: str, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
+# What may go with a deleted account, and what blocks the deletion (then the account is banned instead).
+_DEL_REMOVE = {("user_sessions", "user_id"), ("recent_views", "user_id"), ("notification_reads", "user_id"), ("notifications", "user_id"),
+               ("user_skills", "user_id"), ("ban_records", "user_id")}            # the account's own trivia
+_DEL_NULLIFY = {("activity_logs", "user_id"), ("media_files", "uploaded_by"), ("notifications", "created_by")}   # history that stays, without the name
+_DEL_LABEL = {"orders": "طلبات", "student_answers": "إجابات أسئلة", "exam_attempts": "امتحانات منجزة", "activation_codes": "أكواد تفعيل", "support_threads": "محادثات دعم",
+              "support_messages": "رسائل دعم", "saved_questions": "أسئلة محفوظة", "lecture_progress": "تقدّم محاضرات", "ai_conversations": "محادثات ذكاء اصطناعي",
+              "verification_codes": "أكواد توثيق", "verification_batches": "قوائم توثيق", "clinical_pearls": "لمحات سريرية", "summer_trainings": "تدريب صيفي",
+              "booklets": "ملازم", "exams": "امتحانات", "courses": "كورسات", "questions": "أسئلة", "question_banks": "بنوك أسئلة", "users": "حسابات تابعة له"}
+
+
+@router.delete("/users/{user_id}")
+def delete_user(user_id: str, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
+    """Permanently deletes an account — only one with no activity or content (a duplicate or a mistake).
+    Anything that has history is refused (the response says what): ban such an account instead."""
+    from sqlalchemy import bindparam, text
+    target = db.get(models.User, user_id)
+    if not target:
+        raise HTTPException(404, "المستخدم غير موجود")
+    if target.id == actor.id:
+        raise HTTPException(400, "لا يمكنك حذف حسابك أنت")
+    if target.role == models.Role.owner:
+        raise HTTPException(403, "حساب المالك لا يُحذف")
+    _guard_role_change(actor, target.role.value, existing=target)
+
+    profile_ids = [p.id for p in db.query(models.ProfessorProfile.id).filter(models.ProfessorProfile.user_id == user_id).all()]
+    blockers: dict[str, int] = {}
+    plan: list[tuple[str, str, str]] = []          # (action, table, column)
+    for t in models.Base.metadata.sorted_tables:
+        for fk in t.foreign_keys:
+            tgt, col = fk.column.table.name, fk.parent.name
+            if tgt == "users":
+                n = db.execute(text(f'select count(*) from "{t.name}" where "{col}" = :v'), {"v": user_id}).scalar()
+                if t.name == "professor_profiles" or not n:
+                    continue
+                if (t.name, col) in _DEL_REMOVE:
+                    plan.append(("delete", t.name, col))
+                elif (t.name, col) in _DEL_NULLIFY:
+                    plan.append(("null", t.name, col))
+                else:
+                    blockers[_DEL_LABEL.get(t.name, t.name)] = blockers.get(_DEL_LABEL.get(t.name, t.name), 0) + n
+            elif tgt == "professor_profiles" and profile_ids:
+                n = db.execute(text(f'select count(*) from "{t.name}" where "{col}" in :v').bindparams(bindparam("v", expanding=True)), {"v": profile_ids}).scalar()
+                if n:
+                    blockers[_DEL_LABEL.get(t.name, t.name)] = blockers.get(_DEL_LABEL.get(t.name, t.name), 0) + n
+    made = db.query(func.count(models.User.id)).filter(models.User.created_by_id == user_id).scalar()
+    if made:
+        blockers["حسابات أضافها (أساتذة بأسماء)"] = made
+    if blockers:
+        listed = "، ".join(f"{k} ({v})" for k, v in blockers.items())
+        raise HTTPException(409, f"لا يمكن حذف هذا الحساب لأن له نشاطاً أو محتوى: {listed}. استخدم «حظر» بدلاً من الحذف.")
+    for action, table, col in plan:
+        if action == "delete":
+            db.execute(text(f'delete from "{table}" where "{col}" = :v'), {"v": user_id})
+        else:
+            db.execute(text(f'update "{table}" set "{col}" = null where "{col}" = :v'), {"v": user_id})
+    for p in db.query(models.ProfessorProfile).filter(models.ProfessorProfile.user_id == user_id).all():
+        db.delete(p)
+    db.flush()
+    db.delete(target)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/users/{user_id}/reset-password")
 def reset_user_password(user_id: str, db: Session = Depends(get_db), actor: models.User = Depends(get_current_user)):
     """Sets a fresh temporary password and returns it ONCE.
