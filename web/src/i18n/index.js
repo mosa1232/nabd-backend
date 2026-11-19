@@ -8,7 +8,7 @@ const cache = {};
 export const LANG_BASE = 'kiur.online';
 // Switch to true once en.kiur.online and ku.kiur.online resolve to the server (DNS) and LANG_DOMAINS is set in .env.
 // While false, kiur.online keeps switching language in place, exactly as before.
-export const LANG_SUBDOMAINS = false;
+export const LANG_SUBDOMAINS = true;
 export const LANGS = ['ar', 'en', 'ku'];
 
 export async function loadLang(l) {
