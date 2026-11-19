@@ -254,7 +254,7 @@ export function Shell() {
           <div className="role-switch"><div className="role-pill active" style={{ cursor: 'default' }}>{ROLE_LABELS[user.role]}</div></div>
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {!hasGroups ? items.map(it => <NavBtn key={it.id} it={it} />)
-              : grouped.map(g => {
+              : [...items.filter(it => !it._g).map(it => <NavBtn key={it.id} it={it} />), ...grouped.map(g => {
                 const open = isOpen(g);
                 return (
                   <div key={g}>
@@ -263,7 +263,7 @@ export function Shell() {
                     <div className={'nav-group-body' + (open ? '' : ' closed')}>{items.filter(it => it._g === g).map(it => <NavBtn key={it.id} it={it} />)}</div>
                   </div>
                 );
-              })}
+              })]}
           </nav>
           <div className="sidebar-footer">
             <div className="admin-mini" style={{ cursor: 'pointer' }} title="ملفي الشخصي" onClick={() => nav('/admin/me')}>
