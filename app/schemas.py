@@ -394,6 +394,7 @@ class BankBriefOut(BaseModel):
 class ProfessorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
+    user_id: str = ""   # the doctor's account: the student pages join one doctor's per-subject profiles into one card
     title: str
     name: str
     subject_id: str = ""

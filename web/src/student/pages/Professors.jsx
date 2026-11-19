@@ -14,6 +14,23 @@ const examIcon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 
 const loadProfessors = () => apiFetch('/api/professors');
 
+// A doctor (or the platform) has one profile per subject; students see one card per person with all subjects together.
+function mergeDoctors(list) {
+  const map = new Map();
+  for (const p of list) {
+    const k = p.user_id || p.id;
+    if (!map.has(k)) map.set(k, { key: k, first: p, profiles: [] });
+    map.get(k).profiles.push(p);
+  }
+  return [...map.values()].map(g => ({
+    ...g,
+    subjects: [...new Set(g.profiles.map(p => p.subject_name).filter(Boolean))],
+    booklets: g.profiles.flatMap(p => p.booklets.map(b => ({ ...b, subject_name: p.subject_name }))),
+    exams: g.profiles.flatMap(p => p.exams.map(e => ({ ...e, subject_name: p.subject_name }))),
+    banks: g.profiles.flatMap(p => (p.banks || []).map(b => ({ ...b, subject_id: p.subject_id, subject_name: p.subject_name }))),
+  }));
+}
+
 export function Professors() {
   const { t } = useApp();
   const nav = useNavigate();
@@ -23,7 +40,8 @@ export function Professors() {
   const all = Array.isArray(list) ? list : [];
   const reps = rep && !rep.needs_stage ? rep.representatives : [];
   const subjects = ['all', ...new Set(all.map(p => p.subject_name).filter(Boolean))];
-  const shown = filter === 'all' ? all : all.filter(p => p.subject_name === filter);
+  const people = mergeDoctors(all);
+  const shown = filter === 'all' ? people : people.filter(g => g.subjects.includes(filter));
   return (
     <div className="view active">
       <PageHead title={t('professorsTitle')} sub={t('professorsSub')} back="/" />
@@ -44,16 +62,17 @@ export function Professors() {
             <span className="prof-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)" /></svg></span>
           </button>
         ))}
-        {list === undefined ? <Empty>{t('loading')}</Empty> : !shown.length ? (reps.length > 0 && filter === 'all' ? null : <Empty>{t('noProfessorsYet')}</Empty>) : shown.map(p => {
-          const color = COLORS[all.indexOf(p) % COLORS.length];
+        {list === undefined ? <Empty>{t('loading')}</Empty> : !shown.length ? (reps.length > 0 && filter === 'all' ? null : <Empty>{t('noProfessorsYet')}</Empty>) : shown.map(g => {
+          const p = { ...g.first, booklets: g.booklets, exams: g.exams, banks: g.banks };
+          const color = COLORS[people.indexOf(g) % COLORS.length];
           return (
-            <button key={p.id} className="prof-card glass" onClick={() => nav('/professors/' + p.id)}>
+            <button key={g.key} className="prof-card glass" onClick={() => nav('/professors/' + g.first.id)}>
               <div className="prof-avatar" style={{ background: `linear-gradient(145deg, ${color}, var(--accent-2))`, overflow: 'hidden' }}>
                 {p.photo_url ? <img src={mediaUrl(p.photo_url)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(p.name)}
               </div>
               <div className="prof-info">
                 <div className="prof-name">{p.name}</div>
-                <div className="prof-meta">{p.title} · {p.subject_name}{p.university_name ? ' · ' + p.university_name : ''}</div>
+                <div className="prof-meta">{p.title} · {g.subjects.join('، ')}{p.university_name ? ' · ' + p.university_name : ''}</div>
                 <div className="prof-stats"><span>{pdfIcon}{p.booklets.length} ملزمة</span><span>{examIcon}{p.exams.length} امتحان</span>{(p.banks || []).length ? <span>{bankIcon}{p.banks.length} {p.banks.length === 1 ? 'بنك' : 'بنوك'}</span> : null}</div>
               </div>
               <span className="prof-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)" /></svg></span>
@@ -72,8 +91,12 @@ export function Professor() {
   const [list] = useLoad(loadProfessors, []);
   const [tab, setTab] = useState('booklets');
   const all = Array.isArray(list) ? list : [];
-  const p = all.find(x => String(x.id) === String(id));
-  const color = COLORS[Math.max(0, all.indexOf(p)) % COLORS.length];
+  const first = all.find(x => String(x.id) === String(id));
+  const people = mergeDoctors(all);
+  const g = first ? people.find(x => x.key === (first.user_id || first.id)) : null;   // all of this person's subjects together
+  const p = g ? { ...g.first, booklets: g.booklets, exams: g.exams, banks: g.banks } : null;
+  const several = !!g && g.subjects.length > 1;
+  const color = COLORS[Math.max(0, people.indexOf(g)) % COLORS.length];
   const recordView = (type, cid) => post('/auth/me/recent-view', { content_type: type, content_id: cid }).catch(() => {});
   return (
     <div className="view active">
@@ -90,7 +113,7 @@ export function Professor() {
           </div>
           <div>
             <div className="prof-header-name">{p.name}</div>
-            <div className="prof-header-title">{p.title} · {p.subject_name}</div>
+            <div className="prof-header-title">{p.title} · {g.subjects.join('، ')}</div>
             <div className="prof-tags">{p.university_name ? <span className="prof-tag">{p.university_name}</span> : null}</div>
             {p.bio ? <div className="item-meta" style={{ marginTop: 8, maxWidth: 340 }}>{p.bio}</div> : null}
           </div>
@@ -104,7 +127,7 @@ export function Professor() {
           {!p.booklets.length ? <Empty>{t('noBookletsYet')}</Empty> : p.booklets.map(b => (
             <div className="item-card glass" key={b.id}>
               <div className="item-icon pdf">{pdfIcon}</div>
-              <div className="item-body"><div className="item-title">{b.title}</div><div className="item-meta">{b.pages} صفحة · PDF</div></div>
+              <div className="item-body"><div className="item-title">{b.title}</div><div className="item-meta">{b.pages} صفحة · PDF{several ? ' · ' + b.subject_name : ''}</div></div>
               {b.file_url
                 ? <a className="btn btn-ghost item-action" href={mediaUrl(b.file_url)} target="_blank" rel="noopener noreferrer" onClick={() => recordView('booklet', b.id)}>{t('open')}</a>
                 : <button className="btn btn-ghost item-action" style={{ opacity: .6 }} onClick={() => toast(t('noFileYet'))}>{t('open')}</button>}
@@ -114,8 +137,8 @@ export function Professor() {
           {!(p.banks || []).length ? <Empty>ما نشر الدكتور بنوك أسئلة بعد</Empty> : p.banks.map(b => (
             <div className="item-card glass" key={b.id}>
               <div className="item-icon exam">{bankIcon}</div>
-              <div className="item-body"><div className="item-title">{b.name}</div><div className="item-meta">{b.count} سؤال · {p.subject_name}</div></div>
-              <button className="btn item-action" onClick={() => nav('/bank/' + p.subject_id + '/study/' + encodeURIComponent('bank:' + b.id), { state: { title: b.name, name: p.subject_name } })}>ادرس</button>
+              <div className="item-body"><div className="item-title">{b.name}</div><div className="item-meta">{b.count} سؤال · {b.subject_name}</div></div>
+              <button className="btn item-action" onClick={() => nav('/bank/' + b.subject_id + '/study/' + encodeURIComponent('bank:' + b.id), { state: { title: b.name, name: b.subject_name } })}>ادرس</button>
             </div>))}
         </div></div>}
         {tab === 'exams' && <div className="tab-panel active"><div className="item-list">
@@ -123,7 +146,7 @@ export function Professor() {
             <div className="item-card glass" key={e.id}>
               <div className="item-icon exam">{examIcon}</div>
               <div className="item-body"><div className="item-title">{e.title}</div>
-                <div className="item-meta">{e.question_count} سؤال · {e.duration_minutes} دقيقة{e.exam_type === 'practical' ? <> · <b>عملي (صور)</b></> : null}</div></div>
+                <div className="item-meta">{e.question_count} سؤال · {e.duration_minutes} دقيقة{e.exam_type === 'practical' ? <> · <b>عملي (صور)</b></> : null}{several ? ' · ' + e.subject_name : ''}</div></div>
               <button className="btn item-action" onClick={() => nav('/exam/' + e.id)}>{t('start')}</button>
             </div>))}
         </div></div>}

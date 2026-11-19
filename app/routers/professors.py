@@ -38,6 +38,7 @@ def _to_out(
 ) -> schemas.ProfessorOut:
     return schemas.ProfessorOut(
         id=p.id,
+        user_id=p.user_id,
         title=p.title,
         name=p.user.full_name,
         subject_id=p.subject_id,
