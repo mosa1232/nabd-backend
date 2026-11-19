@@ -9,6 +9,11 @@ import { Toasts } from '../Shell.jsx';
 export function nextRouteFor(u) {
   if (u && u.profile_complete === false) return '/complete-profile';
   if (u && u.needs_credentials) return '/set-credentials';
+  // a shared exam link opened while signed out: land on that exam after signing in
+  try {
+    const back = sessionStorage.getItem('kiur_after_login');
+    if (back && /^\/exam\/[\w-]+$/.test(back)) { sessionStorage.removeItem('kiur_after_login'); return back; }
+  } catch { /* storage blocked: go home */ }
   return '/';
 }
 

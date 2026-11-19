@@ -14,18 +14,19 @@ export const PageHead = ({ title, sub, back }) => {
   );
 };
 
-// section keys: booklet:<id> | lecture:<id> | general | all
-export const secOpts = (key) => (key.startsWith('booklet:') ? { booklet_id: key.slice(8) } : key.startsWith('lecture:') ? { lecture_id: key.slice(8) } : key === 'general' ? { general: true } : {});
+// section keys: bank:<id> | booklet:<id> | lecture:<id> | general | all
+export const secOpts = (key) => (key.startsWith('bank:') ? { bank_id: key.slice(5) } : key.startsWith('booklet:') ? { booklet_id: key.slice(8) } : key.startsWith('lecture:') ? { lecture_id: key.slice(8) } : key === 'general' ? { general: true } : {});
 const studiedKey = (uid, k) => 'kiur_studied_' + uid + '_' + k;
 const isStudied = (uid, k) => { try { return localStorage.getItem(studiedKey(uid, k)) === '1'; } catch { return false; } };
 const markStudied = (uid, k) => { try { localStorage.setItem(studiedKey(uid, k), '1'); } catch { /* ignore */ } };
 
 export function quizUrl(subjectId, name, opts) {
   const q = new URLSearchParams({ name: name || '' });
+  if (opts?.bank_id) q.set('bank_id', opts.bank_id);
   if (opts?.booklet_id) q.set('booklet_id', opts.booklet_id);
   if (opts?.lecture_id) q.set('lecture_id', opts.lecture_id);
   if (opts?.general) q.set('general', '1');
-  if (opts && (opts.shuffle || opts.booklet_id || opts.lecture_id || opts.general)) q.set('exam', '1');
+  if (opts && (opts.shuffle || opts.bank_id || opts.booklet_id || opts.lecture_id || opts.general)) q.set('exam', '1');
   return `/quiz/${subjectId}?${q.toString()}`;
 }
 

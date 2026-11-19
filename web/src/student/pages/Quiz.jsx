@@ -30,6 +30,7 @@ export function Quiz() {
       let q = 'limit=10';
       if (exam) {
         q = 'limit=100&shuffle=true';
+        if (sp.get('bank_id')) q += '&bank_id=' + encodeURIComponent(sp.get('bank_id'));
         if (sp.get('booklet_id')) q += '&booklet_id=' + encodeURIComponent(sp.get('booklet_id'));
         if (sp.get('lecture_id')) q += '&lecture_id=' + encodeURIComponent(sp.get('lecture_id'));
         if (sp.get('general')) q += '&general=true';

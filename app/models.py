@@ -241,9 +241,24 @@ class Question(Base):
     # lecture must never be blocked by — or delete — its questions.
     booklet_id = Column(String, nullable=True, index=True)
     lecture_id = Column(String, nullable=True, index=True)
+    # The named question bank (QuestionBank) the question lives in; empty = the
+    # subject's general pool. A plain id, like booklet_id, so deleting a bank
+    # is done explicitly (and removes its questions) rather than by a cascade.
+    bank_id = Column(String, nullable=True, index=True)
 
     subject = relationship("Subject")
     choices = relationship("Choice", back_populates="question", cascade="all, delete-orphan")
+
+
+class QuestionBank(Base):
+    """A named bank of questions inside one subject. A doctor can keep several
+    per subject (e.g. «بنك الفصل الأول», «أسئلة سنوات سابقة»)."""
+    __tablename__ = "question_banks"
+    id = Column(String, primary_key=True, default=gen_id)
+    subject_id = Column(String, ForeignKey("subjects.id"), nullable=False, index=True)
+    professor_id = Column(String, ForeignKey("professor_profiles.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Choice(Base):
@@ -282,6 +297,9 @@ class Exam(Base):
     # "mixed" = any questions, images shown where present.
     exam_type = Column(String, default="mcq")
     seconds_per_question = Column(Integer, nullable=True)
+    # Comma-separated QuestionBank ids the exam draws from; empty = every
+    # question of the subject (how every exam worked before banks existed).
+    bank_ids = Column(Text, nullable=True)
 
     subject = relationship("Subject")
 

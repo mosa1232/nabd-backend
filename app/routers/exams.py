@@ -112,6 +112,10 @@ def start_exam(exam_id: str, db: Session = Depends(get_db), user: models.User = 
             models.Question.subject_id == exam.subject_id,
             or_(models.Question.qtype.is_(None), models.Question.qtype != "essay"),
         )
+        bank_ids = [x for x in (exam.bank_ids or "").split(",") if x]
+        if bank_ids:
+            # the exam was set up to draw only from these banks
+            pool_q = pool_q.filter(models.Question.bank_id.in_(bank_ids))
         if exam.exam_type == "practical":
             # An image station without an image is meaningless.
             pool_q = pool_q.filter(models.Question.image_url.isnot(None), models.Question.image_url != "")

@@ -9,13 +9,16 @@ from ..deps import get_current_user
 router = APIRouter(prefix="/api", tags=["questions"])
 
 
-def _section_filter(q, booklet_id: str | None, lecture_id: str | None, general: bool):
+def _section_filter(q, booklet_id: str | None, lecture_id: str | None, general: bool, bank_id: str | None = None):
+    # a named bank wins over a booklet / lecture the question may also be filed under
+    if bank_id:
+        return q.filter(models.Question.bank_id == bank_id)
     if booklet_id:
-        return q.filter(models.Question.booklet_id == booklet_id)
+        return q.filter(models.Question.booklet_id == booklet_id, models.Question.bank_id.is_(None))
     if lecture_id:
-        return q.filter(models.Question.lecture_id == lecture_id)
+        return q.filter(models.Question.lecture_id == lecture_id, models.Question.bank_id.is_(None))
     if general:
-        return q.filter(models.Question.booklet_id.is_(None), models.Question.lecture_id.is_(None))
+        return q.filter(models.Question.booklet_id.is_(None), models.Question.lecture_id.is_(None), models.Question.bank_id.is_(None))
     return q
 
 
@@ -27,6 +30,7 @@ def list_questions(
     booklet_id: str | None = None,
     lecture_id: str | None = None,
     general: bool = False,
+    bank_id: str | None = None,
     shuffle: bool = False,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
@@ -39,7 +43,7 @@ def list_questions(
         .options(joinedload(models.Question.choices))
         .filter(models.Question.subject_id == subject_id)
     )
-    query = _section_filter(query, booklet_id, lecture_id, general)
+    query = _section_filter(query, booklet_id, lecture_id, general, bank_id)
     if shuffle:
         query = query.order_by(func.random())
     return query.offset(offset).limit(limit).all()
@@ -49,7 +53,7 @@ def list_questions(
 def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """The question bank of a subject split into its booklets and lectures,
     each with how many questions it holds and how many the student has tried."""
-    qs = db.query(models.Question.id, models.Question.booklet_id, models.Question.lecture_id).filter(models.Question.subject_id == subject_id).all()
+    qs = db.query(models.Question.id, models.Question.booklet_id, models.Question.lecture_id, models.Question.bank_id).filter(models.Question.subject_id == subject_id).all()
     if not qs:
         return {"total": 0, "sections": []}
     qids = [r[0] for r in qs]
@@ -63,16 +67,21 @@ def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.U
     tried = set(latest)
     mastered = {k for k, v in latest.items() if v}
     groups: dict[str, list[str]] = {}
-    for qid, bid, lid in qs:
-        key = ("booklet:" + bid) if bid else ("lecture:" + lid) if lid else "general"
+    for qid, bid, lid, kid in qs:
+        key = ("bank:" + kid) if kid else ("booklet:" + bid) if bid else ("lecture:" + lid) if lid else "general"
         groups.setdefault(key, []).append(qid)
+    banks = {b.id: b for b in db.query(models.QuestionBank).filter(models.QuestionBank.id.in_([k[5:] for k in groups if k.startswith("bank:")])).all()}
     booklets = {b.id: b for b in db.query(models.Booklet).filter(models.Booklet.id.in_([k[8:] for k in groups if k.startswith("booklet:")])).all()}
     lectures = {l.id: l for l in db.query(models.Lecture).filter(models.Lecture.id.in_([k[8:] for k in groups if k.startswith("lecture:")])).all()}
     courses = {c.id: c for c in db.query(models.Course).filter(models.Course.id.in_({l.course_id for l in lectures.values()})).all()} if lectures else {}
     out = []
     for key, ids in groups.items():
         kind, _, ident = key.partition(":")
-        if kind == "booklet":
+        if kind == "bank":
+            bk = banks.get(ident)
+            title, kind_l = (bk.name if bk else None), "bank"
+            order = (-1, bk.created_at.timestamp() if bk and bk.created_at else 0)
+        elif kind == "booklet":
             b = booklets.get(ident)
             title, kind_l = (b.title if b else None), "booklet"
             order = (0, b.created_at.timestamp() if b and b.created_at else 0)
@@ -84,7 +93,7 @@ def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.U
             sub = c.title if c else ""
         else:
             title, kind_l, order = "أسئلة عامة", "general", (2,)
-        if kind in ("booklet", "lecture") and not title:
+        if kind in ("bank", "booklet", "lecture") and not title:
             key, title, kind_l, order = "general", "أسئلة عامة", "general", (2,)   # parent was deleted
         out.append({"key": key, "kind": kind_l, "title": title, "course": sub if kind == "lecture" else "",
                     "count": len(ids), "tried": len([i for i in ids if i in tried]), "mastered": len([i for i in ids if i in mastered]), "_o": order})
@@ -109,6 +118,7 @@ def study_questions(
     booklet_id: str | None = None,
     lecture_id: str | None = None,
     general: bool = False,
+    bank_id: str | None = None,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
@@ -120,7 +130,7 @@ def study_questions(
         .options(joinedload(models.Question.choices))
         .filter(models.Question.subject_id == subject_id)
     )
-    rows = _section_filter(query, booklet_id, lecture_id, general).limit(300).all()
+    rows = _section_filter(query, booklet_id, lecture_id, general, bank_id).limit(300).all()
     out = []
     for q in rows:
         out.append({

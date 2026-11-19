@@ -4438,6 +4438,7 @@
       let qs = 'limit=10';
       if (opts){
         qs = 'limit=100&shuffle=true';
+        if (opts.bank_id) qs += '&bank_id=' + encodeURIComponent(opts.bank_id);
         if (opts.booklet_id) qs += '&booklet_id=' + encodeURIComponent(opts.booklet_id);
         if (opts.lecture_id) qs += '&lecture_id=' + encodeURIComponent(opts.lecture_id);
         if (opts.general) qs += '&general=true';
@@ -4475,6 +4476,7 @@
   const isStudied = k => { try { return localStorage.getItem(studiedKey(k)) === '1'; } catch (e) { return false; } };
   const markStudied = k => { try { localStorage.setItem(studiedKey(k), '1'); } catch (e) {} };
   function secOpts(key){
+    if (key.startsWith('bank:')) return {bank_id: key.slice(5)};
     if (key.startsWith('booklet:')) return {booklet_id: key.slice(8)};
     if (key.startsWith('lecture:')) return {lecture_id: key.slice(8)};
     if (key === 'general') return {general: true};

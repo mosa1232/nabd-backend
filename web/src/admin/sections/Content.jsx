@@ -23,8 +23,9 @@ function Layer({ title, onClose, children, wide }) {
 }
 
 // ------------------------------------------------------------------ question editor
-function QuestionEditor({ q, onClose, onSaved }) {
+function QuestionEditor({ q, onClose, onSaved, banks = [], defaultBank = '' }) {
   const A = useAdmin();
+  const [bank, setBank] = useState(q ? (q.bank_id || '') : defaultBank);
   const [type, setType] = useState(q?.qtype || 'mcq');
   const [text, setText] = useState(q?.text || '');
   const [rationale, setRationale] = useState(q?.rationale || '');
@@ -48,6 +49,7 @@ function QuestionEditor({ q, onClose, onSaved }) {
   const save = async () => {
     if (!text.trim()) return fail('اكتب نص السؤال');
     const body = { text: text.trim(), qtype: type, image_url: image, rationale: rationale.trim(), eyebrow: eyebrow.trim(), model_answer: '', choices: [] };
+    body.bank_id = bank || null;
     if (sections.length > 1) { body.booklet_id = section.startsWith('booklet:') ? section.slice(8) : null; body.lecture_id = section.startsWith('lecture:') ? section.slice(8) : null; }
     if (type === 'mcq') {
       body.choices = choices.map(c => ({ text: c.text.trim(), is_correct: c.ok })).filter(c => c.text);
@@ -89,6 +91,8 @@ function QuestionEditor({ q, onClose, onSaved }) {
       {type === 'essay' && <div className="form-field"><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الإجابة النموذجية</label><textarea rows={4} value={model} onChange={e => setModel(e.target.value)} style={{ ...FIELD, resize: 'vertical' }} /></div>}
       <div className="form-field"><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>شرح الإجابة (اختياري)</label><textarea rows={2} value={rationale} onChange={e => setRationale(e.target.value)} style={{ ...FIELD, resize: 'vertical' }} /></div>
       <div className="form-field"><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>التصنيف (اختياري — مثال: الجهاز الهيكلي)</label><input type="text" value={eyebrow} onChange={e => setEyebrow(e.target.value)} style={FIELD} /></div>
+      {banks.length > 0 && <div className="form-field"><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>البنك</label>
+        <select value={bank} onChange={e => setBank(e.target.value)} style={FIELD}><option value="">بدون بنك (أسئلة عامة)</option>{banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
       {sections.length > 1 && <div className="form-field"><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الملزمة / المحاضرة</label>
         <select value={section} onChange={e => setSection(e.target.value)} style={FIELD}>{sections.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}</select></div>}
       {msg && <div style={{ fontSize: '.8rem', marginBottom: 8, color: msg.err ? 'var(--danger)' : 'var(--ink-faint)' }}>{msg.t}</div>}
@@ -109,8 +113,9 @@ async function download(path, name) {
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
 }
 
-function AiGen({ mode, onClose, onSaved }) {
+function AiGen({ mode, onClose, onSaved, banks = [], defaultBank = '' }) {
   const A = useAdmin();
+  const [bank, setBank] = useState(defaultBank);
   const [file, setFile] = useState(null);
   const [count, setCount] = useState(mode === 'pearls' ? 3 : 10);
   const [difficulty, setDifficulty] = useState('متوسط');
@@ -178,7 +183,7 @@ function AiGen({ mode, onClose, onSaved }) {
     setBusy(true);
     try {
       const isQ = mode !== 'pearls';
-      const res = await post(isQ ? '/api/professors/me/questions/bulk' : '/api/professors/me/pearls/bulk', isQ ? { questions: chosen } : { pearls: chosen });
+      const res = await post(isQ ? '/api/professors/me/questions/bulk' : '/api/professors/me/pearls/bulk', isQ ? { questions: chosen.map(d => ({ ...d, bank_id: bank || null })) } : { pearls: chosen });
       A.toast(`تم حفظ ${res.saved} ${isQ ? 'سؤال' : 'لمحة'}`); onClose(); onSaved();
     } catch (e) { setBusy(false); setMsg({ t: e.detail || 'تعذّر الحفظ', err: true }); }
   };
@@ -254,6 +259,8 @@ function AiGen({ mode, onClose, onSaved }) {
             <button type="button" className="btn btn-ghost" style={{ padding: '3px 12px', fontSize: '.72rem' }} onClick={stop}>إلغاء</button></div>
         </div>
       )}
+      {mode !== 'pearls' && banks.length > 0 && <div className="form-field" style={{ marginTop: 12 }}><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>احفظ الأسئلة في بنك</label>
+        <select value={bank} onChange={e => setBank(e.target.value)} style={FIELD}><option value="">بدون بنك (أسئلة عامة)</option>{banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
       {msg && !job && <div style={{ fontSize: '.8rem', marginTop: 8, color: msg.err ? 'var(--danger)' : 'var(--ink-faint)' }}>{msg.t}</div>}
       <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
         {!drafts
@@ -268,17 +275,37 @@ function AiGen({ mode, onClose, onSaved }) {
 // ------------------------------------------------------------------ question bank
 export function Questions() {
   const A = useAdmin();
-  const { data: list, error, reload } = useData(() => apiFetch('/api/professors/me/questions'), []);
+  const { data: list, error, reload: reloadQs } = useData(() => apiFetch('/api/professors/me/questions'), []);
+  const { data: bk, reload: reloadBanks } = useData(() => apiFetch('/api/professors/me/banks').catch(() => ({ banks: [], general_count: 0 })), []);
+  const reload = () => { reloadQs(); reloadBanks(); };
+  const banks = (bk && bk.banks) || [];
+  const [bankSel, setBankSel] = useState('all');         // 'all' | 'none' (no bank) | a bank id
   const [type, setType] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(30);
   const [editor, setEditor] = useState(undefined);     // undefined closed, null new, object edit
   const [ai, setAi] = useState(null);
+  const curBank = banks.find(b => b.id === bankSel) || null;
+  const inBank = (x) => bankSel === 'all' || (bankSel === 'none' ? !x.bank_id : x.bank_id === bankSel);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (list || []).filter(x => (type === 'all' || (type === 'image' ? !!x.image_url : (x.qtype || 'mcq') === type)) &&
+    return (list || []).filter(x => inBank(x) && (type === 'all' || (type === 'image' ? !!x.image_url : (x.qtype || 'mcq') === type)) &&
       (!s || [x.text, x.eyebrow, x.rationale, ...(x.choices || []).map(c => c.text)].some(v => (v || '').toLowerCase().includes(s))));
-  }, [list, type, q]);
+  }, [list, type, q, bankSel]); // eslint-disable-line
   if (error) return <Card>{error}</Card>;
   if (!list) return <Loading />;
+  const generalN = list.filter(x => !x.bank_id).length;
+  const newBank = () => A.dialogs.form({ title: 'بنك جديد', fields: [{ id: 'name', label: 'اسم البنك', placeholder: 'مثال: بنك الفصل الأول' }],
+    onSubmit: async (v) => { const r = await post('/api/professors/me/banks', { name: v.name }); setBankSel(r.id); reload(); A.toast('تم إنشاء البنك'); } });
+  const renameBank = () => A.dialogs.form({ title: 'تعديل اسم البنك', fields: [{ id: 'name', label: 'الاسم الجديد', value: curBank.name }],
+    onSubmit: async (v) => { await put('/api/professors/me/banks/' + curBank.id, { name: v.name }); reload(); A.toast('تم تعديل الاسم'); } });
+  const deleteBank = async () => {
+    const n = curBank.count;
+    if (!await A.dialogs.confirm(`حذف البنك «${curBank.name}»؟ سيُحذف معه ${n} سؤال نهائياً ولا يمكن التراجع.`)) return;
+    try { const r = await del('/api/professors/me/banks/' + curBank.id); setBankSel('all'); reload(); A.toast(`حُذف البنك و${r.removed_questions} سؤال`); }
+    catch (e) { A.toast(e.detail || 'تعذّر حذف البنك', 'error'); }
+  };
+  // move the questions on screen (or just one) into a bank
+  const moveForm = (ids, title) => A.dialogs.form({ title, fields: [{ id: 'bank', type: 'select', label: 'انقلها إلى', value: '', options: [{ value: '', label: 'بدون بنك (أسئلة عامة)' }, ...banks.map(b => ({ value: b.id, label: b.name }))] }],
+    onSubmit: async (v) => { const r = await post('/api/professors/me/questions/move', { question_ids: ids, bank_id: v.bank || null }); reload(); A.toast(`تم نقل ${r.moved} سؤال`); } });
   const by = t => list.filter(x => (x.qtype || 'mcq') === t).length;
   const types = [['all', 'الكل', list.length], ['mcq', 'اختيارات', by('mcq')], ['true_false', 'صح/خطأ', by('true_false')], ['essay', 'مقالي', by('essay')], ['image', 'بصور', list.filter(x => x.image_url).length]];
   const remove = async (x) => { if (!await A.dialogs.confirm('حذف هذا السؤال نهائياً؟')) return; try { await del('/api/professors/me/questions/' + x.id); reload(); } catch (e) { A.toast(e.detail || 'تعذّر الحذف', 'error'); } };
@@ -290,7 +317,18 @@ export function Questions() {
           <button className="btn btn-ghost" onClick={() => setAi('questions')}>✨ توليد من ملف بالذكاء الاصطناعي</button>
           <AddBtn onClick={() => setEditor(null)}>سؤال جديد</AddBtn>
         </div>}>
-        <StKpis items={[['إجمالي الأسئلة', numAr(list.length), 'تظهر لطلاب مادتك تلقائيًا'], ['اختيارات', numAr(by('mcq'))], ['صح / خطأ', numAr(by('true_false'))], ['مقالي', numAr(by('essay'))], ['بصور', numAr(list.filter(x => x.image_url).length)]]} />
+        <StKpis items={[['إجمالي الأسئلة', numAr(list.length), 'تظهر لطلاب مادتك تلقائيًا'], ['البنوك', numAr(banks.length)], ['اختيارات', numAr(by('mcq'))], ['صح / خطأ', numAr(by('true_false'))], ['مقالي', numAr(by('essay'))], ['بصور', numAr(list.filter(x => x.image_url).length)]]} />
+        <div className="ops-filters" style={{ alignItems: 'center' }}>
+          <b style={{ fontSize: '.8rem' }}>البنوك:</b>
+          <button className={'cat-tab' + (bankSel === 'all' ? ' on' : '')} onClick={() => { setBankSel('all'); setShown(30); }}>كل الأسئلة <b>{list.length}</b></button>
+          {banks.map(b => <button key={b.id} className={'cat-tab' + (bankSel === b.id ? ' on' : '')} onClick={() => { setBankSel(b.id); setShown(30); }}>{b.name} <b>{b.count}</b></button>)}
+          {banks.length > 0 && generalN > 0 && <button className={'cat-tab' + (bankSel === 'none' ? ' on' : '')} onClick={() => { setBankSel('none'); setShown(30); }}>بدون بنك <b>{generalN}</b></button>}
+          <button className="cat-tab plus" onClick={newBank}>+ بنك جديد</button>
+        </div>
+        {curBank && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', margin: '8px 0 4px' }}>
+          <span className="cell-sub">البنك: <b>{curBank.name}</b> — {curBank.count} سؤال</span>
+          <SmallBtn onClick={renameBank}>تعديل اسم البنك</SmallBtn><SmallBtn danger onClick={deleteBank}>حذف البنك</SmallBtn></div>}
+        {banks.length > 0 && filtered.length > 0 && <div style={{ margin: '4px 0 8px' }}><SmallBtn onClick={() => moveForm(filtered.map(x => x.id), `نقل ${filtered.length} سؤال إلى بنك`)}>نقل الأسئلة المعروضة ({filtered.length}) إلى بنك…</SmallBtn></div>}
         <div className="ops-filters">
           {types.map(([k, l, n]) => <button key={k} className={'cat-tab' + (k === type ? ' on' : '')} onClick={() => { setType(k); setShown(30); }}>{l} <b>{n}</b></button>)}
           <input type="text" className="q" placeholder="ابحث في نص السؤال أو الخيارات أو التصنيف..." value={q} onChange={e => { setQ(e.target.value); setShown(30); }} />
@@ -302,15 +340,15 @@ export function Questions() {
                 <div className="item-title"><span className="badge badge-idle" style={{ marginInlineEnd: 6 }}>{QTYPE_LABEL[x.qtype] || 'اختيارات'}</span>{x.image_url ? <span className="badge badge-active" style={{ marginInlineEnd: 6 }}>🖼 صورة</span> : null}{x.text}</div>
                 <div className="item-meta">{x.qtype === 'essay' ? 'إجابة نموذجية: ' + (x.model_answer || '').slice(0, 90) : x.choices.map(c => (c.is_correct ? '✓ ' : '• ') + c.text).join(' · ')}</div>
               </div>
-              <div style={{ display: 'flex', gap: 6, flex: 'none' }}><SmallBtn onClick={() => setEditor(x)}>تعديل</SmallBtn><TrashBtn label="حذف السؤال" onClick={() => remove(x)} /></div>
+              <div style={{ display: 'flex', gap: 6, flex: 'none' }}>{banks.length > 0 && <SmallBtn onClick={() => moveForm([x.id], 'نقل السؤال إلى بنك')}>نقل</SmallBtn>}<SmallBtn onClick={() => setEditor(x)}>تعديل</SmallBtn><TrashBtn label="حذف السؤال" onClick={() => remove(x)} /></div>
             </div>
           ))}
           {!filtered.length && <div className="empty-row">لا توجد أسئلة بهذه المواصفات — اضغط «سؤال جديد»</div>}
         </div>
         {filtered.length > shown && <div className="ops-pager"><button className="btn btn-ghost" onClick={() => setShown(s => s + 30)}>عرض المزيد ({numAr(filtered.length - shown)})</button></div>}
       </Card>
-      {editor !== undefined && <QuestionEditor q={editor} onClose={() => setEditor(undefined)} onSaved={reload} />}
-      {ai && <AiGen mode={ai} onClose={() => setAi(null)} onSaved={reload} />}
+      {editor !== undefined && <QuestionEditor q={editor} onClose={() => setEditor(undefined)} onSaved={reload} banks={banks} defaultBank={curBank ? curBank.id : ''} />}
+      {ai && <AiGen mode={ai} onClose={() => setAi(null)} onSaved={reload} banks={banks} defaultBank={curBank ? curBank.id : ''} />}
     </>
   );
 }

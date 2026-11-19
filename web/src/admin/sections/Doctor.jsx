@@ -180,6 +180,7 @@ const EXAM_TYPES = [{ value: 'mcq', label: 'نظري — أسئلة اختيار
 function examBody(v) {
   const type = v.examType || 'mcq';
   const body = { title: v.title.trim(), question_count: parseInt(v.questionCount, 10) || 0, duration_minutes: parseInt(v.duration, 10) || 30, exam_type: type };
+  body.bank_ids = v.bankIds || [];
   if (type === 'practical') { body.seconds_per_question = parseInt(v.stationSeconds, 10) || null; if (!body.seconds_per_question) throw { detail: 'حدّد مدة كل محطة بالثواني (5 إلى 600)' }; }
   return body;
 }
@@ -190,12 +191,14 @@ export function Exams() {
   if (!d) return <Loading />;
   const list = d.exams || [];
   const form = async (cur) => {
-    let imgs = null;
+    let imgs = null; let banks = [];
     if (!cur) { try { imgs = (await apiFetch('/api/professors/me/exams/image-questions')).count; } catch { /* hint only */ } }
+    try { banks = (await apiFetch('/api/professors/me/banks')).banks || []; } catch { /* no banks: the exam uses every question */ }
     A.dialogs.form({
       title: cur ? 'تعديل امتحان' : 'إنشاء امتحان',
       fields: [
         { id: 'title', label: 'عنوان الامتحان', value: cur?.title || '' },
+        ...(banks.length ? [{ id: 'bankIds', type: 'checks', label: 'من أي بنوك تُسحب أسئلة الامتحان؟ (بدون اختيار = كل أسئلة المادة)', value: (cur?.bank_ids || []).filter(id => banks.some(b => b.id === id)), options: banks.map(b => ({ value: b.id, label: `${b.name} (${b.count} سؤال)` })) }] : []),
         { id: 'examType', type: 'select', label: 'نوع الامتحان', value: cur?.exam_type || 'mcq', options: EXAM_TYPES },
         { id: 'questionCount', type: 'number', label: 'عدد الأسئلة (المحطات في العملي)', value: cur?.question_count ?? 20 },
         { id: 'duration', type: 'number', label: 'المدة بالدقائق (للنظري والمختلط)', value: cur?.duration_minutes ?? 30 },
@@ -209,6 +212,16 @@ export function Exams() {
       },
     });
   };
+  // the link opens the exam for the student right after they sign in
+  const share = async (e) => {
+    const url = location.origin + '/exam/' + e.id;
+    if (navigator.share) {
+      try { await navigator.share({ title: e.title, text: `امتحان «${e.title}» على كيور`, url }); return; }
+      catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); A.toast('نُسخ رابط الامتحان — أرسله للطلاب'); }
+    catch { window.prompt('انسخ رابط الامتحان وأرسله للطلاب', url); }
+  };
   const remove = async (e) => {
     if (!await A.dialogs.confirm('حذف هذا الامتحان نهائياً؟')) return;
     try { await del('/api/professors/me/exams/' + e.id); reload(); } catch (err) { A.toast(err.detail || 'تعذّر حذف الامتحان', 'error'); }
@@ -220,11 +233,11 @@ export function Exams() {
         <Table head={['العنوان', 'النوع', 'عدد الأسئلة', 'المدة', '']} empty="لا توجد امتحانات بعد">
           {list.map(e => (
             <tr key={e.id}>
-              <td><div className="cell-name">{e.title}</div></td>
+              <td><div className="cell-name">{e.title}</div>{e.bank_ids && e.bank_ids.length ? <div className="cell-sub">من {e.bank_ids.length} {e.bank_ids.length === 1 ? 'بنك' : 'بنوك'} محددة</div> : null}</td>
               <td>{e.exam_type === 'practical' ? <Badge kind="active">عملي (صور)</Badge> : <Badge kind="idle">نظري</Badge>}</td>
               <td>{e.question_count}</td>
               <td>{e.exam_type === 'practical' && e.seconds_per_question ? e.seconds_per_question + ' ث / محطة' : e.duration_minutes + ' د'}</td>
-              <RowActions><SmallBtn onClick={() => form(e)}>تعديل</SmallBtn><TrashBtn label="حذف الامتحان" onClick={() => remove(e)} /></RowActions>
+              <RowActions><SmallBtn onClick={() => share(e)} title="نسخ رابط الامتحان أو مشاركته">🔗 مشاركة</SmallBtn><SmallBtn onClick={() => form(e)}>تعديل</SmallBtn><TrashBtn label="حذف الامتحان" onClick={() => remove(e)} /></RowActions>
             </tr>
           ))}
         </Table>

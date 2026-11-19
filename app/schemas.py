@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from .permissions import effective_permissions, parse_permissions
 
@@ -311,6 +311,7 @@ class QuestionProfIn(BaseModel):
     choices: list["ChoiceIn"] = []
     booklet_id: Optional[str] = None
     lecture_id: Optional[str] = None
+    bank_id: Optional[str] = None   # the named bank it goes into; empty = general
 
 
 class QuestionOut(BaseModel):
@@ -362,6 +363,15 @@ class ExamOut(BaseModel):
     duration_minutes: int
     exam_type: str = "mcq"
     seconds_per_question: Optional[int] = None
+    bank_ids: list[str] = []
+
+    @field_validator("bank_ids", mode="before")
+    @classmethod
+    def _split_bank_ids(cls, v):
+        # stored as a comma-separated string on the model
+        if v is None or v == "": return []
+        if isinstance(v, str): return [x for x in v.split(",") if x]
+        return v
 
 
 class ExamIn(BaseModel):
@@ -371,6 +381,8 @@ class ExamIn(BaseModel):
     exam_type: ExamType = "mcq"
     # Practical exams: how long each image station stays open.
     seconds_per_question: Optional[int] = Field(default=None, ge=5, le=600)
+    # Banks the exam draws its questions from; empty = every question of the subject.
+    bank_ids: list[str] = []
 
 
 class ProfessorOut(BaseModel):
@@ -447,6 +459,7 @@ class QuestionAdminOut(BaseModel):
     model_answer: str = ""
     booklet_id: Optional[str] = None
     lecture_id: Optional[str] = None
+    bank_id: Optional[str] = None
     choices: list[ChoiceWithAnswerOut]
 
 

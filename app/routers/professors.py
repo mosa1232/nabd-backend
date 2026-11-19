@@ -9,6 +9,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from .. import ai, knowledge, models, qimport, schemas
@@ -350,7 +351,7 @@ def my_dashboard(db: Session = Depends(get_db), user: models.User = Depends(get_
         "student_count": len(student_ids),
         "avg_student_score": avg_score,
         "booklets": [{"id": b.id, "title": b.title, "pages": b.pages, "file_url": b.file_url or None} for b in booklets],
-        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes, "exam_type": e.exam_type or "mcq", "seconds_per_question": e.seconds_per_question} for e in exams],
+        "exams": [{"id": e.id, "title": e.title, "question_count": e.question_count, "duration_minutes": e.duration_minutes, "exam_type": e.exam_type or "mcq", "seconds_per_question": e.seconds_per_question, "bank_ids": [x for x in (e.bank_ids or "").split(",") if x]} for e in exams],
     }
 
 
@@ -563,6 +564,17 @@ def _check_exam_body(body: schemas.ExamIn) -> None:
         raise HTTPException(400, "الامتحان العملي يحتاج مدة لكل محطة (بالثواني)")
 
 
+def _exam_bank_ids(db: Session, profile: models.ProfessorProfile, body: schemas.ExamIn) -> str:
+    """The banks an exam draws from, as stored (comma-separated). Only the
+    doctor's own banks count; empty means every question of the subject."""
+    ids = [x for x in dict.fromkeys(body.bank_ids or []) if x]
+    if ids:
+        own = {b.id for b in db.query(models.QuestionBank).filter(models.QuestionBank.professor_id == profile.id, models.QuestionBank.id.in_(ids)).all()}
+        if own != set(ids):
+            raise HTTPException(400, "أحد البنوك المختارة غير موجود")
+    return ",".join(ids)
+
+
 @router.get("/me/exams/image-questions")
 def image_question_count(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     """How many questions of the doctor's subject carry an image — what a
@@ -584,6 +596,7 @@ def create_exam(body: schemas.ExamIn, db: Session = Depends(get_db), user: model
         question_count=body.question_count, duration_minutes=body.duration_minutes,
         exam_type=body.exam_type,
         seconds_per_question=body.seconds_per_question if body.exam_type == "practical" else None,
+        bank_ids=_exam_bank_ids(db, profile, body),
     )
     db.add(e)
     db.flush()  # need the generated id to link the announcement to it
@@ -605,6 +618,7 @@ def update_exam(exam_id: str, body: schemas.ExamIn, db: Session = Depends(get_db
     e.duration_minutes = body.duration_minutes
     e.exam_type = body.exam_type
     e.seconds_per_question = body.seconds_per_question if body.exam_type == "practical" else None
+    e.bank_ids = _exam_bank_ids(db, profile, body)
     db.commit()
     db.refresh(e)
     return e
@@ -782,7 +796,7 @@ def my_questions(db: Session = Depends(get_db), user: models.User = Depends(get_
 
 
 def _prof_question_input(profile: models.ProfessorProfile, body: schemas.QuestionProfIn) -> schemas.QuestionAdminIn:
-    return schemas.QuestionAdminIn(subject_id=profile.subject_id, **body.model_dump(exclude={"booklet_id", "lecture_id"}))
+    return schemas.QuestionAdminIn(subject_id=profile.subject_id, **body.model_dump(exclude={"booklet_id", "lecture_id", "bank_id"}))
 
 
 def _section_ids(db: Session, profile: models.ProfessorProfile, body) -> tuple[str | None, str | None]:
@@ -801,6 +815,16 @@ def _section_ids(db: Session, profile: models.ProfessorProfile, body) -> tuple[s
         if not lec or not course or course.professor_id != profile.id:
             raise HTTPException(400, "المحاضرة غير موجودة")
     return bid, lid
+
+
+def _bank_id(db: Session, profile: models.ProfessorProfile, body) -> str | None:
+    """The named bank a question goes into — only one of the doctor's own."""
+    bid = (getattr(body, "bank_id", None) or "").strip() or None
+    if bid:
+        b = db.get(models.QuestionBank, bid)
+        if not b or b.professor_id != profile.id:
+            raise HTTPException(400, "البنك غير موجود")
+    return bid
 
 
 @router.get("/me/question-sections")
@@ -825,7 +849,7 @@ def create_my_question(body: schemas.QuestionProfIn, db: Session = Depends(get_d
     q = models.Question(
         subject_id=profile.subject_id, professor_id=profile.id, text=body.text, eyebrow=body.eyebrow,
         rationale=body.rationale, image_url=body.image_url, qtype=body.qtype,
-        model_answer=body.model_answer.strip(), booklet_id=bid, lecture_id=lid,
+        model_answer=body.model_answer.strip(), booklet_id=bid, lecture_id=lid, bank_id=_bank_id(db, profile, body),
     )
     db.add(q)
     db.flush()
@@ -873,6 +897,7 @@ def update_my_question(question_id: str, body: schemas.QuestionProfIn, db: Sessi
     q.text, q.eyebrow, q.rationale, q.image_url = body.text, body.eyebrow, body.rationale, body.image_url
     q.qtype, q.model_answer = body.qtype, body.model_answer.strip()
     q.booklet_id, q.lecture_id = _section_ids(db, profile, body)
+    q.bank_id = _bank_id(db, profile, body)
     replace_choices(db, q, choices)
     db.commit()
     knowledge.invalidate()
@@ -890,8 +915,109 @@ def delete_my_question(question_id: str, db: Session = Depends(get_db), user: mo
     return {"ok": True}
 
 
+# ------------------------------------------------------------- question banks
+# A doctor can keep several named banks per subject. A question with no bank is
+# part of the subject's general pool (everything created before banks existed).
+class BankIn(BaseModel):
+    name: str
+
+
+class MoveQuestionsIn(BaseModel):
+    question_ids: list[str]
+    bank_id: str | None = None   # empty = take them out of any bank (general pool)
+
+
+def _bank_name(body: BankIn) -> str:
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "اسم البنك مطلوب")
+    return name[:120]
+
+
+def _own_bank(db: Session, profile: models.ProfessorProfile, bank_id: str) -> models.QuestionBank:
+    b = db.get(models.QuestionBank, bank_id)
+    if not b or b.professor_id != profile.id:
+        raise HTTPException(404, "البنك غير موجود")
+    return b
+
+
+@router.get("/me/banks")
+def my_banks(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    counts: dict[str | None, int] = {}
+    for bid, n in (db.query(models.Question.bank_id, func.count(models.Question.id))
+                   .filter(models.Question.professor_id == profile.id)
+                   .group_by(models.Question.bank_id).all()):
+        counts[bid or None] = n
+    banks = (db.query(models.QuestionBank).filter(models.QuestionBank.professor_id == profile.id)
+             .order_by(models.QuestionBank.created_at).all())
+    return {
+        "banks": [{"id": b.id, "name": b.name, "count": counts.get(b.id, 0), "created_at": b.created_at} for b in banks],
+        "general_count": counts.get(None, 0),
+    }
+
+
+@router.post("/me/banks")
+def create_bank(body: BankIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    name = _bank_name(body)
+    if db.query(models.QuestionBank).filter(models.QuestionBank.professor_id == profile.id, models.QuestionBank.name == name).first():
+        raise HTTPException(400, "عندك بنك بنفس الاسم")
+    b = models.QuestionBank(subject_id=profile.subject_id, professor_id=profile.id, name=name)
+    db.add(b)
+    db.commit()
+    return {"id": b.id, "name": b.name, "count": 0}
+
+
+@router.put("/me/banks/{bank_id}")
+def rename_bank(bank_id: str, body: BankIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    profile = _get_own_profile(db, user, "prof.questions")
+    b = _own_bank(db, profile, bank_id)
+    name = _bank_name(body)
+    if db.query(models.QuestionBank).filter(models.QuestionBank.professor_id == profile.id, models.QuestionBank.name == name, models.QuestionBank.id != b.id).first():
+        raise HTTPException(400, "عندك بنك بنفس الاسم")
+    b.name = name
+    db.commit()
+    return {"id": b.id, "name": b.name}
+
+
+@router.delete("/me/banks/{bank_id}")
+def delete_bank(bank_id: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Deleting a bank deletes the questions inside it for good (the dashboard
+    asks for confirmation with their count first). Exams that drew from it just
+    lose it from their list."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    b = _own_bank(db, profile, bank_id)
+    questions = db.query(models.Question).filter(models.Question.bank_id == b.id).all()
+    removed = len(questions)
+    for q in questions:
+        purge_question(db, q)
+    for e in db.query(models.Exam).filter(models.Exam.professor_id == profile.id, models.Exam.bank_ids.isnot(None)).all():
+        ids = [x for x in (e.bank_ids or "").split(",") if x]
+        if b.id in ids:
+            e.bank_ids = ",".join(x for x in ids if x != b.id)
+    db.delete(b)
+    db.commit()
+    knowledge.invalidate()
+    return {"ok": True, "removed_questions": removed}
+
+
+@router.post("/me/questions/move")
+def move_questions(body: MoveQuestionsIn, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    """Moves questions to another bank (or back to the general pool)."""
+    profile = _get_own_profile(db, user, "prof.questions")
+    target = None
+    if body.bank_id:
+        target = _own_bank(db, profile, body.bank_id).id
+    rows = db.query(models.Question).filter(models.Question.professor_id == profile.id, models.Question.id.in_(body.question_ids)).all()
+    for q in rows:
+        q.bank_id = target
+    db.commit()
+    return {"moved": len(rows)}
+
+
 # -------------------------------------------------------------- assistants
-# The professor creates their assistants' accounts and decides what each may
+# The professor creates their assistants'' accounts and decides what each may
 # do. Assistants then work inside the professor's own content.
 def _assistant_out(a: models.User) -> dict:
     return {
@@ -989,7 +1115,7 @@ def bulk_create_questions(body: schemas.QuestionBulkIn, db: Session = Depends(ge
         q = models.Question(
             subject_id=profile.subject_id, professor_id=profile.id, text=qin.text, eyebrow=qin.eyebrow,
             rationale=qin.rationale, image_url=qin.image_url, qtype=qin.qtype, model_answer=qin.model_answer.strip(),
-            booklet_id=bid, lecture_id=lid,
+            booklet_id=bid, lecture_id=lid, bank_id=_bank_id(db, profile, qin),
         )
         db.add(q)
         db.flush()

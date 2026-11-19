@@ -25,9 +25,17 @@ function Guard() {
   const { user, booted, pending, banned } = useApp();
   if (!booted) return <div className="view active"><div className="empty-row" style={{ marginTop: 80 }}>…</div></div>;
   if (banned) return <Banned />;
-  if (!user) return <Navigate to={pending.current.reset ? '/reset' : '/welcome'} replace />;
+  if (!user) {
+    // remember a shared exam link so sign-in can bring the student straight back to it
+    try { if (/^\/exam\/[\w-]+$/.test(location.pathname)) sessionStorage.setItem('kiur_after_login', location.pathname); } catch { /* storage blocked */ }
+    return <Navigate to={pending.current.reset ? '/reset' : '/welcome'} replace />;
+  }
   if (user.profile_complete === false) return <Navigate to="/complete-profile" replace />;
   if (user.needs_credentials) return <Navigate to="/set-credentials" replace />;
+  try {   // came back from Google sign-in (a full page reload) to a shared exam link
+    const back = sessionStorage.getItem('kiur_after_login');
+    if (back && location.pathname === '/' && /^\/exam\/[\w-]+$/.test(back)) { sessionStorage.removeItem('kiur_after_login'); return <Navigate to={back} replace />; }
+  } catch { /* storage blocked */ }
   return <Shell />;
 }
 
