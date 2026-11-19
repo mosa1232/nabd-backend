@@ -10,6 +10,11 @@ const ROLE_OPTIONS = [
   ['student', 'طالب'], ['professor', 'دكتور'], ['assistant', 'مساعد دكتور'], ['reseller', 'مندوب'], ['representative', 'ممثل عام (توثيق الطلاب)'],
   ['store_manager', 'مدير المتجر'], ['supervisor', 'مشرف'], ['admin', 'أدمن (مدير المنصة)'], ['owner', 'المالك (كل الصلاحيات)'],
 ].map(([value, label]) => ({ value, label }));
+// who may hand out which roles: only an owner makes owners, only an admin makes admins / supervisors / store managers
+const roleOptionsFor = (mine, current) => {
+  const list = mine === 'owner' ? ROLE_OPTIONS : mine === 'admin' ? ROLE_OPTIONS.filter(o => !['owner', 'admin'].includes(o.value)) : ROLE_OPTIONS.filter(o => !['admin', 'supervisor', 'store_manager'].includes(o.value));
+  return current && !list.some(o => o.value === current) ? ROLE_OPTIONS : list;
+};
 const STAFF_PERM_OPTIONS = ALL_STAFF_PERMS.map(c => ({ value: c, label: PERM_LABELS[c] }));
 const RESELLER_PERMS = ['codes.view', 'codes.generate'].map(c => ({ value: c, label: PERM_LABELS[c] }));
 const initialsOf = (n) => (n || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('');
@@ -78,7 +83,7 @@ export function useUserForms(A, reload) {
       fields: [
         { id: 'fullName', label: 'الاسم الكامل' }, { id: 'email', label: 'البريد الإلكتروني', dir: 'ltr' }, { id: 'phone', type: 'tel', label: 'رقم الهاتف (اختياري)', placeholder: '07xxxxxxxxx' },
         { id: 'password', type: 'password', label: 'كلمة المرور (8 أحرف على الأقل)' },
-        { id: 'role', type: 'select', label: 'الدور', value: presetRole || 'student', options: ROLE_OPTIONS.filter(o => o.value !== 'owner' || A.user.role === 'owner') },
+        { id: 'role', type: 'select', label: 'الدور', value: presetRole || 'student', options: roleOptionsFor(A.user.role) },
         { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors] },
         { id: 'scope', type: 'custom', render: ({ setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها (للممثل العام فقط)</label><ScopeField tree={tree} value={{}} onChange={setValue} /></div> },
         { id: 'perms', type: 'checks', label: 'الصلاحيات (للأدمن والمشرف ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', value: [], options: STAFF_PERM_OPTIONS },
@@ -110,7 +115,7 @@ export function useUserForms(A, reload) {
       fields: [
         { id: 'fullName', label: 'الاسم الكامل', value: a.full_name }, { id: 'email', label: 'البريد الإلكتروني', value: a.email, dir: 'ltr' }, { id: 'phone', type: 'tel', label: 'رقم الهاتف', value: a.phone || '' },
         { id: 'password', type: 'password', label: 'كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)' },
-        { id: 'role', type: 'select', label: 'الدور', value: a.role, options: ROLE_OPTIONS },
+        { id: 'role', type: 'select', label: 'الدور', value: a.role, options: roleOptionsFor(A.user.role, a.role) },
         { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: a.parent_user_id || '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors] },
         { id: 'scope', type: 'custom', value: { uni: a.scope_university_id || '', dept: a.scope_department_id || '', stage: a.scope_stage_id || '' },
           render: ({ value, setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها (للممثل العام فقط)</label><ScopeField tree={tree} value={value} onChange={setValue} /></div> },
@@ -285,19 +290,57 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
     try { const r = await apiFetch('/api/admin/users/' + a.id + '/password'); setPw(r.password || ''); } catch (e) { A.toast(e.detail || 'تعذّر الإظهار', 'error'); }
   };
   const copy = async (t) => { try { await navigator.clipboard.writeText(t); A.toast('نُسخت'); } catch { A.toast('تعذّر النسخ', 'error'); } };
-  const place = async () => {
-    let tree = []; try { tree = await loadScopeTree(); } catch { /* empty */ }
-    A.dialogs.form({ title: 'نقل الطالب — ' + a.full_name, fields: [{ id: 'p', type: 'custom', value: { uni: a.university_id || '', stage: a.stage_id || '' }, render: ({ value, setValue }) => <PlacementField tree={tree} value={value || {}} onChange={setValue} /> }],
-      onSubmit: async (v) => { const p = v.p || { uni: a.university_id || '', stage: a.stage_id || '' }; await put('/api/admin/users/' + a.id + '/placement', { university_id: p.uni || null, stage_id: p.stage || null }); reload(); } });
-  };
+  // ---- edit in place (same fields as the old account page): identity, study path, work, scope, permissions
+  const [ed, setEd] = useState(false);
+  const [fv, setFv] = useState({});
+  const [opts, setOpts] = useState({ tree: [], professors: [] });
+  const [saving, setSaving] = useState(false);
   const heldPerms = a.role === 'admin' ? (a.effective_permissions || []).filter(x => ALL_STAFF_PERMS.includes(x)) : (a.extra_permissions || []);
   const isStaff = ['supervisor', 'store_manager', 'admin'].includes(a.role);
+  const permsEditable = isStaff && (a.role !== 'admin' || owner);
+  const roleOptions = roleOptionsFor(A.user && A.user.role, a.role);
+  const set = (k, v) => setFv(x => ({ ...x, [k]: v }));
+  const startEdit = async () => {
+    let tree = []; let professors = [];
+    try { tree = await loadScopeTree(); } catch { /* only for students and representatives */ }
+    try { professors = (await apiFetch('/api/admin/professors')).map(r => ({ value: r.user_id, label: r.full_name })); } catch { /* only for assistants */ }
+    setOpts({ tree, professors });
+    setFv({ full_name: a.full_name, email: a.email, username: a.username || '', phone: a.phone || '', role: a.role, password: '', parent: a.parent_user_id || '',
+      quota: a.code_quota == null ? '' : String(a.code_quota), rsPerms: a.extra_permissions || [],
+      scope: { uni: a.scope_university_id || '', dept: a.scope_department_id || '', stage: a.scope_stage_id || '' }, perms: heldPerms, place: { uni: a.university_id || '', stage: a.stage_id || '' } });
+    setEd(true);
+  };
+  const save = async () => {
+    const role = fv.role || a.role;
+    if (!fv.full_name.trim() || !fv.email.trim()) return A.toast('الاسم والبريد الإلكتروني مطلوبان', 'error');
+    const body = { full_name: fv.full_name.trim(), email: fv.email.trim(), username: fv.username.trim(), role, phone: fv.phone.trim(), password: fv.password || null };
+    if (role === 'assistant') body.parent_user_id = fv.parent || null;
+    if (role === 'reseller') { body.code_quota = fv.quota === '' ? null : Number(fv.quota); body.permissions = fv.rsPerms; }
+    if (role === 'representative') {
+      if (!fv.scope.uni) return A.toast('اختر نوع الكلية ثم الجامعة التي يمثّلها', 'error');
+      body.scope_university_id = fv.scope.uni; body.scope_department_id = fv.scope.dept || null; body.scope_stage_id = fv.scope.stage || null;
+    }
+    if (['supervisor', 'store_manager'].includes(role) || (role === 'admin' && owner && permsEditable)) body.permissions = fv.perms;
+    setSaving(true);
+    try {
+      await put('/api/admin/users/' + a.id, body);
+      if (a.role === 'student' && role === 'student') await put('/api/admin/users/' + a.id + '/placement', { university_id: fv.place.uni || null, stage_id: fv.place.stage || null });
+      A.toast('تم حفظ التغييرات'); setEd(false); reload(); ov.reload();
+    } catch (e) { A.toast(e.detail || 'تعذّر الحفظ', 'error'); }
+    setSaving(false);
+  };
   const badges = (list) => list.length ? list.map(p => <span key={p} className="badge badge-active" style={{ margin: 2 }}>{PERM_LABELS[p] || p}</span>) : <span className="cell-sub">لا توجد</span>;
+  const IN = { ...SEL, width: '100%' };
+  const checks = (opts2, value, onChange) => <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 8 }}>{opts2.map(o => (
+    <label key={o.value} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '.84rem' }}>
+      <input type="checkbox" checked={value.includes(o.value)} onChange={e => onChange(e.target.checked ? [...value, o.value] : value.filter(x => x !== o.value))} style={{ width: 16, height: 16, padding: 0 }} /> {o.label}</label>))}</div>;
   return (
     <>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <button className="btn btn-ghost" onClick={back}>{backLabel}</button>
-        <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}><button className="btn" onClick={() => f.editUser(a)}>تعديل</button></span>
+        <span style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}>
+          {ed ? <><button className="btn btn-ghost" onClick={() => setEd(false)}>إلغاء</button><button className="btn" disabled={saving} onClick={save}>حفظ التغييرات</button></> : <button className="btn" onClick={startEdit}>تعديل</button>}
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
         <div className="cell-avatar" style={{ background: 'var(--accent)', width: 60, height: 60, fontSize: '1.3rem' }}>{a.photo_url ? <img src={a.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} /> : initialsOf(a.full_name)}</div>
@@ -307,21 +350,39 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
       <div className="acct-cols">
         <div className="acct-col">
           <Card title="البيانات الشخصية" style={{ marginBottom: 14 }}>
-            <Row label="الاسم الكامل">{a.full_name}</Row><Row label="البريد الإلكتروني" mono>{a.email}</Row>
-            <Row label="اسم المستخدم (للدخول)" mono={!!a.username}>{a.username || <span className="cell-sub">غير محدد</span>}</Row>
-            <Row label="رقم الهاتف" mono={!!a.phone}>{a.phone || 'لم يُدخل'}</Row><Row label="الدور">{ROLE_NAME[a.role] || a.role}</Row>
+            {ed ? <>
+              <Row label="الاسم الكامل"><input style={IN} value={fv.full_name} onChange={e => set('full_name', e.target.value)} /></Row>
+              <Row label="البريد الإلكتروني"><input style={{ ...IN, direction: 'ltr' }} value={fv.email} onChange={e => set('email', e.target.value)} /></Row>
+              <Row label="اسم المستخدم (للدخول)"><input style={{ ...IN, direction: 'ltr' }} value={fv.username} placeholder="اختياري — أحرف إنجليزية وأرقام" onChange={e => set('username', e.target.value)} /></Row>
+              <Row label="رقم الهاتف"><input style={{ ...IN, direction: 'ltr' }} type="tel" value={fv.phone} placeholder="07xxxxxxxxx" onChange={e => set('phone', e.target.value)} /></Row>
+              <Row label="الدور"><select style={IN} value={fv.role} onChange={e => set('role', e.target.value)}>{roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Row>
+              <Row label="كلمة مرور جديدة"><input style={IN} type="text" value={fv.password} placeholder="اتركه فارغًا للإبقاء على الحالية" onChange={e => set('password', e.target.value)} /></Row>
+            </> : <>
+              <Row label="الاسم الكامل">{a.full_name}</Row><Row label="البريد الإلكتروني" mono>{a.email}</Row>
+              <Row label="اسم المستخدم (للدخول)" mono={!!a.username}>{a.username || <span className="cell-sub">غير محدد</span>}</Row>
+              <Row label="رقم الهاتف" mono={!!a.phone}>{a.phone || 'لم يُدخل'}</Row><Row label="الدور">{ROLE_NAME[a.role] || a.role}</Row>
+              {o && o.caption ? <Row label="النبذة">{o.caption}</Row> : null}
+            </>}
           </Card>
-          {a.role === 'student' && <Card title="الدراسة" actions={<SmallBtn onClick={place}>نقل / تعديل</SmallBtn>} style={{ marginBottom: 14 }}>
-            <Row label="الكلية">{nm(a.section_id)}</Row><Row label="الجامعة">{nm(a.university_id)}</Row><Row label="المرحلة">{a.is_graduate ? 'متخرج' : nm(a.stage_id)}</Row>
+          {a.role === 'student' && <Card title="الدراسة" style={{ marginBottom: 14 }}>
+            {ed ? <PlacementField tree={opts.tree} value={fv.place} onChange={v => set('place', v)} /> : <>
+              <Row label="الكلية">{nm(a.section_id)}</Row><Row label="الجامعة">{nm(a.university_id)}</Row><Row label="المرحلة">{a.is_graduate ? 'متخرج' : nm(a.stage_id)}</Row></>}
           </Card>}
-          {a.role === 'assistant' && <Card title="العمل" style={{ marginBottom: 14 }}><Row label="يعمل مع الدكتور">{(names.data && names.data[a.parent_user_id]) || a.parent_user_id || '—'}</Row></Card>}
+          {a.role === 'assistant' && <Card title="العمل" style={{ marginBottom: 14 }}>
+            {ed ? <Row label="يعمل مع الدكتور"><select style={IN} value={fv.parent} onChange={e => set('parent', e.target.value)}><option value="">—</option>{opts.professors.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Row>
+              : <Row label="يعمل مع الدكتور">{(names.data && names.data[a.parent_user_id]) || (opts.professors.find(x => x.value === a.parent_user_id) || {}).label || a.parent_user_id || '—'}</Row>}</Card>}
           {a.role === 'reseller' && <Card title="المندوب" style={{ marginBottom: 14 }}>
-            <Row label="حصة الأكواد">{a.code_quota == null ? 'بلا حد' : a.code_quota}</Row><Row label="الصلاحيات">{badges(a.extra_permissions || [])}</Row>
-            <div style={{ marginTop: 12 }}><button className="btn btn-ghost" onClick={() => A.go('resellers')}>فتح صفحة المندوب (الأكواد والتوليد)</button></div></Card>}
+            {ed ? <>
+              <Row label="حصة الأكواد"><input style={IN} type="number" min="0" value={fv.quota} placeholder="فارغ = بلا حد" onChange={e => set('quota', e.target.value)} /></Row>
+              <Row label="الصلاحيات">{checks(RESELLER_PERMS, fv.rsPerms, v => set('rsPerms', v))}</Row></> : <>
+              <Row label="حصة الأكواد">{a.code_quota == null ? 'بلا حد' : a.code_quota}</Row><Row label="الصلاحيات">{badges(a.extra_permissions || [])}</Row>
+              <div style={{ marginTop: 12 }}><button className="btn btn-ghost" onClick={() => A.go('resellers')}>فتح صفحة المندوب (الأكواد والتوليد)</button></div></>}</Card>}
           {a.role === 'representative' && <Card title="نطاق الممثل" style={{ marginBottom: 14 }}>
-            <Row label="يمثّل">{nm(a.scope_university_id)}</Row><Row label="القسم">{a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام'}</Row><Row label="المرحلة">{a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'}</Row></Card>}
-          {isStaff && <Card title={a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية'} style={{ marginBottom: 14 }}>{badges(heldPerms)}</Card>}
-          {o && o.teaches && o.teaches.length > 0 && <Card title="المواد التي يدرّسها" style={{ marginBottom: 14 }}>{o.teaches.map((t, i) => <span key={i} className="cat-chip">{t.subject}</span>)}</Card>}
+            {ed ? <ScopeField tree={opts.tree} value={fv.scope} onChange={v => set('scope', v)} /> : <>
+              <Row label="يمثّل">{nm(a.scope_university_id)}</Row><Row label="القسم">{a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام'}</Row><Row label="المرحلة">{a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'}</Row></>}</Card>}
+          {isStaff && <Card title={a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية'} style={{ marginBottom: 14 }}>
+            {ed && permsEditable ? <>{checks(STAFF_PERM_OPTIONS, fv.perms, v => set('perms', v))}{a.role === 'admin' && <div className="cell-sub" style={{ marginTop: 8 }}>الأدمن يرى ويفعل ما تحدده هنا فقط. الصلاحيات من صلاحية المالك وحده.</div>}</> : badges(heldPerms)}</Card>}
+          {o && o.teaches && o.teaches.length > 0 && !ed && <Card title="المواد التي يدرّسها" style={{ marginBottom: 14 }}>{o.teaches.map((t, i) => <span key={i} className="cat-chip">{t.subject}</span>)}</Card>}
         </div>
         <div className="acct-col">
           <Card title="الحساب والأمان" style={{ marginBottom: 14 }}>
