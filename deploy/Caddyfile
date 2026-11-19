@@ -34,10 +34,16 @@
 		}
 	}
 
+	# the built files: a missing one is a real 404, never the app page in disguise
+	@assets path /assets/*
+	handle @assets {
+		root * /srv/beta
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
 	handle {
 		root * /srv/beta
-		@hashed path /assets/*
-		header @hashed Cache-Control "public, max-age=31536000, immutable"
 		# every page of the app is index.html (also for "/" and deep links): never cached, so a deploy is
 		# picked up at once and a stale copy can't point at hashed files that were replaced
 		@page not path /assets/*

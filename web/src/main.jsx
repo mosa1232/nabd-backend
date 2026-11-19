@@ -10,7 +10,7 @@ const AdminShell = lazy(() => import('./admin/AdminApp.jsx').then(m => ({ defaul
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppProvider>
         <Suspense fallback={null}>
           <Routes>
