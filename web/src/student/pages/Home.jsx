@@ -8,7 +8,6 @@ const TILES = [
   { to: '/bank', icon: 'bankQ', key: 'tileBank' },
   { to: '/anatomy', icon: 'anatomy', key: 'anatomyTitle' },
   { to: '/professors', icon: 'prof', key: 'tileProf' },
-  { to: '/representative', icon: 'user', key: 'tileRep' },
   { to: '/store', icon: 'store', key: 'tileStore' },
   { to: '/review', icon: 'review', key: 'tileReview' },
   { to: '/pearls', icon: 'heart', key: 'pearlsTitle' },

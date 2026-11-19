@@ -18,8 +18,11 @@ export function Professors() {
   const { t } = useApp();
   const nav = useNavigate();
   const [list] = useLoad(loadProfessors, []);
+  const [rep] = useLoad(() => apiFetch('/api/professors/representative').catch(() => null), []);   // the class representative sits with the doctors
   const [filter, setFilter] = useState('all');
   const all = Array.isArray(list) ? list : [];
+  const reps = rep && !rep.needs_stage ? rep.representatives : [];
+  const repBooklets = rep && !rep.needs_stage ? rep.subjects.reduce((n, s) => n + s.booklets.length, 0) : 0;
   const subjects = ['all', ...new Set(all.map(p => p.subject_name).filter(Boolean))];
   const shown = filter === 'all' ? all : all.filter(p => p.subject_name === filter);
   return (
@@ -29,7 +32,18 @@ export function Professors() {
         {subjects.map(s => <button key={s} className={'filter-chip' + (s === filter ? ' active' : '')} onClick={() => setFilter(s)}>{s === 'all' ? t('filterAll') : s}</button>)}
       </div>
       <div className="prof-list">
-        {list === undefined ? <Empty>{t('loading')}</Empty> : !shown.length ? <Empty>{t('noProfessorsYet')}</Empty> : shown.map(p => {
+        {reps.length > 0 && filter === 'all' && (
+          <button className="prof-card glass" onClick={() => nav('/representative')}>
+            <div className="prof-avatar" style={{ background: 'linear-gradient(145deg, #1FAE72, var(--accent-2))' }}><Ic n="user" color="#fff" /></div>
+            <div className="prof-info">
+              <div className="prof-name">{t('tileRep')}</div>
+              <div className="prof-meta">{reps.map(r => r.name).join('، ')}</div>
+              <div className="prof-stats"><span>{pdfIcon}{repBooklets} ملزمة</span></div>
+            </div>
+            <span className="prof-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)" /></svg></span>
+          </button>
+        )}
+        {list === undefined ? <Empty>{t('loading')}</Empty> : !shown.length ? (reps.length > 0 && filter === 'all' ? null : <Empty>{t('noProfessorsYet')}</Empty>) : shown.map(p => {
           const color = COLORS[all.indexOf(p) % COLORS.length];
           return (
             <button key={p.id} className="prof-card glass" onClick={() => nav('/professors/' + p.id)}>

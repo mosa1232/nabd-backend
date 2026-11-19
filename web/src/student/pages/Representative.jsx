@@ -23,7 +23,7 @@ export function Representative() {
 
   const head = (
     <PageHead title={subject ? subject.subject_name : t('repTitle')} sub={subject ? (reps.map(r => r.name).join('، ') || '') : t('repSub')}
-      back={subject ? '/representative' : '/'} />
+      back={subject ? '/representative' : '/professors'} />
   );
   if (data === undefined) return <div className="view active">{head}<Empty>{t('loading')}</Empty></div>;
   if (data === null || data.needs_stage) return <div className="view active">{head}<Empty>{t('repNoStage')}</Empty></div>;

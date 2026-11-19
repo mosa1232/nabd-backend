@@ -12,7 +12,6 @@ const NAV = [
   { to: '/bank', key: 'tileBank', icon: 'bank' },
   { to: '/anatomy', key: 'anatomyTitle', icon: 'anatomy' },
   { to: '/professors', key: 'tileProf', icon: 'prof' },
-  { to: '/representative', key: 'tileRep', icon: 'user' },
   { to: '/store', key: 'tileStore', icon: 'store' },
   { to: '/review', key: 'tileReview', icon: 'review', group: 'navGroupRecord' },
   { to: '/leaderboard', key: 'tileLeaderboard', icon: 'trophy' },
@@ -90,7 +89,7 @@ export default function Shell() {
             const head = item.group && item.group !== lastGroup ? <div key={item.group} className="sb-group">{t(item.group)}</div> : null;
             if (item.group) lastGroup = item.group;
             return [head,
-              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => 'sb-item' + (isActive ? ' active' : '')}>
+              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => 'sb-item' + (isActive || (item.to === '/professors' && loc.pathname.startsWith('/representative')) ? ' active' : '')}>
                 <Ic n={item.icon} /><span>{t(item.key)}</span>
               </NavLink>];
           })}
