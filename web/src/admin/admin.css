@@ -434,3 +434,45 @@
   *, *::before, *::after{backdrop-filter:none !important; -webkit-backdrop-filter:none !important;}
   .item-card, .notif-card, .stu-row, .cat-card, .media-card{content-visibility:auto; contain-intrinsic-size:auto 110px;}
 }
+
+/* =================== phones: the dashboard fits a 360px screen =================== */
+@media (max-width:720px){
+  html{-webkit-text-size-adjust:100%;}
+  /* 16px fields: iOS zooms the whole page in when a smaller field is focused, and never zooms back */
+  input, select, textarea{font-size:16px !important;}
+  .btn, .icon-btn, .tab-btn, .cat-tab, .filter-chip{min-height:42px;}
+  .dash-content{padding:12px 12px 88px !important;}   /* room under the last card for the floating assistant button */
+  .dash-card{padding:14px !important;}
+  .dash-card-head{margin-bottom:12px;}
+  .dash-card-title{font-size:1rem;}
+  .st-kpis, .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:8px;}
+  .st-kpi{padding:12px 13px;} .st-kpi .v{font-size:1.25rem;} .st-kpi .l{font-size:.7rem;}
+  .cat-grid, .media-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:8px;}
+  .st-two{grid-template-columns:1fr;}
+  .tabs{width:100%; overflow-x:auto; border-radius:18px; flex-wrap:nowrap;}
+  .tab-btn{flex:none; white-space:nowrap;}
+  .ops-filters{gap:6px;} .ops-filters input.q, .ops-filters input[type=text]{min-width:0; flex:1 1 100%;}
+  .ops-filters select{flex:1 1 45%; min-width:0;}
+  /* tables become one card per row; each cell shows its column title */
+  .table-wrap{overflow:visible;}
+  .dash-table{min-width:0 !important;}
+  .dash-table, .dash-table tbody, .dash-table tr, .dash-table td{display:block; width:100%;}
+  .dash-table thead{display:none;}
+  .dash-table tr{border:1px solid var(--glass-border); border-radius:14px; padding:6px 12px; margin-bottom:10px; background:var(--glass-bg-strong);}
+  .dash-table td{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px dashed var(--glass-border); text-align:start; font-size:.84rem; min-width:0;}
+  .dash-table td:last-child{border-bottom:0;}
+  .dash-table td[data-label]:not([data-label=""])::before{content:attr(data-label); flex:none; font-size:.7rem; font-weight:700; color:var(--ink-faint);}
+  .dash-table td.empty-row{display:block; text-align:center;}
+  .dash-table td > div:not(.cell-user){text-align:end; min-width:0;}
+  /* the students list (grid rows) */
+  .stu-head{display:none !important;}
+  .stu-row{display:flex !important; flex-wrap:wrap; gap:6px 14px; padding:12px 4px;}
+  .stu-row > span:first-child{flex:1 1 100%;}
+  .item-card{flex-wrap:wrap; gap:10px;}
+  .item-card > div:last-child{flex-wrap:wrap;}
+  .notif-card{padding:12px;}
+  .login-card{padding:26px 18px;}
+}
+.login-logo .display{font-family:'Noto Sans Arabic','Reem Kufi',sans-serif;}
+.login-card .form-field input{border-color:rgba(76,95,224,.28); background:#fff;}
+.login-card .google-btn{border-color:rgba(76,95,224,.28);}

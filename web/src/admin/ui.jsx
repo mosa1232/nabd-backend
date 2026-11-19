@@ -48,9 +48,13 @@ export function Table({ head, children, empty, cols, search }) {
   const [q, setQ] = useState('');
   const wrap = useRef(null);
   useEffect(() => {
-    if (!search || !wrap.current) return;
-    const s = q.trim().toLowerCase();
-    wrap.current.querySelectorAll('tbody tr').forEach(r => { r.style.display = !s || r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+    if (!wrap.current) return;
+    const s = (search ? q : '').trim().toLowerCase();
+    wrap.current.querySelectorAll('tbody tr').forEach(r => {
+      if (search) r.style.display = !s || r.textContent.toLowerCase().includes(s) ? '' : 'none';
+      // on a phone every row becomes a card whose cells carry their column title (see admin.css)
+      r.querySelectorAll(':scope > td').forEach((c, i) => { if (!c.classList.contains('empty-row') && head[i] && c.dataset.label !== head[i]) c.dataset.label = head[i]; });
+    });
   });
   return (
     <>
@@ -151,6 +155,7 @@ function FormDialog({ spec, close }) {
         <div className="dash-card-head"><span className="dash-card-title">{spec.title}</span></div>
         {spec.note ? <div className="item-meta" style={{ marginBottom: 12 }}>{spec.note}</div> : null}
         {spec.fields.map((f, i) => {
+          if (f.show && !f.show(vals)) return null;   // fields that only matter for some choices (e.g. a role) stay hidden until then
           const v = vals[f.id];
           if (f.type === 'where') return <div className="form-field" key={f.id}><WhereField spec={f} onChange={x => setV(f.id, x)} /></div>;
           if (f.type === 'custom') return <div className="form-field" key={f.id}>{f.render({ value: v, setValue: x => setV(f.id, x), values: vals })}</div>;

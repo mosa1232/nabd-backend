@@ -1730,3 +1730,16 @@ html.is-phone *{scroll-behavior:auto !important;}
 .bst-q, .item-card, .notif-card{content-visibility:auto; contain-intrinsic-size:auto 132px;}
 /* no blur layer on phones, so the surfaces that float over content must be solid or the page shows through them */
 html.is-phone .bottom-nav, html.is-phone .ai-panel{background:var(--bg-1) !important;}
+/* a field under 16px makes iOS zoom the page in on focus (the login page "changes size"): phones always get 16px */
+html.is-phone input, html.is-phone select, html.is-phone textarea{font-size:16px !important;}
+html.is-phone{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
+/* the bottom bar always fits the screen (six tabs on a 320px phone used to push the page 40px sideways) */
+html.is-phone .bottom-nav{overflow-x:clip; overflow-y:visible; box-sizing:border-box; max-width:100vw;}
+html.is-phone .bn-item{min-width:0;}
+html.is-phone .bn-item:not(.bn-ai){overflow:hidden;}   /* the raised assistant button must stay free to rise above the bar */
+html.is-phone .bn-item span{display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+@media (max-width:360px){
+  html.is-phone .bn-item{font-size:.6rem; padding:7px 0;}
+  html.is-phone .bn-item svg{width:21px; height:21px;}
+}
+html, body{overflow-x:clip;}

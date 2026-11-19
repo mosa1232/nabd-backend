@@ -84,11 +84,11 @@ export function useUserForms(A, reload) {
         { id: 'fullName', label: 'الاسم الكامل' }, { id: 'email', label: 'البريد الإلكتروني', dir: 'ltr' }, { id: 'phone', type: 'tel', label: 'رقم الهاتف (اختياري)', placeholder: '07xxxxxxxxx' },
         { id: 'password', type: 'password', label: 'كلمة المرور (8 أحرف على الأقل)' },
         { id: 'role', type: 'select', label: 'الدور', value: presetRole || 'student', options: roleOptionsFor(A.user.role) },
-        { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors] },
-        { id: 'scope', type: 'custom', render: ({ setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها (للممثل العام فقط)</label><ScopeField tree={tree} value={{}} onChange={setValue} /></div> },
-        { id: 'perms', type: 'checks', label: 'الصلاحيات (للأدمن والمشرف ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', value: [], options: STAFF_PERM_OPTIONS },
-        { id: 'subjectId', type: 'select', label: 'المادة (للدكتور فقط)', value: '', options: [{ value: '', label: 'لا ينطبق — ليس دكتوراً' }, ...subjects] },
-        { id: 'title', label: 'اللقب العلمي (للدكتور فقط)', value: 'أستاذ مساعد' },
+        { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors], show: v => v.role === 'assistant' },
+        { id: 'scope', type: 'custom', show: v => v.role === 'representative', render: ({ setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها (للممثل العام فقط)</label><ScopeField tree={tree} value={{}} onChange={setValue} /></div> },
+        { id: 'perms', type: 'checks', label: 'الصلاحيات (للأدمن والمشرف ومدير المتجر فقط) — للأدمن: بدون اختيار = صلاحيات كاملة', value: [], options: STAFF_PERM_OPTIONS, show: v => ['admin', 'supervisor', 'store_manager'].includes(v.role) },
+        { id: 'subjectId', type: 'select', label: 'المادة (للدكتور فقط)', value: '', options: [{ value: '', label: 'لا ينطبق — ليس دكتوراً' }, ...subjects], show: v => v.role === 'professor' },
+        { id: 'title', label: 'اللقب العلمي (للدكتور فقط)', value: 'أستاذ مساعد', show: v => v.role === 'professor' },
       ],
       onSubmit: async (v) => {
         if (!v.fullName.trim() || !v.email.trim()) throw { detail: 'الاسم والبريد الإلكتروني مطلوبان' };
@@ -116,10 +116,10 @@ export function useUserForms(A, reload) {
         { id: 'fullName', label: 'الاسم الكامل', value: a.full_name }, { id: 'email', label: 'البريد الإلكتروني', value: a.email, dir: 'ltr' }, { id: 'phone', type: 'tel', label: 'رقم الهاتف', value: a.phone || '' },
         { id: 'password', type: 'password', label: 'كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)' },
         { id: 'role', type: 'select', label: 'الدور', value: a.role, options: roleOptionsFor(A.user.role, a.role) },
-        { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: a.parent_user_id || '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors] },
-        { id: 'scope', type: 'custom', value: { uni: a.scope_university_id || '', dept: a.scope_department_id || '', stage: a.scope_stage_id || '' },
+        { id: 'parentUserId', type: 'select', label: 'الدكتور (للمساعد فقط)', value: a.parent_user_id || '', options: [{ value: '', label: 'لا ينطبق — ليس مساعداً' }, ...professors], show: v => v.role === 'assistant' },
+        { id: 'scope', type: 'custom', show: v => v.role === 'representative', value: { uni: a.scope_university_id || '', dept: a.scope_department_id || '', stage: a.scope_stage_id || '' },
           render: ({ value, setValue }) => <div><label style={{ fontSize: '.75rem', color: 'var(--ink-faint)' }}>الكلية التي يمثّلها (للممثل العام فقط)</label><ScopeField tree={tree} value={value} onChange={setValue} /></div> },
-        { id: 'perms', type: 'checks', label: 'صلاحيات إضافية (للمشرف ومدير المتجر فقط)', value: a.extra_permissions || [], options: STAFF_PERM_OPTIONS },
+        { id: 'perms', type: 'checks', label: 'صلاحيات إضافية (للمشرف ومدير المتجر فقط)', value: a.extra_permissions || [], options: STAFF_PERM_OPTIONS, show: v => ['supervisor', 'store_manager'].includes(v.role) },
       ],
       onSubmit: async (v) => {
         if (!v.fullName.trim() || !v.email.trim()) throw { detail: 'الاسم والبريد الإلكتروني مطلوبان' };

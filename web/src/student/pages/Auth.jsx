@@ -60,8 +60,8 @@ export function Login({ register = false }) {
     <AuthPage>
       <form className="signin-form" onSubmit={submit} noValidate>
         <div className="signin-brand"><img className="kiur-logo" src="/static/brand/kiur-icon.svg" alt="" width="48" height="48" /><span className="display" style={{ fontSize: '1.15rem', fontWeight: 700 }}>Kiur</span></div>
-        <div className="signin-title">{t('welcomeBack')}</div>
-        <div className="signin-sub">{t('signinSub')}</div>
+        <div className="signin-title">{reg ? 'أنشئ حسابك' : t('welcomeBack')}</div>
+        <div className="signin-sub">{reg ? 'أدخل اسمك وبريدك وكلمة مرور لتبدأ' : t('signinSub')}</div>
         {reg && <><label className="signin-label" htmlFor="authName">{t('fullName')}</label>
           <Field id="authName" icon={UserIcon} type="text" autoComplete="name" placeholder={t('fullName')} value={name} onChange={e => setName(e.target.value)} /></>}
         <label className="signin-label" htmlFor="authEmail">{t('email')}</label>
