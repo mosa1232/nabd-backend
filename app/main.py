@@ -297,6 +297,12 @@ def serve_student_app():
     return FileResponse(FRONTEND_DIR / "nabd-home-quiz-prototype.html", headers=SPA_HEADERS)
 
 
+@app.api_route("/legacy", methods=["GET", "HEAD"])
+def serve_legacy_student_app():
+    # the previous single-file student app, kept as a fallback now that "/" is React
+    return FileResponse(FRONTEND_DIR / "nabd-home-quiz-prototype.html", headers=SPA_HEADERS)
+
+
 @app.api_route("/admin", methods=["GET", "HEAD"])
 @app.api_route("/admin-legacy", methods=["GET", "HEAD"])
 def serve_admin_app():

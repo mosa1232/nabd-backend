@@ -1,7 +1,13 @@
 # {$DOMAIN::80}: with a real domain Caddy gets and renews a free HTTPS
 # certificate by itself; with no domain set it just serves plain HTTP on :80
 # (useful for a first test by IP address).
-{$DOMAIN::80} {
+#
+# The site is the React app (built into web/dist and committed, so the server
+# needs no Node). API paths go to the FastAPI backend; everything else is the
+# single-page app. The previous single-file apps stay reachable at /legacy
+# (students) and /admin-legacy (dashboard) as a fallback.
+
+(react_site) {
 	encode zstd gzip
 
 	# The biggest upload the app accepts is a 150 MB lecture video.
@@ -9,47 +15,10 @@
 		max_size 160MB
 	}
 
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
-		Referrer-Policy strict-origin-when-cross-origin
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
-
-	reverse_proxy app:8000 {
-		# a sleepy first request after a restart should not become a 502
-		lb_try_duration 10s
-		health_uri /health
-		health_interval 15s
-	}
-}
-
-# ---------------------------------------------------------------------------
-# beta.<domain>: the React rebuild of the platform (built into web/dist and
-# committed, so the server needs no Node). API paths go to the same backend as
-# the main site; /admin is the React dashboard (the current one stays at
-# /admin-legacy until every section is ported). Everything else is the SPA.
-# ---------------------------------------------------------------------------
-{$BETA_DOMAIN::8081} {
-	encode zstd gzip
-
-	request_body {
-		max_size 160MB
-	}
-
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
-		Referrer-Policy strict-origin-when-cross-origin
-		Strict-Transport-Security "max-age=31536000"
-		X-Robots-Tag "noindex, nofollow"
-		-Server
-	}
-
-	@backend path /api/* /auth/* /media-files/* /static/* /health /favicon.ico /admin-legacy
+	@backend path /api/* /auth/* /media-files/* /static/* /health /favicon.ico /legacy /admin-legacy
 	handle @backend {
 		reverse_proxy app:8000 {
+			# a sleepy first request after a restart should not become a 502
 			lb_try_duration 10s
 			health_uri /health
 			health_interval 15s
@@ -64,4 +33,29 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+{$DOMAIN::80} {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	import react_site
+}
+
+# beta.<domain>: the same React app, kept out of search engines. Leave
+# BETA_DOMAIN unset to keep it internal-only (:8081).
+{$BETA_DOMAIN::8081} {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	import react_site
 }
