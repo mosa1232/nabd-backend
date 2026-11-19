@@ -283,6 +283,7 @@ export function Questions() {
   const [type, setType] = useState('all'); const [q, setQ] = useState(''); const [shown, setShown] = useState(30);
   const [editor, setEditor] = useState(undefined);     // undefined closed, null new, object edit
   const [ai, setAi] = useState(null);
+  const [target, setTarget] = useState('');            // the bank chosen in the "new bank?" question
   const curBank = banks.find(b => b.id === bankSel) || null;
   const inBank = (x) => bankSel === 'all' || (bankSel === 'none' ? !x.bank_id : x.bank_id === bankSel);
   const filtered = useMemo(() => {
@@ -303,6 +304,23 @@ export function Questions() {
     try { const r = await del('/api/professors/me/banks/' + curBank.id); setBankSel('all'); reload(); A.toast(`حُذف البنك و${r.removed_questions} سؤال`); }
     catch (e) { A.toast(e.detail || 'تعذّر حذف البنك', 'error'); }
   };
+  // before adding questions, ask whether they go into a new bank or an existing one
+  const askBank = (open) => A.dialogs.form({
+    title: 'أين تحفظ الأسئلة؟', note: 'هل تريد إنشاء بنك جديد لهذه الأسئلة؟', submitLabel: 'متابعة',
+    fields: [
+      { id: 'mk', type: 'select', label: 'إنشاء بنك جديد؟', value: banks.length ? 'old' : 'new', options: [{ value: 'new', label: 'نعم، بنك جديد' }, { value: 'old', label: 'لا، أضفها إلى بنك موجود' }] },
+      { id: 'name', label: 'اسم البنك الجديد', placeholder: 'مثال: بنك الفصل الأول', show: v => v.mk === 'new' },
+      { id: 'bank', type: 'select', label: 'البنك', value: curBank ? curBank.id : '', show: v => v.mk === 'old', options: [{ value: '', label: 'بدون بنك (أسئلة عامة)' }, ...banks.map(b => ({ value: b.id, label: b.name }))] },
+    ],
+    onSubmit: async (v) => {
+      let id = v.mk === 'old' ? (v.bank || '') : '';
+      if (v.mk === 'new') {
+        if (!v.name.trim()) throw { detail: 'اكتب اسم البنك الجديد' };
+        id = (await post('/api/professors/me/banks', { name: v.name.trim() })).id;
+        await reloadBanks(); A.toast('تم إنشاء البنك');   // wait, so the new bank is in the list when the editor opens
+      }
+      setBankSel(id || 'all'); setTarget(id); open();
+    } });
   // move the questions on screen (or just one) into a bank
   const moveForm = (ids, title) => A.dialogs.form({ title, fields: [{ id: 'bank', type: 'select', label: 'انقلها إلى', value: '', options: [{ value: '', label: 'بدون بنك (أسئلة عامة)' }, ...banks.map(b => ({ value: b.id, label: b.name }))] }],
     onSubmit: async (v) => { const r = await post('/api/professors/me/questions/move', { question_ids: ids, bank_id: v.bank || null }); reload(); A.toast(`تم نقل ${r.moved} سؤال`); } });
@@ -313,9 +331,9 @@ export function Questions() {
     <>
       <Card title={A.user.role === 'representative' || A.pick?.rep ? 'بنك الأسئلة' : 'بنك أسئلتي'} actions={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-ghost" onClick={() => setAi('import')}>📥 رفع أسئلة من Excel / Word</button>
-          <button className="btn btn-ghost" onClick={() => setAi('questions')}>✨ توليد من ملف بالذكاء الاصطناعي</button>
-          <AddBtn onClick={() => setEditor(null)}>سؤال جديد</AddBtn>
+          <button className="btn btn-ghost" onClick={() => askBank(() => setAi('import'))}>📥 رفع أسئلة من Excel / Word</button>
+          <button className="btn btn-ghost" onClick={() => askBank(() => setAi('questions'))}>✨ توليد من ملف بالذكاء الاصطناعي</button>
+          <AddBtn onClick={() => askBank(() => setEditor(null))}>سؤال جديد</AddBtn>
         </div>}>
         <StKpis items={[['إجمالي الأسئلة', numAr(list.length), 'تظهر لطلاب مادتك تلقائيًا'], ['البنوك', numAr(banks.length)], ['اختيارات', numAr(by('mcq'))], ['صح / خطأ', numAr(by('true_false'))], ['مقالي', numAr(by('essay'))], ['بصور', numAr(list.filter(x => x.image_url).length)]]} />
         <div className="ops-filters" style={{ alignItems: 'center' }}>
@@ -347,8 +365,8 @@ export function Questions() {
         </div>
         {filtered.length > shown && <div className="ops-pager"><button className="btn btn-ghost" onClick={() => setShown(s => s + 30)}>عرض المزيد ({numAr(filtered.length - shown)})</button></div>}
       </Card>
-      {editor !== undefined && <QuestionEditor q={editor} onClose={() => setEditor(undefined)} onSaved={reload} banks={banks} defaultBank={curBank ? curBank.id : ''} />}
-      {ai && <AiGen mode={ai} onClose={() => setAi(null)} onSaved={reload} banks={banks} defaultBank={curBank ? curBank.id : ''} />}
+      {editor !== undefined && <QuestionEditor q={editor} onClose={() => setEditor(undefined)} onSaved={reload} banks={banks} defaultBank={editor === null ? target : ''} />}
+      {ai && <AiGen mode={ai} onClose={() => setAi(null)} onSaved={reload} banks={banks} defaultBank={target} />}
     </>
   );
 }
