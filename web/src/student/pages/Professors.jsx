@@ -9,6 +9,7 @@ import { useLoad, Empty } from '../ui.jsx';
 const COLORS = ['#4C5FE0', '#7B6EF6', '#FF8A5B', '#1FAE72', '#E5484D'];
 const initials = name => (name || '').replace('د. ', '').split(' ').map(w => w[0]).slice(0, 2).join('');
 const pdfIcon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /></svg>;
+const bankIcon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" /><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></svg>;
 const examIcon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="12" height="16" rx="2" /><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" /><path d="m9.5 13 2 2 4-4" /></svg>;
 
 const loadProfessors = () => apiFetch('/api/professors');
@@ -38,7 +39,7 @@ export function Professors() {
               <div className="prof-info">
                 <div className="prof-name">{p.name}</div>
                 <div className="prof-meta">{p.title} · {p.subject_name}{p.university_name ? ' · ' + p.university_name : ''}</div>
-                <div className="prof-stats"><span>{pdfIcon}{p.booklets.length} ملزمة</span><span>{examIcon}{p.exams.length} امتحان</span></div>
+                <div className="prof-stats"><span>{pdfIcon}{p.booklets.length} ملزمة</span><span>{examIcon}{p.exams.length} امتحان</span>{(p.banks || []).length ? <span>{bankIcon}{p.banks.length} {p.banks.length === 1 ? 'بنك' : 'بنوك'}</span> : null}</div>
               </div>
               <span className="prof-chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" transform="rotate(180 12 12)" /></svg></span>
             </button>
@@ -82,6 +83,7 @@ export function Professor() {
         <div className="tabs">
           <button className={'tab-btn' + (tab === 'booklets' ? ' active' : '')} onClick={() => setTab('booklets')}>{t('booklets')}</button>
           <button className={'tab-btn' + (tab === 'exams' ? ' active' : '')} onClick={() => setTab('exams')}>{t('exams')}</button>
+          <button className={'tab-btn' + (tab === 'banks' ? ' active' : '')} onClick={() => setTab('banks')}>بنوك الأسئلة</button>
         </div>
         {tab === 'booklets' && <div className="tab-panel active"><div className="item-list">
           {!p.booklets.length ? <Empty>{t('noBookletsYet')}</Empty> : p.booklets.map(b => (
@@ -91,6 +93,14 @@ export function Professor() {
               {b.file_url
                 ? <a className="btn btn-ghost item-action" href={mediaUrl(b.file_url)} target="_blank" rel="noopener noreferrer" onClick={() => recordView('booklet', b.id)}>{t('open')}</a>
                 : <button className="btn btn-ghost item-action" style={{ opacity: .6 }} onClick={() => toast(t('noFileYet'))}>{t('open')}</button>}
+            </div>))}
+        </div></div>}
+        {tab === 'banks' && <div className="tab-panel active"><div className="item-list">
+          {!(p.banks || []).length ? <Empty>ما نشر الدكتور بنوك أسئلة بعد</Empty> : p.banks.map(b => (
+            <div className="item-card glass" key={b.id}>
+              <div className="item-icon exam">{bankIcon}</div>
+              <div className="item-body"><div className="item-title">{b.name}</div><div className="item-meta">{b.count} سؤال · {p.subject_name}</div></div>
+              <button className="btn item-action" onClick={() => nav('/bank/' + p.subject_id + '/study/' + encodeURIComponent('bank:' + b.id), { state: { title: b.name, name: p.subject_name } })}>ادرس</button>
             </div>))}
         </div></div>}
         {tab === 'exams' && <div className="tab-panel active"><div className="item-list">

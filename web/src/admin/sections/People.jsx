@@ -296,10 +296,17 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
   const [opts, setOpts] = useState({ tree: [], professors: [] });
   const [saving, setSaving] = useState(false);
   const heldPerms = a.role === 'admin' ? (a.effective_permissions || []).filter(x => ALL_STAFF_PERMS.includes(x)) : (a.extra_permissions || []);
-  const isStaff = ['supervisor', 'store_manager', 'admin'].includes(a.role);
-  const permsEditable = isStaff && (a.role !== 'admin' || owner);
+  // the cards that follow the role: while editing they follow the role picked in the form, so a student turned into
+  // a representative gets the scope picker (and a reseller gets quota and permissions) right away
+  const rr = ed ? (fv.role || a.role) : a.role;
+  const isStaff = ['supervisor', 'store_manager', 'admin'].includes(rr);
+  const permsEditable = isStaff && (rr !== 'admin' || owner);
   const roleOptions = roleOptionsFor(A.user && A.user.role, a.role);
   const set = (k, v) => setFv(x => ({ ...x, [k]: v }));
+  const STAFF_DEFAULT = { admin: ALL_STAFF_PERMS.slice(), supervisor: ['dashboard.analytics', 'users.ban', 'content.manage', 'catalog.manage'], store_manager: ['store.manage', 'resellers.manage'] };
+  const changeRole = (v) => setFv(x => ({ ...x, role: v,
+    rsPerms: v === 'reseller' && !x.rsPerms.length ? ['codes.view', 'codes.generate'] : x.rsPerms,
+    perms: STAFF_DEFAULT[v] && !x.perms.length ? STAFF_DEFAULT[v] : x.perms }));
   const startEdit = async () => {
     let tree = []; let professors = [];
     try { tree = await loadScopeTree(); } catch { /* only for students and representatives */ }
@@ -355,7 +362,7 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
               <Row label="البريد الإلكتروني"><input style={{ ...IN, direction: 'ltr' }} value={fv.email} onChange={e => set('email', e.target.value)} /></Row>
               <Row label="اسم المستخدم (للدخول)"><input style={{ ...IN, direction: 'ltr' }} value={fv.username} placeholder="اختياري — أحرف إنجليزية وأرقام" onChange={e => set('username', e.target.value)} /></Row>
               <Row label="رقم الهاتف"><input style={{ ...IN, direction: 'ltr' }} type="tel" value={fv.phone} placeholder="07xxxxxxxxx" onChange={e => set('phone', e.target.value)} /></Row>
-              <Row label="الدور"><select style={IN} value={fv.role} onChange={e => set('role', e.target.value)}>{roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Row>
+              <Row label="الدور"><select style={IN} value={fv.role} onChange={e => changeRole(e.target.value)}>{roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Row>
               <Row label="كلمة مرور جديدة"><input style={IN} type="text" value={fv.password} placeholder="اتركه فارغًا للإبقاء على الحالية" onChange={e => set('password', e.target.value)} /></Row>
             </> : <>
               <Row label="الاسم الكامل">{a.full_name}</Row><Row label="البريد الإلكتروني" mono>{a.email}</Row>
@@ -364,24 +371,24 @@ function AccountPage({ a, back, backLabel = '→ الحسابات', f, reload })
               {o && o.caption ? <Row label="النبذة">{o.caption}</Row> : null}
             </>}
           </Card>
-          {a.role === 'student' && <Card title="الدراسة" style={{ marginBottom: 14 }}>
+          {rr === 'student' && <Card title="الدراسة" style={{ marginBottom: 14 }}>
             {ed ? <PlacementField tree={opts.tree} value={fv.place} onChange={v => set('place', v)} /> : <>
               <Row label="الكلية">{nm(a.section_id)}</Row><Row label="الجامعة">{nm(a.university_id)}</Row><Row label="المرحلة">{a.is_graduate ? 'متخرج' : nm(a.stage_id)}</Row></>}
           </Card>}
-          {a.role === 'assistant' && <Card title="العمل" style={{ marginBottom: 14 }}>
+          {rr === 'assistant' && <Card title="العمل" style={{ marginBottom: 14 }}>
             {ed ? <Row label="يعمل مع الدكتور"><select style={IN} value={fv.parent} onChange={e => set('parent', e.target.value)}><option value="">—</option>{opts.professors.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Row>
               : <Row label="يعمل مع الدكتور">{(names.data && names.data[a.parent_user_id]) || (opts.professors.find(x => x.value === a.parent_user_id) || {}).label || a.parent_user_id || '—'}</Row>}</Card>}
-          {a.role === 'reseller' && <Card title="المندوب" style={{ marginBottom: 14 }}>
+          {rr === 'reseller' && <Card title="المندوب" style={{ marginBottom: 14 }}>
             {ed ? <>
               <Row label="حصة الأكواد"><input style={IN} type="number" min="0" value={fv.quota} placeholder="فارغ = بلا حد" onChange={e => set('quota', e.target.value)} /></Row>
               <Row label="الصلاحيات">{checks(RESELLER_PERMS, fv.rsPerms, v => set('rsPerms', v))}</Row></> : <>
               <Row label="حصة الأكواد">{a.code_quota == null ? 'بلا حد' : a.code_quota}</Row><Row label="الصلاحيات">{badges(a.extra_permissions || [])}</Row>
               <div style={{ marginTop: 12 }}><button className="btn btn-ghost" onClick={() => A.go('resellers')}>فتح صفحة المندوب (الأكواد والتوليد)</button></div></>}</Card>}
-          {a.role === 'representative' && <Card title="نطاق الممثل" style={{ marginBottom: 14 }}>
+          {rr === 'representative' && <Card title="نطاق الممثل" style={{ marginBottom: 14 }}>
             {ed ? <ScopeField tree={opts.tree} value={fv.scope} onChange={v => set('scope', v)} /> : <>
               <Row label="يمثّل">{nm(a.scope_university_id)}</Row><Row label="القسم">{a.scope_department_id ? nm(a.scope_department_id) : 'كل الأقسام'}</Row><Row label="المرحلة">{a.scope_stage_id ? nm(a.scope_stage_id) : 'كل المراحل'}</Row></>}</Card>}
-          {isStaff && <Card title={a.role === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية'} style={{ marginBottom: 14 }}>
-            {ed && permsEditable ? <>{checks(STAFF_PERM_OPTIONS, fv.perms, v => set('perms', v))}{a.role === 'admin' && <div className="cell-sub" style={{ marginTop: 8 }}>الأدمن يرى ويفعل ما تحدده هنا فقط. الصلاحيات من صلاحية المالك وحده.</div>}</> : badges(heldPerms)}</Card>}
+          {isStaff && <Card title={rr === 'admin' ? 'صلاحيات الأدمن' : 'الصلاحيات الإضافية'} style={{ marginBottom: 14 }}>
+            {ed && permsEditable ? <>{checks(STAFF_PERM_OPTIONS, fv.perms, v => set('perms', v))}{rr === 'admin' && <div className="cell-sub" style={{ marginTop: 8 }}>الأدمن يرى ويفعل ما تحدده هنا فقط. الصلاحيات من صلاحية المالك وحده.</div>}</> : badges(heldPerms)}</Card>}
           {o && o.teaches && o.teaches.length > 0 && !ed && <Card title="المواد التي يدرّسها" style={{ marginBottom: 14 }}>{o.teaches.map((t, i) => <span key={i} className="cat-chip">{t.subject}</span>)}</Card>}
         </div>
         <div className="acct-col">

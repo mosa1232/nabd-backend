@@ -33,18 +33,36 @@ def _to_out(
     p: models.ProfessorProfile,
     booklets: list[models.Booklet],
     exams: list[models.Exam],
+    banks: list[dict] | None = None,
 ) -> schemas.ProfessorOut:
     return schemas.ProfessorOut(
         id=p.id,
         title=p.title,
         name=p.user.full_name,
+        subject_id=p.subject_id,
         subject_name=p.subject.name,
         university_name=p.subject.stage.university.name if p.subject.stage else "",
         bio=p.bio or "",
         photo_url=p.photo_url,
         booklets=booklets,
         exams=exams,
+        banks=banks or [],
     )
+
+
+def _banks_of(db: Session, prof_ids: list[str]) -> dict[str, list[dict]]:
+    """The named question banks of each doctor with how many questions each holds, for the student pages."""
+    if not prof_ids:
+        return {}
+    counts = dict(db.query(models.Question.bank_id, func.count(models.Question.id))
+                  .filter(models.Question.professor_id.in_(prof_ids), models.Question.bank_id.isnot(None))
+                  .group_by(models.Question.bank_id).all())
+    out: dict[str, list[dict]] = {}
+    for b in db.query(models.QuestionBank).filter(models.QuestionBank.professor_id.in_(prof_ids)).order_by(models.QuestionBank.created_at).all():
+        n = counts.get(b.id, 0)
+        if n:   # an empty bank has nothing to show a student yet
+            out.setdefault(b.professor_id, []).append({"id": b.id, "name": b.name, "count": n})
+    return out
 
 
 def _profile_query(db: Session):
@@ -72,8 +90,9 @@ def list_professors(db: Session = Depends(get_db), user: models.User = Depends(g
     for e in db.query(models.Exam).filter(models.Exam.professor_id.in_(prof_ids)).all():
         exams_by_prof.setdefault(e.professor_id, []).append(e)
 
+    banks_by_prof = _banks_of(db, prof_ids)
     return [
-        _to_out(p, booklets_by_prof.get(p.id, []), exams_by_prof.get(p.id, []))
+        _to_out(p, booklets_by_prof.get(p.id, []), exams_by_prof.get(p.id, []), banks_by_prof.get(p.id, []))
         for p in profs
     ]
 
@@ -85,7 +104,7 @@ def get_professor(professor_id: str, db: Session = Depends(get_db), user: models
         raise HTTPException(404, "الدكتور غير موجود")
     booklets = db.query(models.Booklet).filter(models.Booklet.professor_id == p.id).all()
     exams = db.query(models.Exam).filter(models.Exam.professor_id == p.id).all()
-    return _to_out(p, booklets, exams)
+    return _to_out(p, booklets, exams, _banks_of(db, [p.id]).get(p.id, []))
 
 
 @router.get("/booklets/latest")

@@ -385,17 +385,25 @@ class ExamIn(BaseModel):
     bank_ids: list[str] = []
 
 
+class BankBriefOut(BaseModel):
+    id: str
+    name: str
+    count: int = 0
+
+
 class ProfessorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     title: str
     name: str
+    subject_id: str = ""
     subject_name: str
     university_name: str = ""
     bio: str = ""
     photo_url: Optional[str] = None
     booklets: list[BookletOut] = []
     exams: list[ExamOut] = []
+    banks: list[BankBriefOut] = []
 
 
 class ProfessorProfileUpdateIn(BaseModel):

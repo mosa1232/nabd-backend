@@ -71,6 +71,11 @@ def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.U
         key = ("bank:" + kid) if kid else ("booklet:" + bid) if bid else ("lecture:" + lid) if lid else "general"
         groups.setdefault(key, []).append(qid)
     banks = {b.id: b for b in db.query(models.QuestionBank).filter(models.QuestionBank.id.in_([k[5:] for k in groups if k.startswith("bank:")])).all()}
+    bank_owner = {}
+    if banks:
+        prof_ids = {b.professor_id for b in banks.values() if b.professor_id}
+        for pp in db.query(models.ProfessorProfile).filter(models.ProfessorProfile.id.in_(prof_ids)).all():
+            bank_owner[pp.id] = pp.user.full_name if pp.user else ""
     booklets = {b.id: b for b in db.query(models.Booklet).filter(models.Booklet.id.in_([k[8:] for k in groups if k.startswith("booklet:")])).all()}
     lectures = {l.id: l for l in db.query(models.Lecture).filter(models.Lecture.id.in_([k[8:] for k in groups if k.startswith("lecture:")])).all()}
     courses = {c.id: c for c in db.query(models.Course).filter(models.Course.id.in_({l.course_id for l in lectures.values()})).all()} if lectures else {}
@@ -80,6 +85,7 @@ def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.U
         if kind == "bank":
             bk = banks.get(ident)
             title, kind_l = (bk.name if bk else None), "bank"
+            sub = bank_owner.get(bk.professor_id, "") if bk else ""
             order = (-1, bk.created_at.timestamp() if bk and bk.created_at else 0)
         elif kind == "booklet":
             b = booklets.get(ident)
@@ -95,7 +101,7 @@ def bank_sections(subject_id: str, db: Session = Depends(get_db), user: models.U
             title, kind_l, order = "أسئلة عامة", "general", (2,)
         if kind in ("bank", "booklet", "lecture") and not title:
             key, title, kind_l, order = "general", "أسئلة عامة", "general", (2,)   # parent was deleted
-        out.append({"key": key, "kind": kind_l, "title": title, "course": sub if kind == "lecture" else "",
+        out.append({"key": key, "kind": kind_l, "title": title, "course": sub if kind in ("lecture", "bank") else "",
                     "count": len(ids), "tried": len([i for i in ids if i in tried]), "mastered": len([i for i in ids if i in mastered]), "_o": order})
     # a deleted parent can leave several "general" entries — merge them
     merged: dict[str, dict] = {}
