@@ -1,9 +1,10 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
@@ -275,6 +276,13 @@ def on_startup():
     # there's still a way in without fake accounts. Run `python seed.py`
     # yourself if you ever want the demo dataset back for local testing.
 
+
+@app.exception_handler(Exception)
+async def _json_server_error(request, exc):
+    # an unexpected crash still answers in JSON, so the apps can show a message
+    # instead of choking on a plain-text "Internal Server Error"
+    logging.getLogger("uvicorn.error").exception("Unhandled error on %s", request.url.path, exc_info=exc)
+    return JSONResponse({"detail": "حدث خطأ غير متوقع في الخادم، حاول مرة أخرى"}, status_code=500)
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health():

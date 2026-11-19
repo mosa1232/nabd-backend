@@ -38,7 +38,15 @@ export async function apiFetch(path, options = {}) {
     err.detail = detail;
     throw err;
   }
-  return res.status === 204 ? null : res.json();
+  if (res.status === 204) return null;
+  // always JSON; if something in front of the API answers with HTML or text, fail with a clear message
+  const text = await res.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch {
+    const err = new Error('رد غير صالح من الخادم');
+    err.status = res.status;
+    throw err;
+  }
 }
 
 export const post = (path, body) => apiFetch(path, { method: 'POST', body: JSON.stringify(body ?? {}) });

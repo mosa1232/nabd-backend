@@ -25,6 +25,15 @@
 		}
 	}
 
+	# if the backend is down or restarting, API callers still get JSON
+	handle_errors {
+		@api path /api/* /auth/* /media-files/*
+		handle @api {
+			header Content-Type "application/json; charset=utf-8"
+			respond `{"detail":"الخدمة غير متاحة مؤقتاً، حاول بعد لحظات"}` {err.status_code}
+		}
+	}
+
 	handle {
 		root * /srv/beta
 		@hashed path /assets/*
