@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useApp } from '../../lib/app.jsx';
 import { apiFetch, post, put } from '../../lib/api.js';
 import { Ic } from '../../lib/icons.jsx';
+import { hostLang, langUrl } from '../../i18n/index.js';
 import { Toasts } from '../Shell.jsx';
 
 // Where a freshly signed-in user goes first
@@ -54,7 +55,9 @@ export function Login({ register = false }) {
     finally { setBusy(false); }
   };
 
-  const google = () => { window.location.href = '/auth/google/login'; };
+  // Google's sign-in must start on the main address (its callback is registered there, and the sign-in state lives in that
+  // address's cookie); the student comes back to the language address they started from.
+  const google = () => { const h = hostLang(); window.location.href = h && h !== 'ar' ? langUrl('ar') + '/auth/google/login?lang=' + h : '/auth/google/login'; };
   const reg = mode === 'register';
   return (
     <AuthPage>

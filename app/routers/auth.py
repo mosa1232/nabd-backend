@@ -150,10 +150,26 @@ def _admin_redirect_base(request: Request) -> str:
     return str(request.base_url).rstrip("/") + "/admin"
 
 
+def _lang_base(lang: str | None) -> str:
+    """Where a student's Google sign-in returns to. With one address per language (en.kiur.online, ku.kiur.online;
+    SESSION_COOKIE_DOMAIN set) a student who started on the English or Kurdish address comes back to it."""
+    from urllib.parse import urlparse
+    base = settings.frontend_url
+    dom = (settings.session_cookie_domain or "").lstrip(".")
+    u = urlparse(base)
+    if lang in ("en", "ku") and dom and u.netloc == dom:
+        return f"{u.scheme}://{lang}.{u.netloc}"
+    return base
+
+
 @router.get("/google/login")
-async def google_login(request: Request, next: str = ""):
+async def google_login(request: Request, next: str = "", lang: str = ""):
     if not settings.google_client_id:
         raise HTTPException(500, "GOOGLE_CLIENT_ID غير مهيأ على الخادم — راجع ملف .env")
+    if lang in ("en", "ku"):
+        request.session["oauth_lang"] = lang
+    else:
+        request.session.pop("oauth_lang", None)
     # Remembered across the round trip to Google in the same signed session
     # cookie authlib already uses for OAuth state/nonce, so the callback
     # below knows to send an admin/professor/reseller sign-in back to the
@@ -175,7 +191,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         # Stale/forged/expired state (e.g. callback URL opened directly, or
         # the user denied consent) — send them back instead of a raw 500.
         is_admin_flow = request.session.pop("oauth_next", None) == "admin"
-        base = _admin_redirect_base(request) if is_admin_flow else settings.frontend_url
+        base = _admin_redirect_base(request) if is_admin_flow else _lang_base(request.session.pop("oauth_lang", None))
         return RedirectResponse(f"{base}#google_error=oauth")
     userinfo = token.get("userinfo") or await oauth.google.userinfo(token=token)
     email = userinfo["email"]
@@ -197,7 +213,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             # invalidates the older one the instant a new one starts).
             return RedirectResponse(f"{redirect_base}#google_error=role")
     else:
-        redirect_base = settings.frontend_url
+        redirect_base = _lang_base(request.session.pop("oauth_lang", None))
 
     ua = request.headers.get("user-agent", "")
     device_label = "متصفح" if "Mobile" not in ua else "هاتف"
